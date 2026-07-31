@@ -42,6 +42,10 @@ export default defineNuxtConfig({
     'admin-lte/dist/css/adminlte.css'
   ],
 
+  runtimeConfig: {
+    backendUrl: 'http://localhost:8080'
+  },
+
   compatibilityDate: '2026-06-30',
 
   eslint: {

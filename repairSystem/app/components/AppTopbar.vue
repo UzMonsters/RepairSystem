@@ -1,10 +1,10 @@
 <script setup>
-const user = {
-  name: 'Alexander Pierce',
-  image: '/assets/img/user2-160x160.jpg',
-  role: 'Web Developer',
-  memberSince: 'Nov. 2023'
-}
+const { user, logout } = useAuth()
+
+const displayName = computed(() => user.value?.fullName || 'Administrator')
+const role = computed(() => user.value?.role || '')
+const email = computed(() => user.value?.email || '')
+const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
 
 const messages = [
   { from: 'Brad Diesel', text: 'Call me whenever you can...', time: '4 Hours Ago', star: 'danger', image: '/assets/img/user1-128x128.jpg' },
@@ -49,46 +49,29 @@ const notifications = [
             data-bs-toggle="dropdown"
             @click.prevent
           >
-            <img
-              :src="user.image"
-              class="user-image rounded-circle shadow"
-              :alt="user.name"
-            >
-            <span class="d-none d-md-inline">{{ user.name }}</span>
+            <span
+              class="user-image d-inline-flex align-items-center justify-content-center rounded-circle bg-primary text-white shadow"
+              style="width: 32px; height: 32px; font-size: 12px; font-weight: 600;"
+            >{{ initials }}</span>
+            <span class="d-none d-md-inline">{{ displayName }}</span>
           </a>
           <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
             <li class="user-header text-bg-primary">
-              <img
-                :src="user.image"
-                class="rounded-circle shadow"
-                :alt="user.name"
-              >
+              <span
+                class="d-inline-flex align-items-center justify-content-center rounded-circle shadow"
+                style="width: 48px; height: 48px; font-size: 18px; font-weight: 600; background: rgba(255, 255, 255, 0.25);"
+              >{{ initials }}</span>
               <p>
-                {{ user.name }} - {{ user.role }}
-                <small>Member since {{ user.memberSince }}</small>
+                {{ displayName }}
+                <small>{{ role }}</small>
+                <small class="d-block">{{ email }}</small>
               </p>
-            </li>
-            <li class="user-body">
-              <div class="row">
-                <div class="col-4 text-center">
-                  <a href="#">Followers</a>
-                </div>
-                <div class="col-4 text-center">
-                  <a href="#">Sales</a>
-                </div>
-                <div class="col-4 text-center">
-                  <a href="#">Friends</a>
-                </div>
-              </div>
             </li>
             <li class="user-footer">
               <a
                 href="#"
-                class="btn btn-outline-secondary"
-              >Profile</a>
-              <a
-                href="#"
-                class="btn btn-outline-danger float-end"
+                class="btn btn-outline-danger w-100"
+                @click.prevent="logout"
               >Sign out</a>
             </li>
           </ul>

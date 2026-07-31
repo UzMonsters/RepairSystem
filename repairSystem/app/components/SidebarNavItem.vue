@@ -24,6 +24,12 @@ const isOpen = ref(groupActive.value)
 watch(groupActive, (active) => {
   if (active) isOpen.value = true
 })
+
+const { logout } = useAuth()
+
+async function signOut() {
+  await logout()
+}
 </script>
 
 <template>
@@ -38,7 +44,20 @@ watch(groupActive, (active) => {
     v-else-if="item.type === 'item'"
     :class="['nav-item', isItemActive && 'active']"
   >
+    <a
+      v-if="item.action === 'signout'"
+      href="#"
+      class="nav-link"
+      @click.prevent="signOut"
+    >
+      <i
+        v-if="item.icon"
+        :class="['nav-icon', item.icon, item.iconColor && `text-${item.iconColor}`]"
+      />
+      <p>{{ item.text }}</p>
+    </a>
     <NuxtLink
+      v-else
       :to="item.href"
       :target="item.target"
       :class="['nav-link', isItemActive && 'active']"
