@@ -1,0 +1,29 @@
+{
+  "name": "repairSystem",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "admin-lte": "^4.1.0",
+    "apexcharts": "^6.6.1",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
+    "jsvectormap": "^1.7.0",
+    "nuxt": "^4.5.1",
+    "overlayscrollbars": "^2.16.0"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.16.0",
+    "eslint": "^10.8.0",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.8"
+  },
+  "packageManager": "pnpm@11.17.0"
+}
