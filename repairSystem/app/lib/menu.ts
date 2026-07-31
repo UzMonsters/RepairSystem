@@ -29,6 +29,7 @@ export type MenuNode = MenuItem | MenuGroup | MenuHeader
 export const menu: MenuNode[] = [
   { type: 'header', text: 'MAIN' },
   { type: 'item', text: 'Dashboard', href: '/', icon: 'bi-speedometer2' },
+  { type: 'item', text: 'Notifications', href: '/notifications', icon: 'bi-bell' },
   { type: 'header', text: 'REQUESTS' },
   { type: 'item', text: 'Requests', href: '/requests', icon: 'bi-clipboard-plus' },
   { type: 'header', text: 'CUSTOMERS' },

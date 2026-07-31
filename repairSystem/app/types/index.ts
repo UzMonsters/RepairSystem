@@ -73,12 +73,34 @@ export interface CrmUser {
 }
 
 export interface DashboardStats {
+  totalRequests: number
   todayRequests: number
   newRequests: number
   inProgress: number
   completed: number
   totalCustomers: number
   totalTechnicians: number
+}
+
+export interface DashboardActivity {
+  id: number
+  type: 'NEW_REQUEST' | 'STATUS_CHANGE' | 'TECHNICIAN_ASSIGNED' | 'REVIEW'
+  text: string
+  time: string
+}
+
+export interface DashboardData extends DashboardStats {
+  recentRequests: RepairRequest[]
+  activity: DashboardActivity[]
+}
+
+export interface AppNotification {
+  id: number
+  text: string
+  icon: string
+  iconTheme?: string
+  time: string
+  url?: string
 }
 
 export interface Page<T> {

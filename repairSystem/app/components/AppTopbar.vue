@@ -1,4 +1,6 @@
-<script setup>
+<script setup lang="ts">
+import type { AppNotification } from '~/types'
+
 const { user, logout } = useAuth()
 
 const displayName = computed(() => user.value?.fullName || 'Administrator')
@@ -6,17 +8,15 @@ const role = computed(() => user.value?.role || '')
 const email = computed(() => user.value?.email || '')
 const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
 
-const messages = [
-  { from: 'Brad Diesel', text: 'Call me whenever you can...', time: '4 Hours Ago', star: 'danger', image: '/assets/img/user1-128x128.jpg' },
-  { from: 'John Pierce', text: 'I got your message bro', time: '4 Hours Ago', star: 'secondary', image: '/assets/img/user8-128x128.jpg' },
-  { from: 'Nora Silvester', text: 'The subject goes here', time: '4 Hours Ago', star: 'warning', image: '/assets/img/user3-128x128.jpg' }
-]
+const notifications = ref<AppNotification[]>([])
 
-const notifications = [
-  { text: '4 new messages', icon: 'bi-envelope', time: '3 mins' },
-  { text: '8 friend requests', icon: 'bi-people-fill', time: '12 hours' },
-  { text: '3 new reports', icon: 'bi-file-earmark-fill', time: '2 days' }
-]
+onMounted(async () => {
+  try {
+    notifications.value = await apiFetch<AppNotification[]>('/notifications')
+  } catch (e) {
+    void e
+  }
+})
 </script>
 
 <template>
@@ -37,8 +37,11 @@ const notifications = [
       </ul>
 
       <ul class="navbar-nav ms-auto">
-        <NavMessages :messages="messages" />
-        <NavNotifications :notifications="notifications" />
+        <NavNotifications
+          :notifications="notifications"
+          see-all-url="/notifications"
+          see-all-text="View All Notifications"
+        />
         <FullscreenToggle />
         <ColorModeToggle />
 

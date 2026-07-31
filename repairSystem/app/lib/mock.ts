@@ -1,8 +1,11 @@
 import type {
+  AppNotification,
   AuthUser,
   Category,
   CrmUser,
   Customer,
+  DashboardActivity,
+  DashboardData,
   LoginResponse,
   Page,
   RepairRequest,
@@ -153,6 +156,91 @@ function techniciansPayload(): Technician[] {
   }))
 }
 
+function isToday(value: string) {
+  const d = new Date(value)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+}
+
+function timeAgo(value: string) {
+  const mins = Math.max(1, Math.floor((Date.now() - new Date(value).getTime()) / 60000))
+  if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  const days = Math.floor(hours / 24)
+  return `${days} day${days === 1 ? '' : 's'} ago`
+}
+
+function dashboardPayload(): DashboardData {
+  const statusCount = (status: RequestStatus) => requests.filter(r => r.status === status).length
+  const recentRequests = [...requests]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 5)
+    .map(toRepairRequest)
+
+  const activity: DashboardActivity[] = requests
+    .flatMap((r) => {
+      const customer = customerById(r.customerId)
+      const entries: DashboardActivity[] = []
+      entries.push({
+        id: r.id * 10,
+        type: 'NEW_REQUEST',
+        text: `New request #${r.id} from ${customer?.name ?? 'unknown'}`,
+        time: r.createdAt
+      })
+      if (r.updatedAt !== r.createdAt) {
+        entries.push({
+          id: r.id * 10 + 1,
+          type: 'STATUS_CHANGE',
+          text: `Request #${r.id} is now ${r.status.replace('_', ' ').toLowerCase()}`,
+          time: r.updatedAt
+        })
+      }
+      return entries
+    })
+    .sort((a, b) => b.time.localeCompare(a.time))
+    .slice(0, 8)
+
+  return {
+    totalRequests: requests.length,
+    todayRequests: requests.filter(r => isToday(r.createdAt)).length,
+    newRequests: statusCount('NEW'),
+    inProgress: statusCount('IN_PROGRESS'),
+    completed: statusCount('COMPLETED'),
+    totalCustomers: customers.length,
+    totalTechnicians: technicians.length,
+    recentRequests,
+    activity
+  }
+}
+
+function notificationsPayload(): AppNotification[] {
+  const items: AppNotification[] = []
+  requests.forEach((r) => {
+    const customer = customerById(r.customerId)
+    items.push({
+      id: r.id * 10,
+      text: `New request #${r.id} from ${customer?.name ?? 'unknown'}`,
+      icon: 'bi-clipboard-plus',
+      iconTheme: 'info',
+      time: r.createdAt,
+      url: `/requests/${r.id}`
+    })
+    if (r.updatedAt !== r.createdAt) {
+      items.push({
+        id: r.id * 10 + 1,
+        text: `Request #${r.id} is now ${r.status.replace('_', ' ').toLowerCase()}`,
+        icon: 'bi-arrow-repeat',
+        iconTheme: 'warning',
+        time: r.updatedAt,
+        url: `/requests/${r.id}`
+      })
+    }
+  })
+  items.sort((a, b) => b.time.localeCompare(a.time))
+  return items.slice(0, 10).map(n => ({ ...n, time: timeAgo(n.time) }))
+}
+
 function nextId(collection: Array<{ id: number }>) {
   return collection.reduce((max, item) => Math.max(max, item.id), 0) + 1
 }
@@ -187,6 +275,14 @@ export async function mockApi<T>(path: string, options: MockRequest = {}): Promi
     if (parts[1] === 'me' && method === 'GET') {
       return { ...currentUser } as T
     }
+  }
+
+  if (parts[0] === 'dashboard' && method === 'GET') {
+    return dashboardPayload() as T
+  }
+
+  if (parts[0] === 'notifications' && method === 'GET') {
+    return notificationsPayload() as T
   }
 
   if (parts[0] === 'settings') {
