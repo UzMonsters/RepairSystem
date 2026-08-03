@@ -35,3 +35,23 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local secrets and runtime data ###
+.env
+.env.*
+!.env.example
+*.p12
+*.jks
+*.pem
+*.key
+*.crt
+*.dump
+*.backup
+*.sql.gz
+local-storage/
+minio-data/
+postgres-data/
+tmp-backups/
+dependency-check-report.*
+container-scan-report.*
+sbom.*

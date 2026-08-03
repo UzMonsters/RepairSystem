@@ -16,7 +16,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -28,9 +30,16 @@ class ProdProfileIntegrationTest {
                     .withDatabaseName("repair_auto_prod_profile_test")
                     .withUsername("repair_auto")
                     .withPassword("repair_auto");
+    private static final GenericContainer<?> MINIO = new GenericContainer<>(
+            DockerImageName.parse("minio/minio:RELEASE.2025-04-22T22-12-26Z"))
+            .withEnv("MINIO_ROOT_USER", "prodprofile")
+            .withEnv("MINIO_ROOT_PASSWORD", "prodprofile-secret")
+            .withCommand("server", "/data")
+            .withExposedPorts(9000);
 
     static {
         POSTGRES.start();
+        MINIO.start();
     }
 
     @Autowired
@@ -41,8 +50,23 @@ class ProdProfileIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("SPRING_DATASOURCE_URL", POSTGRES::getJdbcUrl);
+        registry.add("SPRING_DATASOURCE_USERNAME", POSTGRES::getUsername);
+        registry.add("SPRING_DATASOURCE_PASSWORD", POSTGRES::getPassword);
+        registry.add("APP_JWT_SECRET",
+                () -> "prod-profile-test-jwt-secret-that-is-long-enough");
         registry.add("app.jwt.secret",
                 () -> "prod-profile-test-jwt-secret-that-is-long-enough");
+        registry.add("APP_BOOTSTRAP_ADMIN_ENABLED", () -> "false");
+        registry.add("APP_CORS_ALLOWED_ORIGINS", () -> "https://admin.repairauto.example");
+        registry.add("APP_DASHBOARD_BUSINESS_TIME_ZONE", () -> "Asia/Tashkent");
+        registry.add("APP_STORAGE_ENABLED", () -> "true");
+        registry.add("APP_STORAGE_ENDPOINT", () -> "http://" + MINIO.getHost() + ":" + MINIO.getMappedPort(9000));
+        registry.add("APP_STORAGE_REGION", () -> "us-east-1");
+        registry.add("APP_STORAGE_BUCKET", () -> "repairauto-prod");
+        registry.add("APP_STORAGE_ACCESS_KEY", () -> "prodprofile");
+        registry.add("APP_STORAGE_SECRET_KEY", () -> "prodprofile-secret");
+        registry.add("APP_STORAGE_CREATE_BUCKET", () -> "true");
     }
 
     @Test

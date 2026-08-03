@@ -9,13 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.darks.repair_auto.PostgreSqlIntegrationTest;
-import com.example.darks.repair_auto.auth.domain.RefreshSessionRepository;
-import com.example.darks.repair_auto.auth.service.EmailNormalizer;
-import com.example.darks.repair_auto.auth.service.PasswordService;
-import com.example.darks.repair_auto.security.AuthenticatedUser;
-import com.example.darks.repair_auto.user.domain.User;
-import com.example.darks.repair_auto.user.domain.UserRepository;
-import com.example.darks.repair_auto.user.domain.UserRole;
+import com.example.darks.repair_auto.identity.infrastructure.persistence.RefreshSessionRepository;
+import com.example.darks.repair_auto.identity.application.EmailNormalizer;
+import com.example.darks.repair_auto.identity.application.PasswordService;
+import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
+import com.example.darks.repair_auto.identity.domain.User;
+import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
+import com.example.darks.repair_auto.identity.domain.UserRole;
+import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
 import com.jayway.jsonpath.JsonPath;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -46,6 +47,9 @@ class SecurityFoundationIntegrationTest extends PostgreSqlIntegrationTest {
     private RefreshSessionRepository refreshSessionRepository;
 
     @Autowired
+    private RepairRequestRepository repairRequestRepository;
+
+    @Autowired
     private PasswordService passwordService;
 
     @Autowired
@@ -56,6 +60,7 @@ class SecurityFoundationIntegrationTest extends PostgreSqlIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        repairRequestRepository.deleteAll();
         refreshSessionRepository.deleteAll();
         userRepository.deleteAll();
         admin = createUser("Admin", "admin@example.com", "AdminPass123!", UserRole.ADMIN);
