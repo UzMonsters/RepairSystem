@@ -81,7 +81,7 @@ async function removeCategory(c: Category) {
           v-if="error"
           class="alert alert-danger m-3"
         >
-          {{ errorMessage }}
+          {{ errorMessage }} 
           <button
             type="button"
             class="btn btn-sm btn-outline-danger ms-2"
@@ -98,7 +98,7 @@ async function removeCategory(c: Category) {
           <thead>
             <tr>
               <th>#</th>
-              <th>Name</th>
+              <th>Names</th>
               <th class="text-end">
                 Actions
               </th>
