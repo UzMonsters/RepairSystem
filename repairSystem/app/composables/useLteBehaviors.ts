@@ -3,9 +3,18 @@ export function useLteBehaviors() {
 
   const toggleSidebar = () => {
     if (isMobile()) {
-      document.body.classList.toggle('sidebar-open')
+      const open = document.body.classList.contains('sidebar-open')
+      if (open) {
+        document.body.classList.remove('sidebar-open')
+        document.body.classList.add('sidebar-collapse')
+      } else {
+        document.body.classList.add('sidebar-open')
+        document.body.classList.remove('sidebar-collapse')
+      }
     } else {
+      // desktop: toggle collapse state, ensure mobile class removed
       document.body.classList.toggle('sidebar-collapse')
+      document.body.classList.remove('sidebar-open')
     }
   }
 

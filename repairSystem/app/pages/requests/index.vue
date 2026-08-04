@@ -75,7 +75,16 @@ async function saveStatus() {
   if (statusRequestId.value == null) return
   savingStatus.value = true
   try {
-    await apiFetch(`/requests/${statusRequestId.value}/status`, { method: 'PATCH', body: { status: statusForm.value } })
+    const action = statusForm.value === 'COMPLETED'
+      ? 'complete'
+      : statusForm.value === 'CANCELLED'
+        ? 'cancel'
+        : statusForm.value === 'IN_PROGRESS'
+          ? 'start'
+          : statusForm.value === 'WAITING_PARTS'
+            ? 'wait-for-parts'
+            : null
+    if (action) await apiFetch(`/requests/${statusRequestId.value}/${action}`, { method: 'POST' })
     hideModal('status-modal')
     refresh()
   } catch (e) {
@@ -99,7 +108,7 @@ async function saveAssign() {
   if (assignRequestId.value == null || assignForm.value === '') return
   savingAssign.value = true
   try {
-    await apiFetch(`/requests/${assignRequestId.value}/assign`, { method: 'PATCH', body: { technicianId: assignForm.value } })
+    await apiFetch(`/requests/${assignRequestId.value}/assign`, { method: 'POST', body: { technicianId: assignForm.value } })
     hideModal('assign-modal')
     refresh()
   } catch (e) {

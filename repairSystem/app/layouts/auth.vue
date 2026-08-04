@@ -5,8 +5,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="login-page">
-    <div class="login-box">
+  <div class="auth-wrapper min-vh-100 d-flex align-items-center justify-content-center">
+    <div class="auth-box w-100 px-3 px-sm-0">
+      <div class="auth-brand text-center mb-4">
+        <img
+          src="/assets/img/AdminLTELogo.png"
+          alt="Repair System"
+          class="auth-logo mb-3"
+        >
+        <h1 class="h3 mb-1 fw-bold text-white">
+          Repair System
+        </h1>
+        <p class="text-muted mb-0">
+          Staff dashboard for repair request and technician management.
+        </p>
+      </div>
       <slot />
     </div>
   </div>

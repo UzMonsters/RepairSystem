@@ -2,7 +2,7 @@
 import type { DashboardData, RepairRequest } from '~/types'
 
 const { data, pending, error, refresh } = await useAsyncData('dashboard', () =>
-  apiFetch<DashboardData>('/dashboard')
+  apiFetch<DashboardData>('/dashboard/overview')
 )
 
 const stats = computed(() => [
@@ -59,11 +59,11 @@ function activityIcon(type: string) {
     </div>
 
     <template v-else>
-      <div class="row g-3">
+      <div class="row g-3 g-lg-4">
         <div
           v-for="s in stats"
           :key="s.label"
-          class="col-lg-4 col-md-6"
+          class="col-xl-2 col-lg-4 col-md-6"
         >
           <div
             class="small-box"

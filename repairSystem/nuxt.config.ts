@@ -39,11 +39,12 @@ export default defineNuxtConfig({
     'bootstrap-icons/font/bootstrap-icons.css',
     'overlayscrollbars/overlayscrollbars.css',
     'jsvectormap/dist/jsvectormap.css',
-    'admin-lte/dist/css/adminlte.css'
+    'admin-lte/dist/css/adminlte.css',
+    '~/assets/css/admin-theme.css'
   ],
 
   runtimeConfig: {
-    backendUrl: 'http://localhost:8080'
+    backendUrl: process.env.NUXT_BACKEND_URL || 'http://localhost:8080'
   },
 
   compatibilityDate: '2026-06-30',

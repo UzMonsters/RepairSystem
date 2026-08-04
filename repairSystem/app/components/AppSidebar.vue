@@ -1,9 +1,18 @@
 <script setup>
 import { menu } from '~/lib/menu'
 
+const { user } = useAuth()
 const route = useRoute()
 const sidebarWrapper = ref(null)
 let osInstance = null
+
+const visibleMenu = computed(() => {
+  return menu.filter(item => {
+    if (item.type !== 'item') return true
+    if (!item.roles?.length) return true
+    return item.roles.includes(user.value?.role || 'MANAGER')
+  })
+})
 
 onMounted(async () => {
   if (window.innerWidth <= 992 || !sidebarWrapper.value) return
@@ -29,7 +38,7 @@ function closeSidebar() {
 
 <template>
   <aside
-    class="app-sidebar bg-body-secondary shadow"
+    class="app-sidebar shadow"
     data-bs-theme="dark"
   >
     <div class="sidebar-brand">
@@ -60,7 +69,7 @@ function closeSidebar() {
           data-lte-toggle="treeview"
         >
           <SidebarNavItem
-            v-for="item in menu"
+            v-for="item in visibleMenu"
             :key="item.type === 'item' ? item.href : `${item.type}:${item.text}`"
             :item="item"
             :current-path="route.path"

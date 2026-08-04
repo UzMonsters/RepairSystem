@@ -14,7 +14,7 @@ defineProps<{
     aria-hidden="true"
   >
     <div
-      class="modal-dialog"
+      class="modal-dialog modal-dialog-centered"
       :class="size && `modal-${size}`"
     >
       <div class="modal-content">

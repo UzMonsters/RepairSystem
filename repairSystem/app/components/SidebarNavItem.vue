@@ -27,6 +27,8 @@ watch(groupActive, (active) => {
 
 const { logout } = useAuth()
 
+const { t } = useLocale()
+
 async function signOut() {
   await logout()
 }
@@ -37,7 +39,7 @@ async function signOut() {
     v-if="item.type === 'header'"
     class="nav-header"
   >
-    {{ item.text }}
+    {{ t(item.text) }}
   </li>
 
   <li
@@ -54,7 +56,7 @@ async function signOut() {
         v-if="item.icon"
         :class="['nav-icon', item.icon, item.iconColor && `text-${item.iconColor}`]"
       />
-      <p>{{ item.text }}</p>
+      <p>{{ t(item.text) }}</p>
     </a>
     <NuxtLink
       v-else
@@ -67,7 +69,7 @@ async function signOut() {
         :class="['nav-icon', item.icon, item.iconColor && `text-${item.iconColor}`]"
       />
       <p>
-        {{ item.text }}
+        {{ t(item.text) }}
         <span
           v-if="item.badge != null"
           :class="`nav-badge badge text-bg-${item.badgeColor || 'secondary'} ms-auto`"
@@ -91,7 +93,7 @@ async function signOut() {
         :class="['nav-icon', item.icon]"
       />
       <p>
-        {{ item.text }}
+        {{ t(item.text) }}
         <i class="nav-arrow bi bi-chevron-right" />
         <span
           v-if="item.badge != null"

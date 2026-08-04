@@ -6,4 +6,4 @@ services:
     ports:
       - '3000:3000'
     environment:
-      NUXT_BACKEND_URL: http://host.docker.internal:8080
+      NUXT_BACKEND_URL: ${NUXT_BACKEND_URL:-http://host.docker.internal:8080}

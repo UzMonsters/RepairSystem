@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import type { AppNotification } from '~/types'
 
+const { t } = useLocale()
+
 const { data, pending, error, refresh } = await useAsyncData('notifications', () =>
   apiFetch<AppNotification[]>('/notifications')
 )
 
 const errorMessage = computed(() => {
   const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load notifications.'
+  return err?.data?.message || error.value?.message || t('retry')
 })
 
 function iconTheme(n: AppNotification) {
@@ -17,8 +19,8 @@ function iconTheme(n: AppNotification) {
 
 <template>
   <AppContent
-    title="Notifications"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Notifications' }]"
+    :title="t('notifications')"
+    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: t('notifications') }]"
   >
     <div class="row">
       <div class="col-lg-8">
@@ -31,7 +33,7 @@ function iconTheme(n: AppNotification) {
               <span
                 v-if="data?.length"
                 class="badge text-bg-primary"
-              >{{ data.length }} new</span>
+              >{{ data.length }} {{ t('new') }}</span>
             </div>
           </div>
 
@@ -102,7 +104,7 @@ function iconTheme(n: AppNotification) {
               v-else
               class="text-center text-muted py-4"
             >
-              No notifications.
+              {{ t('noNotifications') }}
             </div>
           </div>
         </div>

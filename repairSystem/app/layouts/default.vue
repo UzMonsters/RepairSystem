@@ -3,7 +3,7 @@ useLteBehaviors()
 
 onMounted(() => {
   useAuth().init()
-  document.body.classList.add('layout-fixed', 'sidebar-expand-lg', 'fixed-header', 'fixed-sidebar', 'bg-body-tertiary')
+  document.body.classList.add('layout-fixed', 'sidebar-expand-lg', 'sidebar-mini', 'fixed-sidebar', 'bg-body-tertiary')
 })
 </script>
 

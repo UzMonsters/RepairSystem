@@ -104,15 +104,13 @@ function formatDate(value?: string) {
 
 <template>
   <AppContent
-    title="Technicians"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Technicians' }]"
+    :title="t('technicians')"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('technicians') }]"
   >
     <div class="card">
       <div class="card-header">
         <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
-          <h3 class="card-title mb-0">
-            Technicians
-          </h3>
+          <h3 class="card-title mb-0">{{ t('technicians') }}</h3>
           <div class="d-flex gap-2">
             <div
               class="input-group input-group-sm"
@@ -122,7 +120,7 @@ function formatDate(value?: string) {
                 v-model="search"
                 type="search"
                 class="form-control"
-                placeholder="Search..."
+                :placeholder="t('searchPlaceholder')"
               >
               <button
                 type="button"
@@ -131,30 +129,17 @@ function formatDate(value?: string) {
                 <i class="bi bi-search" />
               </button>
             </div>
-            <button
-              type="button"
-              class="btn btn-sm btn-primary"
-              @click="openCreate"
-            >
-              <i class="bi bi-plus-lg me-1" />New Technician
+            <button type="button" class="btn btn-sm btn-primary" @click="openCreate">
+              <i class="bi bi-plus-lg me-1" />{{ t('newTechnician') }}
             </button>
           </div>
         </div>
       </div>
 
       <div class="card-body table-responsive p-0">
-        <div
-          v-if="error"
-          class="alert alert-danger m-3"
-        >
+        <div v-if="error" class="alert alert-danger m-3">
           {{ errorMessage }}
-          <button
-            type="button"
-            class="btn btn-sm btn-outline-danger ms-2"
-            @click="() => refresh()"
-          >
-            Retry
-          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger ms-2" @click="refresh">{{ t('retry') || 'Retry' }}</button>
         </div>
 
         <table
@@ -163,13 +148,11 @@ function formatDate(value?: string) {
         >
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Active</th>
-              <th>Current Requests</th>
-              <th class="text-end">
-                Actions
-              </th>
+              <th>{{ t('fullName') }}</th>
+              <th>{{ t('phone') }}</th>
+              <th>{{ t('active') }}</th>
+              <th>{{ t('assignedRequests') }}</th>
+              <th class="text-end">{{ t('actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -186,57 +169,34 @@ function formatDate(value?: string) {
                 colspan="5"
                 class="text-center text-muted py-4"
               >
-                No technicians found.
+                {{ t('noTechniciansFound') }}
               </td>
             </tr>
-            <tr
-              v-for="t in filtered"
-              :key="t.id"
-            >
-              <td class="fw-semibold">
-                {{ t.fullName }}
-              </td>
-              <td>{{ t.phone }}</td>
+            <tr v-for="tech in filtered" :key="tech.id">
+              <td class="fw-semibold">{{ tech.fullName }}</td>
+              <td>{{ tech.phone }}</td>
               <td>
-                <span
-                  class="badge"
-                  :class="t.active ? 'text-bg-success' : 'text-bg-secondary'"
-                >{{ t.active ? 'Active' : 'Inactive' }}</span>
+                <span class="badge" :class="tech.active ? 'text-bg-success' : 'text-bg-secondary'">{{ t(tech.active ? 'active' : 'inactive') }}</span>
                 <div class="form-check form-switch d-inline-block ms-2 align-middle">
                   <input
                     class="form-check-input"
                     type="checkbox"
                     role="switch"
-                    :checked="!!t.active"
-                    :aria-label="`Toggle ${t.fullName}`"
-                    @change="toggleActive(t)"
-                  >
+                    :checked="!!tech.active"
+                    :aria-label="`Toggle ${tech.fullName}`"
+                    @change="toggleActive(tech)"
+                  />
                 </div>
               </td>
-              <td>{{ t.currentRequests ?? 0 }}</td>
+              <td>{{ tech.currentRequests ?? 0 }}</td>
               <td class="text-end text-nowrap">
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary"
-                  title="Assigned requests"
-                  @click="openAssigned(t)"
-                >
+                <button type="button" class="btn btn-sm btn-outline-secondary" :title="t('assignedRequests')" @click="openAssigned(tech)">
                   <i class="bi bi-clipboard-check" />
                 </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary ms-1"
-                  title="Edit"
-                  @click="openEdit(t)"
-                >
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-1" :title="t('edit')" @click="openEdit(tech)">
                   <i class="bi bi-pencil" />
                 </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-danger ms-1"
-                  title="Delete"
-                  @click="removeTechnician(t)"
-                >
+                <button type="button" class="btn btn-sm btn-outline-danger ms-1" :title="t('delete')" @click="removeTechnician(tech)">
                   <i class="bi bi-trash" />
                 </button>
               </td>
@@ -246,37 +206,21 @@ function formatDate(value?: string) {
       </div>
     </div>
 
-    <AppModal
-      id="technician-modal"
-      :title="editingId == null ? 'New Technician' : 'Edit Technician'"
-    >
+    <AppModal id="technician-modal" :title="editingId == null ? t('newTechnician') : t('editUser')">
       <form @submit.prevent="save">
         <div class="mb-3">
           <label
             for="technician-name"
             class="form-label"
           >Full name</label>
-          <input
-            id="technician-name"
-            v-model="form.fullName"
-            type="text"
-            class="form-control"
-            required
-          >
+          <input id="technician-name" v-model="form.fullName" type="text" class="form-control" :placeholder="t('fullName')" required />
         </div>
         <div class="mb-3">
           <label
             for="technician-phone"
             class="form-label"
           >Phone</label>
-          <input
-            id="technician-phone"
-            v-model="form.phone"
-            type="tel"
-            class="form-control"
-            placeholder="+998..."
-            required
-          >
+          <input id="technician-phone" v-model="form.phone" type="tel" class="form-control" :placeholder="'+998...'" required />
         </div>
       </form>
       <template #footer>
@@ -285,7 +229,7 @@ function formatDate(value?: string) {
           class="btn btn-secondary"
           data-bs-dismiss="modal"
         >
-          Cancel
+          {{ t('cancel') }}
         </button>
         <button
           type="button"
@@ -293,7 +237,7 @@ function formatDate(value?: string) {
           :disabled="saving"
           @click="save"
         >
-          {{ saving ? 'Saving...' : 'Save' }}
+          {{ saving ? t('saving') : t('save') }}
         </button>
       </template>
     </AppModal>
@@ -301,7 +245,7 @@ function formatDate(value?: string) {
     <AppModal
       id="assigned-modal"
       size="lg"
-      :title="`Assigned Requests — ${data?.find(t => t.id === viewingId)?.fullName || ''}`"
+      :title="`${t('assignedRequests')} — ${data?.find(x => x.id === viewingId)?.fullName || ''}`"
     >
       <div
         v-if="loadingAssigned"
@@ -336,7 +280,7 @@ function formatDate(value?: string) {
               colspan="5"
               class="text-center text-muted py-4"
             >
-              No requests assigned.
+              {{ t('noRequestsAssigned') }}
             </td>
           </tr>
           <tr

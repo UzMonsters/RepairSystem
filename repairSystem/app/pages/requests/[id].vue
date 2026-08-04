@@ -47,7 +47,16 @@ async function saveStatus() {
   message.value = ''
   savingStatus.value = true
   try {
-    await apiFetch(`/requests/${id}/status`, { method: 'PATCH', body: { status: statusForm.value } })
+    const action = statusForm.value === 'COMPLETED'
+      ? 'complete'
+      : statusForm.value === 'CANCELLED'
+        ? 'cancel'
+        : statusForm.value === 'IN_PROGRESS'
+          ? 'start'
+          : statusForm.value === 'WAITING_PARTS'
+            ? 'wait-for-parts'
+            : null
+    if (action) await apiFetch(`/requests/${id}/${action}`, { method: 'POST' })
     message.value = 'Status updated successfully.'
     refresh()
   } catch (e) {
@@ -62,7 +71,7 @@ async function saveAssign() {
   message.value = ''
   savingAssign.value = true
   try {
-    await apiFetch(`/requests/${id}/assign`, { method: 'PATCH', body: { technicianId: assignForm.value } })
+    await apiFetch(`/requests/${id}/assign`, { method: 'POST', body: { technicianId: assignForm.value } })
     message.value = 'Technician assigned successfully.'
     refresh()
   } catch (e) {

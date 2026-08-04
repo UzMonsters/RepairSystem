@@ -15,7 +15,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   const body = ['GET', 'HEAD'].includes(method) ? undefined : await readRawBody(event, false)
 
   try {
-    const res = await $fetch.raw<unknown>(`${config.backendUrl}/api/${path}`, {
+    const res = await $fetch.raw<unknown>(`${config.backendUrl}/api/v1/${path}`, {
       method,
       query,
       body,

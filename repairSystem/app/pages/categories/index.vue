@@ -33,7 +33,7 @@ async function save() {
     if (editingId.value == null) {
       await apiFetch('/categories', { method: 'POST', body: { name: form.value.trim() } })
     } else {
-      await apiFetch(`/categories/${editingId.value}`, { method: 'PATCH', body: { name: form.value.trim() } })
+      await apiFetch(`/categories/${editingId.value}`, { method: 'PUT', body: { name: form.value.trim() } })
     }
     hideModal('category-modal')
     refresh()

@@ -8,6 +8,7 @@ export interface MenuItem {
   badgeColor?: string
   target?: string
   action?: 'signout'
+  roles?: Array<'ADMIN' | 'MANAGER'>
 }
 
 export interface MenuGroup {
@@ -27,19 +28,19 @@ export interface MenuHeader {
 export type MenuNode = MenuItem | MenuGroup | MenuHeader
 
 export const menu: MenuNode[] = [
-  { type: 'header', text: 'MAIN' },
-  { type: 'item', text: 'Dashboard', href: '/', icon: 'bi-speedometer2' },
-  { type: 'item', text: 'Notifications', href: '/notifications', icon: 'bi-bell' },
-  { type: 'header', text: 'REQUESTS' },
-  { type: 'item', text: 'Requests', href: '/requests', icon: 'bi-clipboard-plus' },
-  { type: 'header', text: 'CUSTOMERS' },
-  { type: 'item', text: 'Customers', href: '/customers', icon: 'bi-people' },
-  { type: 'header', text: 'MANAGEMENT' },
-  { type: 'item', text: 'Technicians', href: '/technicians', icon: 'bi-person-wrench' },
-  { type: 'item', text: 'Categories', href: '/categories', icon: 'bi-tags' },
-  { type: 'item', text: 'Reviews', href: '/reviews', icon: 'bi-star' },
-  { type: 'item', text: 'Users', href: '/users', icon: 'bi-person-badge' },
-  { type: 'header', text: 'SYSTEM' },
-  { type: 'item', text: 'Settings', href: '/settings', icon: 'bi-gear' },
-  { type: 'item', text: 'Sign out', action: 'signout', icon: 'bi-box-arrow-right', iconColor: 'danger' }
+  { type: 'header', text: 'main' },
+  { type: 'item', text: 'dashboard', href: '/', icon: 'bi-speedometer2' },
+  { type: 'item', text: 'notifications', href: '/notifications', icon: 'bi-bell' },
+  { type: 'header', text: 'requests' },
+  { type: 'item', text: 'requests', href: '/requests', icon: 'bi-clipboard-plus' },
+  { type: 'header', text: 'customers' },
+  { type: 'item', text: 'customers', href: '/customers', icon: 'bi-people' },
+  { type: 'header', text: 'management' },
+  { type: 'item', text: 'technicians', href: '/technicians', icon: 'bi-person-wrench' },
+  { type: 'item', text: 'categories', href: '/categories', icon: 'bi-tags' },
+  { type: 'item', text: 'reviews', href: '/reviews', icon: 'bi-star' },
+  { type: 'item', text: 'users', href: '/users', icon: 'bi-person-badge', roles: ['ADMIN'] },
+  { type: 'header', text: 'system' },
+  { type: 'item', text: 'settings', href: '/settings', icon: 'bi-gear', roles: ['ADMIN'] },
+  { type: 'item', text: 'signOut', action: 'signout', icon: 'bi-box-arrow-right', iconColor: 'danger' }
 ]
