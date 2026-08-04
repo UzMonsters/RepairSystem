@@ -1,7 +1,6 @@
 package com.example.darks.repair_auto.dashboard.application;
 
 import com.example.darks.repair_auto.dashboard.domain.DashboardPeriod;
-import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -13,15 +12,8 @@ public class DashboardTimeService {
 
     private final ZoneId businessZone;
 
-    public DashboardTimeService(DashboardProperties properties) {
-        String configuredZone = properties.businessTimeZone() == null
-                ? "Asia/Tashkent"
-                : properties.businessTimeZone();
-        try {
-            this.businessZone = ZoneId.of(configuredZone);
-        } catch (DateTimeException exception) {
-            throw new IllegalStateException("DASHBOARD_TIME_ZONE_INVALID: app.dashboard.business-time-zone is invalid.", exception);
-        }
+    public DashboardTimeService(ZoneId businessZone) {
+        this.businessZone = businessZone;
     }
 
     public ZoneId businessZone() {

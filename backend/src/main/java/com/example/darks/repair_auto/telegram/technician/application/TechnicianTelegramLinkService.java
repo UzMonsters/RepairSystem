@@ -82,7 +82,7 @@ public class TechnicianTelegramLinkService {
         OffsetDateTime expiresAt = now.plusHours(24);
         tokenRepository.saveAndFlush(new TelegramTechnicianLinkToken(hash(rawToken), technician, user, expiresAt, now));
         return new TechnicianTelegramLinkResponse(
-                "https://t.me/" + properties.getBotUsername() + "?start=tech_" + rawToken,
+                "https://t.me/" + properties.getTechnician().getBotUsername() + "?start=tech_" + rawToken,
                 expiresAt);
     }
 

@@ -7,7 +7,7 @@ import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
 import java.util.Map;
@@ -18,14 +18,16 @@ public class NotificationTemplateService {
 
     private static final TypeReference<Map<String, String>> MAP_TYPE = new TypeReference<>() {
     };
-    private static final DateTimeFormatter DATE_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm 'UTC'").withZone(ZoneOffset.UTC);
+    private static final DateTimeFormatter TELEGRAM_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final int TELEGRAM_TEXT_LIMIT = 4096;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<NotificationType, Map<LanguageCode, String>> templates = new EnumMap<>(NotificationType.class);
+    private final DateTimeFormatter telegramDateFormatter;
 
-    public NotificationTemplateService() {
+    public NotificationTemplateService(ZoneId businessZone) {
+        this.telegramDateFormatter = TELEGRAM_DATE_FORMATTER.withZone(businessZone);
         loadTemplates();
     }
 
@@ -77,7 +79,7 @@ public class NotificationTemplateService {
         if (value == null || value.isBlank()) {
             return switchDefault("not scheduled", "не назначено", "belgilanmagan", language);
         }
-        return DATE_FORMATTER.format(Instant.parse(value));
+        return telegramDateFormatter.format(Instant.parse(value));
     }
 
     private String priority(Map<String, String> payload, LanguageCode language) {

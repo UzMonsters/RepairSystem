@@ -18,10 +18,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 class HttpTelegramBotClient implements TelegramBotClient {
 
     private final TelegramProperties properties;
+    private final TelegramProperties.Bot bot;
     private final RestClient restClient;
 
-    HttpTelegramBotClient(TelegramProperties properties, RestClient restClient) {
+    HttpTelegramBotClient(TelegramProperties properties, TelegramProperties.Bot bot, RestClient restClient) {
         this.properties = properties;
+        this.bot = bot;
         this.restClient = restClient;
     }
 
@@ -96,14 +98,14 @@ class HttpTelegramBotClient implements TelegramBotClient {
 
     private URI apiUri(String method) {
         return UriComponentsBuilder.fromUri(properties.getApiBaseUrl())
-                .pathSegment("bot" + properties.getBotToken(), method)
+                .pathSegment("bot" + bot.getBotToken(), method)
                 .build()
                 .toUri();
     }
 
     private URI fileUri(String filePath) {
         return UriComponentsBuilder.fromUri(properties.getFileBaseUrl())
-                .pathSegment("file", "bot" + properties.getBotToken())
+                .pathSegment("file", "bot" + bot.getBotToken())
                 .path(filePath.startsWith("/") ? filePath : "/" + filePath)
                 .build()
                 .toUri();

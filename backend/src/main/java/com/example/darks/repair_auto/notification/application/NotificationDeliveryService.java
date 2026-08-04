@@ -1,8 +1,10 @@
 package com.example.darks.repair_auto.notification.application;
 
 import com.example.darks.repair_auto.notification.domain.NotificationFailureCategory;
+import com.example.darks.repair_auto.notification.domain.NotificationRecipientType;
 import com.example.darks.repair_auto.telegram.core.application.TelegramApiException;
 import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -10,15 +12,18 @@ public class NotificationDeliveryService {
 
     private final NotificationRecipientResolver recipientResolver;
     private final NotificationTemplateService templateService;
-    private final TelegramBotClient telegramBotClient;
+    private final TelegramBotClient customerTelegramBotClient;
+    private final TelegramBotClient technicianTelegramBotClient;
 
     public NotificationDeliveryService(
             NotificationRecipientResolver recipientResolver,
             NotificationTemplateService templateService,
-            TelegramBotClient telegramBotClient) {
+            @Qualifier("customerTelegramBotClient") TelegramBotClient customerTelegramBotClient,
+            @Qualifier("technicianTelegramBotClient") TelegramBotClient technicianTelegramBotClient) {
         this.recipientResolver = recipientResolver;
         this.templateService = templateService;
-        this.telegramBotClient = telegramBotClient;
+        this.customerTelegramBotClient = customerTelegramBotClient;
+        this.technicianTelegramBotClient = technicianTelegramBotClient;
     }
 
     public NotificationDeliveryResult deliver(ClaimedNotification notification) {
@@ -37,7 +42,7 @@ public class NotificationDeliveryService {
             return NotificationDeliveryResult.permanentFailure(NotificationFailureCategory.TEMPLATE_RENDER_FAILED);
         }
         try {
-            telegramBotClient.sendMessage(recipient.get().chatId(), text, null);
+            botClient(notification.recipientType()).sendMessage(recipient.get().chatId(), text, null);
             return NotificationDeliveryResult.delivered();
         } catch (TelegramApiException exception) {
             if (isPermanent(exception)) {
@@ -47,6 +52,12 @@ public class NotificationDeliveryService {
             return NotificationDeliveryResult.transientFailure(
                     NotificationFailureCategory.TELEGRAM_TRANSIENT_FAILURE);
         }
+    }
+
+    private TelegramBotClient botClient(NotificationRecipientType recipientType) {
+        return recipientType == NotificationRecipientType.TECHNICIAN
+                ? technicianTelegramBotClient
+                : customerTelegramBotClient;
     }
 
     private boolean isPermanent(TelegramApiException exception) {

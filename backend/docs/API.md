@@ -7,7 +7,8 @@ RepairAuto exposes versioned JSON APIs under `/api/v1`.
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
-- `POST /api/v1/telegram/webhook`
+- `POST /api/v1/telegram/webhook/customer`
+- `POST /api/v1/telegram/webhook/technician`
 - `GET /actuator/health`
 - `GET /actuator/health/liveness`
 - `GET /actuator/health/readiness`

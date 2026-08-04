@@ -70,6 +70,14 @@ public class TelegramWebhookService {
             org.springframework.dao.TransientDataAccessException.class
     })
     public void process(String rawBody) {
+        process(rawBody, null);
+    }
+
+    @Transactional(noRollbackFor = {
+            TelegramApiException.class,
+            org.springframework.dao.TransientDataAccessException.class
+    })
+    public void process(String rawBody, TelegramUserMode forcedMode) {
         TelegramUpdatePayload update = parse(rawBody);
         if (update.updateId() == null) {
             throw new BusinessRuleException("TELEGRAM_UPDATE_INVALID", "Telegram update is invalid.", 400);
@@ -79,10 +87,10 @@ public class TelegramWebhookService {
             return;
         }
         try {
-            handle(update);
+            handle(update, forcedMode);
             record.processed(now());
         } catch (BusinessRuleException exception) {
-            respond(update, exception);
+            respond(update, exception, forcedMode);
             record.processed(now());
         } catch (TelegramApiException | org.springframework.dao.TransientDataAccessException exception) {
             record.failed(exception.getClass().getSimpleName(), now());
@@ -90,8 +98,8 @@ public class TelegramWebhookService {
         }
     }
 
-    private void handle(TelegramUpdatePayload update) {
-        TelegramUserMode mode = mode(update);
+    private void handle(TelegramUpdatePayload update, TelegramUserMode forcedMode) {
+        TelegramUserMode mode = mode(update, forcedMode);
         if (mode == TelegramUserMode.TECHNICIAN) {
             technicianBotService.handle(update);
             return;
@@ -99,21 +107,23 @@ public class TelegramWebhookService {
         customerBotService.handle(update);
     }
 
-    private void respond(TelegramUpdatePayload update, BusinessRuleException exception) {
-        if (currentMode(update) == TelegramUserMode.TECHNICIAN || isTechnicianCommand(update)) {
+    private void respond(TelegramUpdatePayload update, BusinessRuleException exception, TelegramUserMode forcedMode) {
+        if (forcedMode == TelegramUserMode.TECHNICIAN
+                || currentMode(update) == TelegramUserMode.TECHNICIAN
+                || isTechnicianCommand(update)) {
             technicianBotService.respondBusinessError(update, exception);
             return;
         }
         businessErrorResponder.respond(update, exception);
     }
 
-    private TelegramUserMode mode(TelegramUpdatePayload update) {
+    private TelegramUserMode mode(TelegramUpdatePayload update, TelegramUserMode forcedMode) {
         TelegramUpdatePayload.TelegramChat chat = update.chat();
         TelegramUpdatePayload.TelegramUser sender = update.sender();
         if (chat == null || sender == null || chat.id() == null) {
             return TelegramUserMode.CUSTOMER;
         }
-        TelegramUserMode mode = requestedMode(update);
+        TelegramUserMode mode = forcedMode == null ? requestedMode(update) : forcedMode;
         if (mode == TelegramUserMode.TECHNICIAN && (isTechnicianStart(update) || isTechnicianLanguageSelection(update))) {
             return TelegramUserMode.TECHNICIAN;
         }

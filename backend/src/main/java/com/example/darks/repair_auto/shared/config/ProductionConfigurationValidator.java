@@ -1,6 +1,5 @@
 package com.example.darks.repair_auto.shared.config;
 
-import com.example.darks.repair_auto.dashboard.application.DashboardProperties;
 import com.example.darks.repair_auto.identity.application.AuthThrottleProperties;
 import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationProperties;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageProperties;
@@ -23,7 +22,7 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
     private final AppProperties appProperties;
     private final StorageProperties storageProperties;
     private final TelegramProperties telegramProperties;
-    private final DashboardProperties dashboardProperties;
+    private final ZoneId businessZone;
     private final NotificationProperties notificationProperties;
     private final AuthThrottleProperties authThrottleProperties;
 
@@ -32,14 +31,14 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
             AppProperties appProperties,
             StorageProperties storageProperties,
             TelegramProperties telegramProperties,
-            DashboardProperties dashboardProperties,
+            ZoneId businessZone,
             NotificationProperties notificationProperties,
             AuthThrottleProperties authThrottleProperties) {
         this.environment = environment;
         this.appProperties = appProperties;
         this.storageProperties = storageProperties;
         this.telegramProperties = telegramProperties;
-        this.dashboardProperties = dashboardProperties;
+        this.businessZone = businessZone;
         this.notificationProperties = notificationProperties;
         this.authThrottleProperties = authThrottleProperties;
     }
@@ -55,7 +54,7 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         require("APP_JWT_SECRET");
         require("APP_BOOTSTRAP_ADMIN_ENABLED");
         require("APP_CORS_ALLOWED_ORIGINS");
-        require("APP_DASHBOARD_BUSINESS_TIME_ZONE");
+        require("APP_BUSINESS_TIME_ZONE");
         validateJwt();
         validateCors();
         validateStorage();
@@ -117,17 +116,22 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         if (!telegramProperties.isEnabled()) {
             return;
         }
-        requirePresent(telegramProperties.getBotToken(), "APP_TELEGRAM_BOT_TOKEN");
-        requirePresent(telegramProperties.getWebhookSecret(), "APP_TELEGRAM_WEBHOOK_SECRET");
-        requirePresent(telegramProperties.getBotUsername(), "APP_TELEGRAM_BOT_USERNAME");
-        if (telegramProperties.getWebhookSecret().length() < MIN_SECRET_LENGTH) {
-            fail("APP_TELEGRAM_WEBHOOK_SECRET must be a strong production secret.");
-        }
+        validateTelegramBot(telegramProperties.getCustomer(), "CUSTOMER");
+        validateTelegramBot(telegramProperties.getTechnician(), "TECHNICIAN");
         requireHttpsOrHttp(telegramProperties.getApiBaseUrl(), "APP_TELEGRAM_API_BASE_URL");
         requireHttpsOrHttp(telegramProperties.getFileBaseUrl(), "APP_TELEGRAM_FILE_BASE_URL");
         if (!telegramProperties.getApiBaseUrl().getScheme().equals("https")
                 || !telegramProperties.getFileBaseUrl().getScheme().equals("https")) {
             fail("Telegram API URLs must use HTTPS in production.");
+        }
+    }
+
+    private void validateTelegramBot(TelegramProperties.Bot bot, String name) {
+        requirePresent(bot.getBotToken(), "APP_TELEGRAM_" + name + "_BOT_TOKEN");
+        requirePresent(bot.getWebhookSecret(), "APP_TELEGRAM_" + name + "_WEBHOOK_SECRET");
+        requirePresent(bot.getBotUsername(), "APP_TELEGRAM_" + name + "_BOT_USERNAME");
+        if (bot.getWebhookSecret().length() < MIN_SECRET_LENGTH) {
+            fail("APP_TELEGRAM_" + name + "_WEBHOOK_SECRET must be a strong production secret.");
         }
     }
 
@@ -143,9 +147,9 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
             fail("APP_NOTIFICATION_BATCH_SIZE must be 500 or less in production.");
         }
         try {
-            ZoneId.of(dashboardProperties.businessTimeZone());
+            ZoneId.of(businessZone.getId());
         } catch (DateTimeException exception) {
-            fail("APP_DASHBOARD_BUSINESS_TIME_ZONE must be a valid timezone.");
+            fail("APP_BUSINESS_TIME_ZONE must be a valid timezone.");
         }
     }
 

@@ -5,6 +5,9 @@ param(
 
     [string] $WebhookUrl,
 
+    [ValidateSet("customer", "technician")]
+    [string] $Bot = "customer",
+
     [string] $BotToken = $env:APP_TELEGRAM_BOT_TOKEN,
 
     [string] $WebhookSecret = $env:APP_TELEGRAM_WEBHOOK_SECRET,
@@ -15,7 +18,23 @@ param(
 $ErrorActionPreference = "Stop"
 
 if ([string]::IsNullOrWhiteSpace($BotToken)) {
-    throw "APP_TELEGRAM_BOT_TOKEN is required."
+    if ($Bot -eq "technician") {
+        $BotToken = $env:APP_TELEGRAM_TECHNICIAN_BOT_TOKEN
+    } else {
+        $BotToken = $env:APP_TELEGRAM_CUSTOMER_BOT_TOKEN
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($WebhookSecret)) {
+    if ($Bot -eq "technician") {
+        $WebhookSecret = $env:APP_TELEGRAM_TECHNICIAN_WEBHOOK_SECRET
+    } else {
+        $WebhookSecret = $env:APP_TELEGRAM_CUSTOMER_WEBHOOK_SECRET
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($BotToken)) {
+    throw "Telegram bot token is required. Set APP_TELEGRAM_CUSTOMER_BOT_TOKEN or APP_TELEGRAM_TECHNICIAN_BOT_TOKEN."
 }
 
 if ([string]::IsNullOrWhiteSpace($ApiBaseUrl)) {
@@ -24,7 +43,7 @@ if ([string]::IsNullOrWhiteSpace($ApiBaseUrl)) {
 
 if ($Action -eq "setWebhook") {
     if ([string]::IsNullOrWhiteSpace($WebhookSecret) -or $WebhookSecret.Length -lt 32) {
-        throw "APP_TELEGRAM_WEBHOOK_SECRET must be set and at least 32 characters."
+        throw "Telegram webhook secret must be set and at least 32 characters."
     }
     if ([string]::IsNullOrWhiteSpace($WebhookUrl) -or -not $WebhookUrl.StartsWith("https://")) {
         throw "WebhookUrl must be HTTPS."
@@ -64,6 +83,7 @@ if (-not $response.ok) {
 $safeResult = [ordered]@{
     ok = $response.ok
     action = $Action
+    bot = $Bot
     description = $response.description
     result = $response.result
 }

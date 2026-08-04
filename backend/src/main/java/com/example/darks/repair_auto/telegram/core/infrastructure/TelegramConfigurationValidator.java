@@ -17,11 +17,16 @@ public class TelegramConfigurationValidator implements SmartInitializingSingleto
         if (!properties.isEnabled()) {
             return;
         }
-        if (properties.getBotToken().isBlank()) {
-            throw new IllegalStateException("Telegram bot token is required when Telegram is enabled.");
+        requireBot(properties.getCustomer(), "customer");
+        requireBot(properties.getTechnician(), "technician");
+    }
+
+    private void requireBot(TelegramProperties.Bot bot, String name) {
+        if (bot.getBotToken().isBlank()) {
+            throw new IllegalStateException("Telegram " + name + " bot token is required when Telegram is enabled.");
         }
-        if (properties.getWebhookSecret().isBlank()) {
-            throw new IllegalStateException("Telegram webhook secret is required when Telegram is enabled.");
+        if (bot.getWebhookSecret().isBlank()) {
+            throw new IllegalStateException("Telegram " + name + " webhook secret is required when Telegram is enabled.");
         }
     }
 }

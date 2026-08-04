@@ -3,7 +3,6 @@ package com.example.darks.repair_auto.integration;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.example.darks.repair_auto.dashboard.application.DashboardProperties;
 import com.example.darks.repair_auto.identity.application.AuthThrottleProperties;
 import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationProperties;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageProperties;
@@ -12,6 +11,7 @@ import com.example.darks.repair_auto.shared.config.ProductionConfigurationValida
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramProperties;
 import java.net.URI;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
@@ -62,7 +62,7 @@ class ProductionConfigurationValidatorTest {
                 appProperties,
                 storageProperties(),
                 telegramProperties,
-                new DashboardProperties("Asia/Tashkent"),
+                ZoneId.of("Asia/Tashkent"),
                 notificationProperties,
                 new AuthThrottleProperties(true, 5, Duration.ofMinutes(10), Duration.ofMinutes(15), Duration.ofDays(1)));
     }
@@ -75,7 +75,7 @@ class ProductionConfigurationValidatorTest {
                 .withProperty("APP_JWT_SECRET", "strong-production-secret-value-123456")
                 .withProperty("APP_BOOTSTRAP_ADMIN_ENABLED", "false")
                 .withProperty("APP_CORS_ALLOWED_ORIGINS", "https://admin.repairauto.example")
-                .withProperty("APP_DASHBOARD_BUSINESS_TIME_ZONE", "Asia/Tashkent")
+                .withProperty("APP_BUSINESS_TIME_ZONE", "Asia/Tashkent")
                 .withProperty("spring.flyway.validate-on-migrate", "true")
                 .withProperty("spring.flyway.clean-disabled", "true")
                 .withProperty("spring.flyway.out-of-order", "false");

@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +24,9 @@ public class TelegramCustomerPhotoService {
     private final TelegramBotClient botClient;
     private final AttachmentService attachmentService;
 
-    public TelegramCustomerPhotoService(TelegramBotClient botClient, AttachmentService attachmentService) {
+    public TelegramCustomerPhotoService(
+            @Qualifier("customerTelegramBotClient") TelegramBotClient botClient,
+            AttachmentService attachmentService) {
         this.botClient = botClient;
         this.attachmentService = attachmentService;
     }

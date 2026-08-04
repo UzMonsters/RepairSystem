@@ -5,6 +5,7 @@ import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.telegram.core.api.TelegramUpdatePayload;
 import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient;
 import com.example.darks.repair_auto.telegram.customer.infrastructure.TelegramCustomerSessionRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,7 +18,7 @@ public class TelegramBusinessErrorResponder {
     public TelegramBusinessErrorResponder(
             TelegramCustomerSessionRepository sessionRepository,
             TelegramMessages messages,
-            TelegramBotClient botClient) {
+            @Qualifier("customerTelegramBotClient") TelegramBotClient botClient) {
         this.sessionRepository = sessionRepository;
         this.messages = messages;
         this.botClient = botClient;

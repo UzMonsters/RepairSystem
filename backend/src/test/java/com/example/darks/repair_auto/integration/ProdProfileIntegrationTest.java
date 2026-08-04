@@ -59,7 +59,7 @@ class ProdProfileIntegrationTest {
                 () -> "prod-profile-test-jwt-secret-that-is-long-enough");
         registry.add("APP_BOOTSTRAP_ADMIN_ENABLED", () -> "false");
         registry.add("APP_CORS_ALLOWED_ORIGINS", () -> "https://admin.repairauto.example");
-        registry.add("APP_DASHBOARD_BUSINESS_TIME_ZONE", () -> "Asia/Tashkent");
+        registry.add("APP_BUSINESS_TIME_ZONE", () -> "Asia/Tashkent");
         registry.add("APP_STORAGE_ENABLED", () -> "true");
         registry.add("APP_STORAGE_ENDPOINT", () -> "http://" + MINIO.getHost() + ":" + MINIO.getMappedPort(9000));
         registry.add("APP_STORAGE_REGION", () -> "us-east-1");

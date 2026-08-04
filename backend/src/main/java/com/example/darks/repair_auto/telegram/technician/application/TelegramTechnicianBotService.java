@@ -37,6 +37,7 @@ import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 public class TelegramTechnicianBotService {
@@ -62,7 +63,7 @@ public class TelegramTechnicianBotService {
             RepairRequestService requestService,
             AttachmentService attachmentService,
             TechnicianTelegramLinkService linkService,
-            TelegramBotClient botClient) {
+            @Qualifier("technicianTelegramBotClient") TelegramBotClient botClient) {
         this(sessionRepository, technicianRepository, assignmentRepository, assignmentService, executionService,
                 requestService, attachmentService, linkService, botClient, Clock.systemUTC());
     }

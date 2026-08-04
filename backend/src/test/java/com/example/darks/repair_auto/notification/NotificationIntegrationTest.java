@@ -781,7 +781,12 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
     @TestConfiguration
     static class NotificationTestConfiguration {
 
-        @Bean
+        @Bean({
+                "fakeTelegramBotClient",
+                "customerTelegramBotClient",
+                "technicianTelegramBotClient",
+                "telegramBotClient"
+        })
         @Primary
         FakeTelegramBotClient fakeTelegramBotClient() {
             return new FakeTelegramBotClient();
