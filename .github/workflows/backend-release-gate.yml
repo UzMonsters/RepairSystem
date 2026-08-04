@@ -1,0 +1,75 @@
+name: Backend release gate
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-release-gate.yml"
+  workflow_dispatch:
+
+jobs:
+  backend-release-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: "21"
+          cache: gradle
+
+      - name: Build, test, coverage, and jar
+        run: ./gradlew --no-daemon clean check bootJar --console plain
+
+      - name: Verify Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build backend image
+        run: docker compose build --quiet backend
+
+      - name: Dependency vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: backend
+          format: sarif
+          output: backend/build/reports/trivy-dependencies.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Container vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: backend-backend:latest
+          format: sarif
+          output: backend/build/reports/trivy-image.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: backend-backend:latest
+          format: cyclonedx-json
+          output-file: backend/build/reports/backend-sbom.cdx.json
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-release-reports
+          path: |
+            backend/build/reports/**
+            backend/build/test-results/**
+            backend/build/libs/*.jar
+
+      - name: Docker cleanup
+        if: always()
+        run: |
+          docker compose down -v --remove-orphans --rmi local || true
+          docker builder prune -f || true

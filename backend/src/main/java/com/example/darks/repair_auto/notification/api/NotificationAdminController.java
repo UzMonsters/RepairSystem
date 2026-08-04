@@ -1,0 +1,70 @@
+package com.example.darks.repair_auto.notification.api;
+
+import com.example.darks.repair_auto.notification.api.dto.NotificationDetailResponse;
+import com.example.darks.repair_auto.notification.api.dto.NotificationRetryRequest;
+import com.example.darks.repair_auto.notification.api.dto.NotificationSummaryResponse;
+import com.example.darks.repair_auto.notification.application.NotificationAdminService;
+import com.example.darks.repair_auto.notification.application.NotificationQuery;
+import com.example.darks.repair_auto.notification.domain.NotificationRecipientType;
+import com.example.darks.repair_auto.notification.domain.NotificationStatus;
+import com.example.darks.repair_auto.notification.domain.NotificationType;
+import com.example.darks.repair_auto.shared.pagination.PageResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.validation.Valid;
+import java.time.OffsetDateTime;
+import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@SecurityRequirement(name = "bearerAuth")
+public class NotificationAdminController {
+
+    private final NotificationAdminService notificationAdminService;
+
+    public NotificationAdminController(NotificationAdminService notificationAdminService) {
+        this.notificationAdminService = notificationAdminService;
+    }
+
+    @GetMapping("/api/v1/notifications")
+    @Operation(summary = "List Telegram outbox notifications")
+    public PageResponse<NotificationSummaryResponse> list(
+            @RequestParam(required = false) NotificationStatus status,
+            @RequestParam(required = false) NotificationType notificationType,
+            @RequestParam(required = false) NotificationRecipientType recipientType,
+            @RequestParam(required = false) Long repairRequestId,
+            @RequestParam(required = false) OffsetDateTime createdFrom,
+            @RequestParam(required = false) OffsetDateTime createdTo,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(required = false) List<String> sort) {
+        return notificationAdminService.list(
+                new NotificationQuery(
+                        status,
+                        notificationType,
+                        recipientType,
+                        repairRequestId,
+                        createdFrom,
+                        createdTo),
+                NotificationPageRequest.toPageable(page, size, sort));
+    }
+
+    @GetMapping("/api/v1/notifications/{notificationId}")
+    @Operation(summary = "Get Telegram outbox notification details")
+    public NotificationDetailResponse get(@PathVariable Long notificationId) {
+        return notificationAdminService.get(notificationId);
+    }
+
+    @PostMapping("/api/v1/notifications/{notificationId}/retry")
+    @Operation(summary = "Retry an eligible failed Telegram notification")
+    public NotificationDetailResponse retry(
+            @PathVariable Long notificationId,
+            @Valid @RequestBody NotificationRetryRequest request) {
+        return notificationAdminService.retry(notificationId, request.reason());
+    }
+}

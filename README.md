@@ -6,8 +6,7 @@ RepairAuto Spring Boot backend.
 ## Project Layout
 
 - `repairSystem/` - existing Nuxt frontend, left unchanged by backend work
-- `backend/` - RepairAuto backend, currently Phase 1 authentication and user
-  management
+- `backend/` - RepairAuto backend, currently Phase 2 core reference data
 
 No frontend source was changed as part of the backend integration. The backend
 is available for the frontend team to wire when they are ready.
