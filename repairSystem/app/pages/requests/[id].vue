@@ -67,6 +67,8 @@ async function saveStatus() {
   }
 }
 
+const { t } = useLocale()
+
 async function saveAssign() {
   message.value = ''
   savingAssign.value = true
@@ -86,7 +88,7 @@ async function saveAssign() {
 <template>
   <AppContent
     :title="`Request #${id}`"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Requests', to: '/requests' }, { label: `#${id}` }]"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('requests'), to: '/requests' }, { label: `#${id}` }]"
   >
     <div
       v-if="error"

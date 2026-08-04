@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Customer, RepairRequest } from '~/types'
 
+const { t } = useLocale()
 const route = useRoute()
 const id = Number(route.params.id)
 
@@ -34,7 +35,7 @@ function formatDate(value?: string) {
 <template>
   <AppContent
     :title="customer?.name || `Customer #${id}`"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Customers', to: '/customers' }, { label: customer?.name || `#${id}` }]"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('customers'), to: '/customers' }, { label: customer?.name || `#${id}` }]"
   >
     <div
       v-if="error"

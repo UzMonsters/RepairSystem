@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { user } = useAuth()
+const isAdmin = computed(() => user.value?.role === 'ADMIN')
 const botUsername = ref('')
 const loading = ref(false)
 const saving = ref(false)
@@ -35,15 +37,18 @@ async function saveSettings() {
 
 <template>
   <AppContent
-    title="Settings"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Settings' }]"
+    :title="t('settings')"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('settings') }]"
   >
-    <div class="row">
+    <div v-if="!isAdmin" class="alert alert-warning">
+      {{ t('notAuthorized') }}
+    </div>
+    <div v-else class="row">
       <div class="col-lg-6">
         <div class="card">
           <div class="card-header">
             <h3 class="card-title">
-              Telegram Integration
+              {{ t('telegramIntegration') }}
             </h3>
           </div>
           <div class="card-body">
@@ -54,17 +59,17 @@ async function saveSettings() {
               {{ error }}
             </div>
             <div
-              v-if="saved"
+              v-else-if="saved"
               class="alert alert-success py-2"
             >
-              Settings saved successfully.
+              {{ t('savedSuccessfully') }}
             </div>
             <form @submit.prevent="saveSettings">
               <div class="mb-3">
                 <label
                   for="telegram-username"
                   class="form-label"
-                >Telegram Bot Username</label>
+                >{{ t('telegramBotUsername') }}</label>
                 <div class="input-group">
                   <span class="input-group-text">@</span>
                   <input
@@ -77,7 +82,7 @@ async function saveSettings() {
                   >
                 </div>
                 <div class="form-text">
-                  The username customers use to find the bot in Telegram.
+                  {{ t('telegramBotUsername') }}.
                 </div>
               </div>
               <button
@@ -85,7 +90,7 @@ async function saveSettings() {
                 class="btn btn-primary"
                 :disabled="saving || loading"
               >
-                {{ saving ? 'Saving...' : 'Save Settings' }}
+                {{ saving ? t('saving') : t('save') }}
               </button>
             </form>
           </div>

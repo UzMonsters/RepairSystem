@@ -20,7 +20,7 @@ function iconTheme(n: AppNotification) {
 <template>
   <AppContent
     :title="t('notifications')"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: t('notifications') }]"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('notifications') }]"
   >
     <div class="row">
       <div class="col-lg-8">

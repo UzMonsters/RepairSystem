@@ -2,6 +2,7 @@
 import { requestStatuses } from '~/lib/statuses'
 import type { Category, Page, RepairRequest, RequestStatus, Technician } from '~/types'
 
+const { t } = useLocale()
 const search = ref('')
 const status = ref('')
 const categoryId = ref('')
@@ -131,8 +132,8 @@ async function removeRequest(r: RepairRequest) {
 
 <template>
   <AppContent
-    title="Requests"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Requests' }]"
+    :title="t('requests')"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('requests') }]"
   >
     <div class="card">
       <div class="card-header">

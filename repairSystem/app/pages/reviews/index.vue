@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Review } from '~/types'
 
+const { t } = useLocale()
 const { data, pending, error, refresh } = await useAsyncData('reviews-list', () =>
   apiFetch<Review[]>('/reviews')
 )
@@ -19,8 +20,8 @@ function formatDate(value?: string) {
 
 <template>
   <AppContent
-    title="Reviews"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Reviews' }]"
+    :title="t('reviews')"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('reviews') }]"
   >
     <div class="card">
       <div class="card-header">

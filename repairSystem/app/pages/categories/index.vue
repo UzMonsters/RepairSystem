@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Category } from '~/types'
 
+const { t } = useLocale()
 const { data, pending, error, refresh } = await useAsyncData('categories-list', () =>
   apiFetch<Category[]>('/categories')
 )
@@ -57,21 +58,21 @@ async function removeCategory(c: Category) {
 
 <template>
   <AppContent
-    title="Categories"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Categories' }]"
+    :title="t('categories')"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('categories') }]"
   >
     <div class="card">
       <div class="card-header">
         <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
           <h3 class="card-title mb-0">
-            Repair Categories
+            {{ t('categories') }}
           </h3>
           <button
             type="button"
             class="btn btn-sm btn-primary"
             @click="openCreate"
           >
-            <i class="bi bi-plus-lg me-1" />New Category
+            <i class="bi bi-plus-lg me-1" />{{ t('new') }} {{ t('categories') }}
           </button>
         </div>
       </div>

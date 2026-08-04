@@ -34,8 +34,8 @@ function activityIcon(type: string) {
 
 <template>
   <AppContent
-    title="Dashboard"
-    :breadcrumbs="[{ label: 'Home', href: '#' }, { label: 'Dashboard' }]"
+    :title="t('dashboard')"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('dashboard') }]"
   >
     <div
       v-if="error"

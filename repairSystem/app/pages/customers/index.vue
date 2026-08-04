@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Customer } from '~/types'
 
+const { t } = useLocale()
 const search = ref('')
 
 const { data, pending, error, refresh } = await useAsyncData('customers-list', () =>
@@ -23,8 +24,8 @@ const filtered = computed(() => {
 
 <template>
   <AppContent
-    title="Customers"
-    :breadcrumbs="[{ label: 'Home', to: '/' }, { label: 'Customers' }]"
+    :title="t('customers')"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('customers') }]"
   >
     <div class="card">
       <div class="card-header">

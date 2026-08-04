@@ -2,8 +2,10 @@
 import type { CrmUser, UserRole } from '~/types'
 
 const { t } = useLocale()
+const { user } = useAuth()
+const isAdmin = computed(() => user.value?.role === 'ADMIN')
 const { data, pending, error, refresh } = await useAsyncData('users-list', () =>
-  apiFetch<CrmUser[]>('/users')
+  isAdmin.value ? apiFetch<CrmUser[]>('/users') : []
 )
 
 const filterTab = ref<'all' | 'ADMIN' | 'MANAGER'>('all')
@@ -75,7 +77,10 @@ async function removeUser(u: CrmUser) {
     :title="t('users')"
     :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('users') }]"
   >
-    <div class="card mb-4">
+    <div v-if="!isAdmin" class="alert alert-warning">
+      {{ t('notAuthorized') }}
+    </div>
+    <div v-else class="card mb-4">
       <div class="card-header d-flex align-items-center justify-content-between">
         <div>
           <div class="btn-group" role="group" aria-label="Filter users">
