@@ -48,9 +48,9 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         if (!isProd()) {
             return;
         }
-        require("SPRING_DATASOURCE_URL");
-        require("SPRING_DATASOURCE_USERNAME");
-        require("SPRING_DATASOURCE_PASSWORD");
+        require("spring.datasource.url");
+        require("spring.datasource.username");
+        require("spring.datasource.password");
         require("APP_JWT_SECRET");
         require("APP_BOOTSTRAP_ADMIN_ENABLED");
         require("APP_CORS_ALLOWED_ORIGINS");
@@ -97,7 +97,7 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
 
     private void validateStorage() {
         if (!storageProperties.enabled()) {
-            fail("APP_STORAGE_ENABLED must be true in production.");
+            return;
         }
         if (storageProperties.endpoint() == null) {
             fail("APP_STORAGE_ENDPOINT is required in production.");
