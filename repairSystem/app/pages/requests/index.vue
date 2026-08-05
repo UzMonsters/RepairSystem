@@ -470,48 +470,6 @@ const execRequired = computed(() => execAction.value !== 'resume')
     </AppModal>
 
     <AppModal
-      id="status-modal"
-      :title="t('changeStatus')"
-    >
-      <div class="mb-3">
-        <label
-          for="status-select"
-          class="form-label"
-        >{{ t('status') }}</label>
-        <select
-          id="status-select"
-          v-model="statusForm"
-          class="form-select"
-        >
-          <option
-            v-for="s in requestStatuses"
-            :key="s.value"
-            :value="s.value"
-          >
-            {{ t(`status.${s.value}`) }}
-          </option>
-        </select>
-      </div>
-      <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="savingStatus"
-          @click="saveStatus"
-        >
-          {{ savingStatus ? t('saving') : t('save') }}
-        </button>
-      </template>
-    </AppModal>
-
-    <AppModal
       id="exec-modal"
       :title="execTitle"
     >

@@ -2,7 +2,7 @@
 import type { NotificationSummary } from '~/types'
 
 withDefaults(defineProps<{
-  notifications: NotificationSummary[]
+  notifications?: NotificationSummary[]
   seeAllUrl?: string
   seeAllText?: string
 }>(), {
