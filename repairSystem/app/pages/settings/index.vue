@@ -41,10 +41,16 @@ async function saveSettings() {
     :title="t('settings')"
     :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('settings') }]"
   >
-    <div v-if="!isAdmin" class="alert alert-warning">
+    <div
+      v-if="!isAdmin"
+      class="alert alert-warning"
+    >
       {{ t('notAuthorized') }}
     </div>
-    <div v-else class="row">
+    <div
+      v-else
+      class="row"
+    >
       <div class="col-lg-6">
         <div class="card">
           <div class="card-header">

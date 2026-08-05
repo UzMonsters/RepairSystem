@@ -1,11 +1,11 @@
-export type RequestStatus =
-  | 'NEW'
-  | 'ASSIGNED'
-  | 'SCHEDULED'
-  | 'IN_PROGRESS'
-  | 'WAITING_FOR_PARTS'
-  | 'COMPLETED'
-  | 'CANCELLED'
+export type RequestStatus
+  = | 'NEW'
+    | 'ASSIGNED'
+    | 'SCHEDULED'
+    | 'IN_PROGRESS'
+    | 'WAITING_FOR_PARTS'
+    | 'COMPLETED'
+    | 'CANCELLED'
 
 export type RequestPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 export type RequestSource = 'ADMIN' | 'TELEGRAM'

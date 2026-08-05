@@ -205,7 +205,10 @@ async function toggleActive(c: Category) {
               <td>{{ c.nameUz || '-' }}</td>
               <td>{{ c.displayOrder ?? '-' }}</td>
               <td>
-                <span class="badge" :class="c.active ? 'text-bg-success' : 'text-bg-secondary'">{{ t(c.active ? 'active' : 'inactive') }}</span>
+                <span
+                  class="badge"
+                  :class="c.active ? 'text-bg-success' : 'text-bg-secondary'"
+                >{{ t(c.active ? 'active' : 'inactive') }}</span>
               </td>
               <td class="text-end text-nowrap">
                 <button
@@ -249,22 +252,63 @@ async function toggleActive(c: Category) {
     >
       <form @submit.prevent="save">
         <div class="mb-3">
-          <label for="category-en" class="form-label">{{ t('nameEn') }}</label>
-          <input id="category-en" v-model="form.nameEn" type="text" class="form-control" required />
+          <label
+            for="category-en"
+            class="form-label"
+          >{{ t('nameEn') }}</label>
+          <input
+            id="category-en"
+            v-model="form.nameEn"
+            type="text"
+            class="form-control"
+            required
+          >
         </div>
         <div class="mb-3">
-          <label for="category-ru" class="form-label">{{ t('nameRu') }}</label>
-          <input id="category-ru" v-model="form.nameRu" type="text" class="form-control" required />
+          <label
+            for="category-ru"
+            class="form-label"
+          >{{ t('nameRu') }}</label>
+          <input
+            id="category-ru"
+            v-model="form.nameRu"
+            type="text"
+            class="form-control"
+            required
+          >
         </div>
         <div class="mb-3">
-          <label for="category-uz" class="form-label">{{ t('nameUz') }}</label>
-          <input id="category-uz" v-model="form.nameUz" type="text" class="form-control" required />
+          <label
+            for="category-uz"
+            class="form-label"
+          >{{ t('nameUz') }}</label>
+          <input
+            id="category-uz"
+            v-model="form.nameUz"
+            type="text"
+            class="form-control"
+            required
+          >
         </div>
         <div class="mb-3">
-          <label for="category-order" class="form-label">{{ t('displayOrder') }}</label>
-          <input id="category-order" v-model.number="form.displayOrder" type="number" min="0" class="form-control" />
+          <label
+            for="category-order"
+            class="form-label"
+          >{{ t('displayOrder') }}</label>
+          <input
+            id="category-order"
+            v-model.number="form.displayOrder"
+            type="number"
+            min="0"
+            class="form-control"
+          >
         </div>
-        <div v-if="saveError" class="alert alert-danger py-2">{{ saveError }}</div>
+        <div
+          v-if="saveError"
+          class="alert alert-danger py-2"
+        >
+          {{ saveError }}
+        </div>
       </form>
       <template #footer>
         <button

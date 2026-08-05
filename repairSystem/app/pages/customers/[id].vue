@@ -137,7 +137,10 @@ function formatDate(value?: string) {
                   {{ t('telegramLinked') }}
                 </dt>
                 <dd class="col-sm-7">
-                  <span class="badge" :class="customer.telegramLinked ? 'text-bg-success' : 'text-bg-secondary'">
+                  <span
+                    class="badge"
+                    :class="customer.telegramLinked ? 'text-bg-success' : 'text-bg-secondary'"
+                  >
                     {{ customer.telegramLinked ? t('yes') : t('no') }}
                   </span>
                 </dd>
@@ -145,7 +148,10 @@ function formatDate(value?: string) {
                   {{ t('active') }}
                 </dt>
                 <dd class="col-sm-7">
-                  <span class="badge" :class="customer.active ? 'text-bg-success' : 'text-bg-secondary'">
+                  <span
+                    class="badge"
+                    :class="customer.active ? 'text-bg-success' : 'text-bg-secondary'"
+                  >
                     {{ customer.active ? t('active') : t('inactive') }}
                   </span>
                 </dd>

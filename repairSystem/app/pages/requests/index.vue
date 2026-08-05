@@ -71,39 +71,6 @@ const errorMessage = computed(() => {
   return err?.data?.message || error.value?.message || 'Unknown error.'
 })
 
-const statusRequestId = ref<number | null>(null)
-const statusForm = ref('')
-const savingStatus = ref(false)
-
-function openStatusModal(r: RepairRequest) {
-  statusRequestId.value = r.id
-  statusForm.value = r.status
-  showModal('status-modal')
-}
-
-async function saveStatus() {
-  if (statusRequestId.value == null) return
-  savingStatus.value = true
-  try {
-    const action = statusForm.value === 'COMPLETED'
-      ? 'complete'
-      : statusForm.value === 'CANCELLED'
-        ? 'cancel'
-        : statusForm.value === 'IN_PROGRESS'
-          ? 'start'
-          : statusForm.value === 'WAITING_FOR_PARTS'
-            ? 'wait-for-parts'
-            : null
-    if (action) await apiFetch(`/requests/${statusRequestId.value}/${action}`, { method: 'POST' })
-    hideModal('status-modal')
-    refresh()
-  } catch (e) {
-    void e
-  } finally {
-    savingStatus.value = false
-  }
-}
-
 const assignRequestId = ref<number | null>(null)
 const assignForm = ref<number | ''>('')
 const savingAssign = ref(false)
@@ -323,8 +290,8 @@ const execRequired = computed(() => execAction.value !== 'resume')
               </td>
             </tr>
             <tr
-              v-else
               v-for="r in rows"
+              v-else
               :key="r.id"
             >
               <td>
@@ -457,20 +424,46 @@ const execRequired = computed(() => execAction.value !== 'resume')
     >
       <form @submit.prevent="saveAssign">
         <div class="mb-3">
-          <label for="assign-select" class="form-label">{{ t('technician') }}</label>
-          <select id="assign-select" v-model="assignForm" class="form-select" required>
-            <option :value="''" disabled>
+          <label
+            for="assign-select"
+            class="form-label"
+          >{{ t('technician') }}</label>
+          <select
+            id="assign-select"
+            v-model="assignForm"
+            class="form-select"
+            required
+          >
+            <option
+              :value="''"
+              disabled
+            >
               {{ t('selectTechnician') || 'Select a technician...' }}
             </option>
-            <option v-for="tech in technicianOptions" :key="tech.id" :value="tech.id">
+            <option
+              v-for="tech in technicianOptions"
+              :key="tech.id"
+              :value="tech.id"
+            >
               {{ tech.fullName }}
             </option>
           </select>
         </div>
       </form>
       <template #footer>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
-        <button type="button" class="btn btn-primary" :disabled="savingAssign || assignForm === ''" @click="saveAssign">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="savingAssign || assignForm === ''"
+          @click="saveAssign"
+        >
           {{ savingAssign ? t('saving') : t('save') }}
         </button>
       </template>
@@ -481,16 +474,38 @@ const execRequired = computed(() => execAction.value !== 'resume')
       :title="t('changeStatus')"
     >
       <div class="mb-3">
-        <label for="status-select" class="form-label">{{ t('status') }}</label>
-        <select id="status-select" v-model="statusForm" class="form-select">
-          <option v-for="s in requestStatuses" :key="s.value" :value="s.value">
+        <label
+          for="status-select"
+          class="form-label"
+        >{{ t('status') }}</label>
+        <select
+          id="status-select"
+          v-model="statusForm"
+          class="form-select"
+        >
+          <option
+            v-for="s in requestStatuses"
+            :key="s.value"
+            :value="s.value"
+          >
             {{ t(`status.${s.value}`) }}
           </option>
         </select>
       </div>
       <template #footer>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
-        <button type="button" class="btn btn-primary" :disabled="savingStatus" @click="saveStatus">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="savingStatus"
+          @click="saveStatus"
+        >
           {{ savingStatus ? t('saving') : t('save') }}
         </button>
       </template>
@@ -516,11 +531,27 @@ const execRequired = computed(() => execAction.value !== 'resume')
             :required="execRequired"
           />
         </div>
-        <div v-if="execError" class="alert alert-danger py-2">{{ execError }}</div>
+        <div
+          v-if="execError"
+          class="alert alert-danger py-2"
+        >
+          {{ execError }}
+        </div>
       </form>
       <template #footer>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
-        <button type="button" class="btn btn-primary" :disabled="savingExec" @click="runExec">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="savingExec"
+          @click="runExec"
+        >
           {{ savingExec ? t('saving') : t('save') }}
         </button>
       </template>

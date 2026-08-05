@@ -1,8 +1,14 @@
 <script setup lang="ts">
-defineProps({
-  notifications: { type: Array, default: () => [] },
-  seeAllUrl: { type: String, default: '#' },
-  seeAllText: { type: String, default: 'See All Notifications' }
+import type { NotificationSummary } from '~/types'
+
+withDefaults(defineProps<{
+  notifications: NotificationSummary[]
+  seeAllUrl?: string
+  seeAllText?: string
+}>(), {
+  notifications: () => [],
+  seeAllUrl: '#',
+  seeAllText: 'See All Notifications'
 })
 
 const { t } = useLocale()
@@ -11,7 +17,6 @@ function shortKey(value?: string) {
   if (!value) return '-'
   return value.replace(/_/g, ' ').toLowerCase()
 }
-
 function timeAgo(value?: string) {
   if (!value) return ''
   const diff = Date.now() - new Date(value).getTime()
@@ -50,7 +55,10 @@ function timeAgo(value?: string) {
           class="dropdown-item"
         >
           <i class="bi bi-bell me-2" />
-          <span class="d-inline-block" style="max-width: 220px;">
+          <span
+            class="d-inline-block"
+            style="max-width: 220px;"
+          >
             {{ shortKey(n.notificationType) }}
             <span
               v-if="n.requestNumber"

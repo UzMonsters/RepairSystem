@@ -66,8 +66,16 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
             style="max-width: 180px;"
             @change="applyFilters"
           >
-            <option value="">{{ t('all') }}</option>
-            <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
+            <option value="">
+              {{ t('all') }}
+            </option>
+            <option
+              v-for="s in statuses"
+              :key="s"
+              :value="s"
+            >
+              {{ s }}
+            </option>
           </select>
         </div>
       </div>
@@ -130,7 +138,11 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
                 {{ n.eventKey || n.notificationType || '-' }}
               </td>
               <td>{{ n.notificationType || '-' }}</td>
-              <td>{{ n.recipientType || '-' }}<template v-if="n.recipientId"> · {{ n.recipientId }}</template></td>
+              <td>
+                {{ n.recipientType || '-' }}<template v-if="n.recipientId">
+                  · {{ n.recipientId }}
+                </template>
+              </td>
               <td>
                 <NuxtLink
                   v-if="n.repairRequestId"

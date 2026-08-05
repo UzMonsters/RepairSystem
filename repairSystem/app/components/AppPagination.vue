@@ -100,7 +100,10 @@ function changeSize() {
           <i class="bi bi-chevron-left" />
         </button>
 
-        <template v-for="(p, idx) in visiblePages" :key="`${p}-${idx}`">
+        <template
+          v-for="(p, idx) in visiblePages"
+          :key="`${p}-${idx}`"
+        >
           <span
             v-if="typeof p === 'string'"
             class="page-ellipsis"

@@ -365,7 +365,10 @@ function can(action: string) {
     >
       <form @submit.prevent="runExec">
         <div class="mb-3">
-          <label :for="`exec-${execAction}`" class="form-label">
+          <label
+            :for="`exec-${execAction}`"
+            class="form-label"
+          >
             {{ execAction === 'complete' ? t('workPerformed') : t('reason') }}
           </label>
           <textarea
@@ -376,11 +379,27 @@ function can(action: string) {
             :required="execAction !== 'resume'"
           />
         </div>
-        <div v-if="execError" class="alert alert-danger py-2">{{ execError }}</div>
+        <div
+          v-if="execError"
+          class="alert alert-danger py-2"
+        >
+          {{ execError }}
+        </div>
       </form>
       <template #footer>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
-        <button type="button" class="btn btn-primary" :disabled="savingExec" @click="runExec">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="savingExec"
+          @click="runExec"
+        >
           {{ savingExec ? t('saving') : t('save') }}
         </button>
       </template>

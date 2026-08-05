@@ -9,7 +9,7 @@ const search = ref('')
 let osInstance = null
 
 const baseMenu = computed(() => {
-  return menu.filter(item => {
+  return menu.filter((item) => {
     if (item.type !== 'item') return true
     if (!item.roles?.length) return true
     return item.roles.includes(user.value?.role || 'MANAGER')

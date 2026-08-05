@@ -16,7 +16,8 @@ const query = computed(() => ({
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('users-list', () =>
-  isAdmin.value ? apiFetch<Page<CrmUser>>('/users', { query: query.value }) : null
+  apiFetch<Page<CrmUser>>('/users', { query: query.value }),
+{ immediate: isAdmin.value }
 )
 
 const errorMessage = computed(() => {
@@ -130,14 +131,24 @@ async function toggleActive(u: CrmUser) {
     :title="t('users')"
     :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('users') }]"
   >
-    <div v-if="!isAdmin" class="alert alert-warning">
+    <div
+      v-if="!isAdmin"
+      class="alert alert-warning"
+    >
       {{ t('notAuthorized') }}
     </div>
 
-    <div v-else class="card">
+    <div
+      v-else
+      class="card"
+    >
       <div class="card-header">
         <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
-          <div class="btn-group" role="group" aria-label="Filter users">
+          <div
+            class="btn-group"
+            role="group"
+            aria-label="Filter users"
+          >
             <button
               type="button"
               class="btn"
@@ -164,42 +175,67 @@ async function toggleActive(u: CrmUser) {
             </button>
           </div>
 
-          <button type="button" class="btn btn-sm btn-primary" @click="openCreate">
+          <button
+            type="button"
+            class="btn btn-sm btn-primary"
+            @click="openCreate"
+          >
             <i class="bi bi-plus-lg me-1" />{{ t('newUser') }}
           </button>
         </div>
       </div>
 
-      <div v-if="toggleError" class="alert alert-danger m-3 py-2">
+      <div
+        v-if="toggleError"
+        class="alert alert-danger m-3 py-2"
+      >
         {{ toggleError }}
       </div>
 
       <div class="card-body table-responsive p-0">
-        <div v-if="error" class="alert alert-danger m-3">
+        <div
+          v-if="error"
+          class="alert alert-danger m-3"
+        >
           {{ errorMessage }}
-          <button type="button" class="btn btn-sm btn-outline-danger ms-2" @click="() => refresh()">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger ms-2"
+            @click="() => refresh()"
+          >
             {{ t('retry') }}
           </button>
         </div>
 
-        <table v-else class="table table-hover align-middle mb-0">
+        <table
+          v-else
+          class="table table-hover align-middle mb-0"
+        >
           <thead>
             <tr>
               <th>{{ t('fullName') }}</th>
               <th>{{ t('email') }}</th>
               <th>{{ t('role') }}</th>
-              <th class="text-end">{{ t('actions') }}</th>
+              <th class="text-end">
+                {{ t('actions') }}
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="pending">
-              <td colspan="4" class="text-center py-4">
+              <td
+                colspan="4"
+                class="text-center py-4"
+              >
                 <div class="spinner-border spinner-border-sm text-primary" />
               </td>
             </tr>
 
             <tr v-else-if="!rows.length">
-              <td colspan="4" class="text-center py-4">
+              <td
+                colspan="4"
+                class="text-center py-4"
+              >
                 <div class="empty-state">
                   <i class="bi bi-people" />
                   <p>{{ t('noUsersFound') }}</p>
@@ -207,11 +243,20 @@ async function toggleActive(u: CrmUser) {
               </td>
             </tr>
 
-            <tr v-else v-for="u in rows" :key="u.id">
-              <td class="fw-semibold">{{ u.fullName }}</td>
+            <tr
+              v-for="u in rows"
+              v-else
+              :key="u.id"
+            >
+              <td class="fw-semibold">
+                {{ u.fullName }}
+              </td>
               <td>{{ u.email }}</td>
               <td>
-                <span class="badge" :class="u.role === 'ADMIN' ? 'text-bg-danger' : 'text-bg-secondary'">
+                <span
+                  class="badge"
+                  :class="u.role === 'ADMIN' ? 'text-bg-danger' : 'text-bg-secondary'"
+                >
                   {{ u.role === 'ADMIN' ? t('admins') : t('managers') }}
                 </span>
               </td>
@@ -250,37 +295,95 @@ async function toggleActive(u: CrmUser) {
       />
     </div>
 
-    <AppModal id="user-modal" :title="editingId == null ? t('newUser') : t('editUser')">
+    <AppModal
+      id="user-modal"
+      :title="editingId == null ? t('newUser') : t('editUser')"
+    >
       <form @submit.prevent="save">
         <div class="mb-3">
-          <label for="user-name" class="form-label">{{ t('fullName') }}</label>
-          <input id="user-name" v-model="form.fullName" type="text" class="form-control" required />
+          <label
+            for="user-name"
+            class="form-label"
+          >{{ t('fullName') }}</label>
+          <input
+            id="user-name"
+            v-model="form.fullName"
+            type="text"
+            class="form-control"
+            required
+          >
         </div>
 
         <div class="mb-3">
-          <label for="user-email" class="form-label">{{ t('email') }}</label>
-          <input id="user-email" v-model="form.email" type="email" class="form-control" required />
+          <label
+            for="user-email"
+            class="form-label"
+          >{{ t('email') }}</label>
+          <input
+            id="user-email"
+            v-model="form.email"
+            type="email"
+            class="form-control"
+            required
+          >
         </div>
 
         <div class="mb-3">
-          <label for="user-password" class="form-label">{{ t('password') }}</label>
-          <input id="user-password" v-model="form.password" type="password" class="form-control" autocomplete="new-password" :required="editingId == null" />
+          <label
+            for="user-password"
+            class="form-label"
+          >{{ t('password') }}</label>
+          <input
+            id="user-password"
+            v-model="form.password"
+            type="password"
+            class="form-control"
+            autocomplete="new-password"
+            :required="editingId == null"
+          >
         </div>
 
         <div class="mb-3">
-          <label for="user-role" class="form-label">{{ t('role') }}</label>
-          <select id="user-role" v-model="form.role" class="form-select">
-            <option value="ADMIN">{{ t('admins') }}</option>
-            <option value="MANAGER">{{ t('managers') }}</option>
+          <label
+            for="user-role"
+            class="form-label"
+          >{{ t('role') }}</label>
+          <select
+            id="user-role"
+            v-model="form.role"
+            class="form-select"
+          >
+            <option value="ADMIN">
+              {{ t('admins') }}
+            </option>
+            <option value="MANAGER">
+              {{ t('managers') }}
+            </option>
           </select>
         </div>
 
-        <div v-if="saveError" class="alert alert-danger py-2">{{ saveError }}</div>
+        <div
+          v-if="saveError"
+          class="alert alert-danger py-2"
+        >
+          {{ saveError }}
+        </div>
       </form>
 
       <template #footer>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
-        <button type="button" class="btn btn-primary" :disabled="saving" @click="save">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="saving"
+          @click="save"
+        >
           {{ saving ? t('saving') : t('save') }}
         </button>
       </template>

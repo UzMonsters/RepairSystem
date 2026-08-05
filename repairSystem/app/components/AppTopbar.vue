@@ -79,7 +79,7 @@ onMounted(async () => {
                 <span class="me-2">EN</span>
                 English
                 <i
-                  v-if="locale.value === 'en'"
+                  v-if="locale === 'en'"
                   class="bi bi-check-lg ms-auto"
                 />
               </button>
@@ -93,7 +93,7 @@ onMounted(async () => {
                 <span class="me-2">RU</span>
                 {{ t('russian') }}
                 <i
-                  v-if="locale.value === 'ru'"
+                  v-if="locale === 'ru'"
                   class="bi bi-check-lg ms-auto"
                 />
               </button>

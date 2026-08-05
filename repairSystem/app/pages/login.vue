@@ -27,9 +27,17 @@ async function onSubmit() {
   <div class="card shadow-sm login-card overflow-hidden">
     <div class="card-body p-5">
       <div class="text-center mb-4">
-        <img src="/assets/img/AdminLTELogo.png" alt="Repair System" class="auth-logo mb-3" />
-        <h2 class="h4 fw-bold mb-2 text-white">{{ t('loginTitle') }}</h2>
-        <p class="text-muted mb-0">{{ t('loginSubtitle') }}</p>
+        <img
+          src="/assets/img/AdminLTELogo.png"
+          alt="Repair System"
+          class="auth-logo mb-3"
+        >
+        <h2 class="h4 fw-bold mb-2 text-white">
+          {{ t('loginTitle') }}
+        </h2>
+        <p class="text-muted mb-0">
+          {{ t('loginSubtitle') }}
+        </p>
       </div>
 
       <div
@@ -46,27 +54,27 @@ async function onSubmit() {
       >
         <div class="form-floating mb-3">
           <input
+            id="login-email"
             v-model="email"
             type="email"
             class="form-control"
-            id="login-email"
             :placeholder="t('email')"
             autocomplete="email"
             autofocus
             required
-          />
+          >
           <label for="login-email">{{ t('email') }}</label>
         </div>
         <div class="form-floating mb-4">
           <input
+            id="login-password"
             v-model="password"
             type="password"
             class="form-control"
-            id="login-password"
             :placeholder="t('password')"
             autocomplete="current-password"
             required
-          />
+          >
           <label for="login-password">{{ t('password') }}</label>
         </div>
         <div class="d-grid gap-2 mb-3">
