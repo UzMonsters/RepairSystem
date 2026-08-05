@@ -22,4 +22,4 @@ USER repairauto
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:InitialRAMPercentage=25 -Djava.io.tmpdir=/tmp/repairauto"
 EXPOSE 8080
 STOPSIGNAL SIGTERM
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["sh", "-c", "mkdir -p /tmp/repairauto && exec java -jar /app/app.jar"]
