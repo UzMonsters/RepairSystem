@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { requestStatuses } from '~/lib/statuses'
-import type { Category, Page, RepairRequest, RequestStatus, Technician } from '~/types'
+import { requestPriorities, requestStatuses } from '~/lib/statuses'
+import type { Category, Page, RepairRequest, Technician } from '~/types'
 
 const { t } = useLocale()
 const search = ref('')
 const status = ref('')
+const priority = ref('')
 const categoryId = ref('')
 const page = ref(1)
 const size = ref(10)
 
 const query = computed(() => ({
-  page: page.value,
+  page: page.value - 1,
   size: size.value,
   search: search.value.trim() || undefined,
   status: status.value || undefined,
-  categoryId: categoryId.value || undefined
+  priority: priority.value || undefined,
+  categoryId: categoryId.value || undefined,
+  sort: 'createdAt,desc'
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('requests-list', () =>
@@ -22,18 +25,18 @@ const { data, pending, error, refresh } = await useAsyncData('requests-list', ()
 )
 
 const { data: categories } = await useAsyncData('requests-categories', () =>
-  apiFetch<Category[]>('/categories')
+  apiFetch<Page<Category>>('/categories', { query: { size: 100 } })
 )
 
 const { data: technicians } = await useAsyncData('requests-technicians', () =>
-  apiFetch<Technician[]>('/technicians')
+  apiFetch<Page<Technician>>('/technicians', { query: { size: 100 } })
 )
 
-const currentPage = computed(() => data.value?.page ?? 1)
+const rows = computed(() => data.value?.content ?? [])
 const totalElements = computed(() => data.value?.totalElements ?? 0)
-const totalPages = computed(() => Math.max(1, Math.ceil(totalElements.value / size.value)))
-const startIndex = computed(() => (totalElements.value === 0 ? 0 : (currentPage.value - 1) * size.value + 1))
-const endIndex = computed(() => Math.min(currentPage.value * size.value, totalElements.value))
+const totalPages = computed(() => data.value?.totalPages ?? 1)
+const categoryOptions = computed(() => categories.value?.content ?? [])
+const technicianOptions = computed(() => technicians.value?.content ?? [])
 
 function applyFilters() {
   page.value = 1
@@ -45,12 +48,18 @@ function goToPage(target: number) {
   refresh()
 }
 
+function changeSize(s: number) {
+  size.value = s
+  page.value = 1
+  refresh()
+}
+
 function categoryName(r: RepairRequest) {
-  return typeof r.category === 'string' ? r.category : r.category?.name ?? '-'
+  return r.category?.nameRu ?? r.category?.nameEn ?? '-'
 }
 
 function customerName(r: RepairRequest) {
-  return r.customer?.name || '-'
+  return r.customer?.fullName ?? '-'
 }
 
 function formatDate(value?: string) {
@@ -63,7 +72,7 @@ const errorMessage = computed(() => {
 })
 
 const statusRequestId = ref<number | null>(null)
-const statusForm = ref<RequestStatus>('NEW')
+const statusForm = ref('')
 const savingStatus = ref(false)
 
 function openStatusModal(r: RepairRequest) {
@@ -82,7 +91,7 @@ async function saveStatus() {
         ? 'cancel'
         : statusForm.value === 'IN_PROGRESS'
           ? 'start'
-          : statusForm.value === 'WAITING_PARTS'
+          : statusForm.value === 'WAITING_FOR_PARTS'
             ? 'wait-for-parts'
             : null
     if (action) await apiFetch(`/requests/${statusRequestId.value}/${action}`, { method: 'POST' })
@@ -101,7 +110,7 @@ const savingAssign = ref(false)
 
 function openAssignModal(r: RepairRequest) {
   assignRequestId.value = r.id
-  assignForm.value = r.technicianId ?? ''
+  assignForm.value = ''
   showModal('assign-modal')
 }
 
@@ -109,7 +118,10 @@ async function saveAssign() {
   if (assignRequestId.value == null || assignForm.value === '') return
   savingAssign.value = true
   try {
-    await apiFetch(`/requests/${assignRequestId.value}/assign`, { method: 'POST', body: { technicianId: assignForm.value } })
+    await apiFetch(`/requests/${assignRequestId.value}/assign`, {
+      method: 'POST',
+      body: { technicianId: assignForm.value }
+    })
     hideModal('assign-modal')
     refresh()
   } catch (e) {
@@ -119,15 +131,57 @@ async function saveAssign() {
   }
 }
 
-async function removeRequest(r: RepairRequest) {
-  if (!confirm(`Delete request #${r.id}? This action cannot be undone.`)) return
-  try {
-    await apiFetch(`/requests/${r.id}`, { method: 'DELETE' })
-    refresh()
-  } catch (e) {
-    void e
+const execAction = ref('')
+const execRequestId = ref<number | null>(null)
+const execForm = ref('')
+const savingExec = ref(false)
+const execError = ref('')
+
+function openExecModal(action: string, r: RepairRequest) {
+  execAction.value = action
+  execRequestId.value = r.id
+  execForm.value = ''
+  execError.value = ''
+  if (action === 'start') {
+    runExec()
+  } else {
+    showModal('exec-modal')
   }
 }
+
+async function runExec() {
+  if (execRequestId.value == null) return
+  savingExec.value = true
+  execError.value = ''
+  try {
+    const id = execRequestId.value
+    const body = execAction.value === 'complete'
+      ? { workPerformed: execForm.value }
+      : execAction.value === 'wait-for-parts' || execAction.value === 'cancel'
+        ? { reason: execForm.value }
+        : execAction.value === 'resume'
+          ? { note: execForm.value || undefined }
+          : undefined
+    await apiFetch(`/requests/${id}/${execAction.value}`, { method: 'POST', body })
+    hideModal('exec-modal')
+    refresh()
+  } catch (e) {
+    const err = e as { data?: { message?: string }, message?: string }
+    execError.value = err.data?.message || err.message || 'Action failed.'
+  } finally {
+    savingExec.value = false
+  }
+}
+
+const execTitle = computed(() => {
+  if (execAction.value === 'wait-for-parts') return t('waitForParts')
+  if (execAction.value === 'complete') return t('complete')
+  if (execAction.value === 'cancel') return t('cancelRequest')
+  if (execAction.value === 'resume') return t('resume')
+  return ''
+})
+
+const execRequired = computed(() => execAction.value !== 'resume')
 </script>
 
 <template>
@@ -139,18 +193,17 @@ async function removeRequest(r: RepairRequest) {
       <div class="card-header">
         <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
           <h3 class="card-title mb-0">
-            All Requests
+            {{ t('allRequests') }}
           </h3>
-          <div class="d-flex flex-column flex-sm-row gap-2">
+          <div class="d-flex flex-column flex-sm-row gap-2 flex-wrap">
             <div
-              class="input-group input-group-sm"
-              style="max-width: 260px;"
+              class="input-group input-group-sm search-box"
             >
               <input
                 v-model="search"
                 type="search"
                 class="form-control"
-                placeholder="Search requests..."
+                :placeholder="t('searchRequests')"
                 @keyup.enter="applyFilters"
               >
               <button
@@ -168,14 +221,31 @@ async function removeRequest(r: RepairRequest) {
               @change="applyFilters"
             >
               <option value="">
-                All Statuses
+                {{ t('allStatuses') }}
               </option>
               <option
                 v-for="s in requestStatuses"
                 :key="s.value"
                 :value="s.value"
               >
-                {{ s.label }}
+                {{ t(`status.${s.value}`) }}
+              </option>
+            </select>
+            <select
+              v-model="priority"
+              class="form-select form-select-sm"
+              style="max-width: 140px;"
+              @change="applyFilters"
+            >
+              <option value="">
+                {{ t('all') }}
+              </option>
+              <option
+                v-for="p in requestPriorities"
+                :key="p.value"
+                :value="p.value"
+              >
+                {{ p.value }}
               </option>
             </select>
             <select
@@ -185,14 +255,14 @@ async function removeRequest(r: RepairRequest) {
               @change="applyFilters"
             >
               <option value="">
-                All Categories
+                {{ t('allCategories') }}
               </option>
               <option
-                v-for="c in categories"
+                v-for="c in categoryOptions"
                 :key="c.id"
                 :value="c.id"
               >
-                {{ c.name }}
+                {{ c.nameRu || c.nameEn }}
               </option>
             </select>
           </div>
@@ -204,257 +274,254 @@ async function removeRequest(r: RepairRequest) {
           v-if="error"
           class="alert alert-danger m-3"
         >
-          Failed to load requests. {{ errorMessage }}
+          {{ errorMessage }}
           <button
             type="button"
             class="btn btn-sm btn-outline-danger ms-2"
             @click="() => refresh()"
           >
-            Retry
+            {{ t('retry') }}
           </button>
         </div>
 
         <table
           v-else
-          class="table table-striped table-hover align-middle mb-0"
+          class="table table-hover align-middle mb-0"
         >
           <thead>
             <tr>
               <th>#</th>
-              <th>Customer</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th>Technician</th>
-              <th>Created</th>
+              <th>{{ t('requestNumber') }}</th>
+              <th>{{ t('client') }}</th>
+              <th>{{ t('categories') }}</th>
+              <th>{{ t('priority') }}</th>
+              <th>{{ t('status') }}</th>
+              <th>{{ t('created') }}</th>
               <th class="text-end">
-                Actions
+                {{ t('actions') }}
               </th>
             </tr>
           </thead>
           <tbody>
-            <template v-if="pending">
-              <tr>
-                <td
-                  colspan="7"
-                  class="text-center py-4"
-                >
-                  <div class="spinner-border spinner-border-sm text-primary" />
-                </td>
-              </tr>
-            </template>
-            <template v-else-if="!data?.content.length">
-              <tr>
-                <td
-                  colspan="7"
-                  class="text-center text-muted py-4"
-                >
-                  No requests found.
-                </td>
-              </tr>
-            </template>
-            <template v-else>
-              <tr
-                v-for="r in data?.content"
-                :key="r.id"
+            <tr v-if="pending">
+              <td
+                colspan="8"
+                class="text-center py-4"
               >
-                <td>
-                  <NuxtLink :to="`/requests/${r.id}`">
-                    #{{ r.id }}
+                <div class="spinner-border spinner-border-sm text-primary" />
+              </td>
+            </tr>
+            <tr v-else-if="!rows.length">
+              <td
+                colspan="8"
+                class="text-center py-4"
+              >
+                <div class="empty-state">
+                  <i class="bi bi-wrench-adjustable" />
+                  <p>{{ t('noRequestsFound') }}</p>
+                </div>
+              </td>
+            </tr>
+            <tr
+              v-else
+              v-for="r in rows"
+              :key="r.id"
+            >
+              <td>
+                <NuxtLink :to="`/requests/${r.id}`">
+                  #{{ r.id }}
+                </NuxtLink>
+              </td>
+              <td>
+                <NuxtLink :to="`/requests/${r.id}`">
+                  {{ r.requestNumber || `#${r.id}` }}
+                </NuxtLink>
+              </td>
+              <td>{{ customerName(r) }}</td>
+              <td>{{ categoryName(r) }}</td>
+              <td>
+                <span
+                  class="badge"
+                  :class="r.priority === 'URGENT' || r.priority === 'HIGH' ? 'text-bg-danger' : r.priority === 'LOW' ? 'text-bg-secondary' : 'text-bg-warning'"
+                >
+                  {{ r.priority }}
+                </span>
+              </td>
+              <td><StatusBadge :status="r.status" /></td>
+              <td class="text-nowrap">
+                {{ formatDate(r.createdAt) }}
+              </td>
+              <td class="text-end text-nowrap">
+                <div class="btn-group">
+                  <NuxtLink
+                    :to="`/requests/${r.id}`"
+                    class="btn btn-sm btn-outline-secondary"
+                    :title="t('view')"
+                  >
+                    <i class="bi bi-eye" />
                   </NuxtLink>
-                </td>
-                <td>{{ customerName(r) }}</td>
-                <td>{{ categoryName(r) }}</td>
-                <td><StatusBadge :status="r.status" /></td>
-                <td>{{ r.technician?.fullName || '-' }}</td>
-                <td class="text-nowrap">
-                  {{ formatDate(r.createdAt) }}
-                </td>
-                <td class="text-end text-nowrap">
-                  <div class="btn-group">
-                    <NuxtLink
-                      :to="`/requests/${r.id}`"
-                      class="btn btn-sm btn-outline-secondary"
-                      title="View"
-                    >
-                      <i class="bi bi-eye" />
-                    </NuxtLink>
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
-                    >
-                      <span class="visually-hidden">Toggle actions</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                      <li>
-                        <NuxtLink
-                          class="dropdown-item"
-                          :to="`/requests/${r.id}`"
-                        >
-                          <i class="bi bi-eye me-2" />View Details
-                        </NuxtLink>
-                      </li>
-                      <li>
-                        <a
-                          href="#"
-                          class="dropdown-item"
-                          @click.prevent="openStatusModal(r)"
-                        >
-                          <i class="bi bi-arrow-repeat me-2" />Change Status
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="#"
-                          class="dropdown-item"
-                          @click.prevent="openAssignModal(r)"
-                        >
-                          <i class="bi bi-person-badge me-2" />Assign Technician
-                        </a>
-                      </li>
-                      <li><hr class="dropdown-divider"></li>
-                      <li>
-                        <a
-                          href="#"
-                          class="dropdown-item text-danger"
-                          @click.prevent="removeRequest(r)"
-                        >
-                          <i class="bi bi-trash me-2" />Delete
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
-                </td>
-              </tr>
-            </template>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                  >
+                    <span class="visually-hidden">Toggle actions</span>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <NuxtLink
+                        class="dropdown-item"
+                        :to="`/requests/${r.id}`"
+                      >
+                        <i class="bi bi-eye me-2" />{{ t('viewDetails') }}
+                      </NuxtLink>
+                    </li>
+                    <li>
+                      <a
+                        href="#"
+                        class="dropdown-item"
+                        @click.prevent="openAssignModal(r)"
+                      >
+                        <i class="bi bi-person-badge me-2" />{{ t('assignTechnician') }}
+                      </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li v-if="r.status === 'ASSIGNED'">
+                      <a
+                        href="#"
+                        class="dropdown-item"
+                        @click.prevent="openExecModal('start', r)"
+                      >
+                        <i class="bi bi-play-circle me-2" />{{ t('start') }}
+                      </a>
+                    </li>
+                    <li v-if="r.status === 'IN_PROGRESS'">
+                      <a
+                        href="#"
+                        class="dropdown-item"
+                        @click.prevent="openExecModal('wait-for-parts', r)"
+                      >
+                        <i class="bi bi-box-seam me-2" />{{ t('waitForParts') }}
+                      </a>
+                    </li>
+                    <li v-if="r.status === 'WAITING_FOR_PARTS'">
+                      <a
+                        href="#"
+                        class="dropdown-item"
+                        @click.prevent="openExecModal('resume', r)"
+                      >
+                        <i class="bi bi-play-circle me-2" />{{ t('resume') }}
+                      </a>
+                    </li>
+                    <li v-if="r.status === 'IN_PROGRESS' || r.status === 'WAITING_FOR_PARTS'">
+                      <a
+                        href="#"
+                        class="dropdown-item"
+                        @click.prevent="openExecModal('complete', r)"
+                      >
+                        <i class="bi bi-check2-circle me-2" />{{ t('complete') }}
+                      </a>
+                    </li>
+                    <li v-if="r.status !== 'COMPLETED' && r.status !== 'CANCELLED'">
+                      <a
+                        href="#"
+                        class="dropdown-item text-danger"
+                        @click.prevent="openExecModal('cancel', r)"
+                      >
+                        <i class="bi bi-x-circle me-2" />{{ t('cancelRequest') }}
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
 
-      <div
+      <AppPagination
         v-if="!error"
-        class="card-footer"
-      >
-        <div class="d-flex justify-content-between align-items-center">
-          <span class="text-muted small">
-            Showing {{ startIndex }}–{{ endIndex }} of {{ totalElements }}
-          </span>
-          <ul class="pagination pagination-sm mb-0">
-            <li
-              class="page-item"
-              :class="{ disabled: currentPage <= 1 }"
-            >
-              <a
-                href="#"
-                class="page-link"
-                @click.prevent="goToPage(currentPage - 1)"
-              >&laquo;</a>
-            </li>
-            <li class="page-item active">
-              <span class="page-link">{{ currentPage }} / {{ totalPages }}</span>
-            </li>
-            <li
-              class="page-item"
-              :class="{ disabled: currentPage >= totalPages }"
-            >
-              <a
-                href="#"
-                class="page-link"
-                @click.prevent="goToPage(currentPage + 1)"
-              >&raquo;</a>
-            </li>
-          </ul>
-        </div>
-      </div>
+        :page="page"
+        :size="size"
+        :total="totalElements"
+        :total-pages="totalPages"
+        @update:page="goToPage"
+        @update:size="changeSize"
+      />
     </div>
 
     <AppModal
-      id="status-modal"
-      title="Change Request Status"
+      id="assign-modal"
+      :title="t('assignTechnician')"
     >
-      <div class="mb-3">
-        <label
-          for="status-select"
-          class="form-label"
-        >Status</label>
-        <select
-          id="status-select"
-          v-model="statusForm"
-          class="form-select"
-        >
-          <option
-            v-for="s in requestStatuses"
-            :key="s.value"
-            :value="s.value"
-          >
-            {{ s.label }}
-          </option>
-        </select>
-      </div>
+      <form @submit.prevent="saveAssign">
+        <div class="mb-3">
+          <label for="assign-select" class="form-label">{{ t('technician') }}</label>
+          <select id="assign-select" v-model="assignForm" class="form-select" required>
+            <option :value="''" disabled>
+              {{ t('selectTechnician') || 'Select a technician...' }}
+            </option>
+            <option v-for="tech in technicianOptions" :key="tech.id" :value="tech.id">
+              {{ tech.fullName }}
+            </option>
+          </select>
+        </div>
+      </form>
       <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="savingStatus"
-          @click="saveStatus"
-        >
-          {{ savingStatus ? 'Saving...' : 'Save' }}
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
+        <button type="button" class="btn btn-primary" :disabled="savingAssign || assignForm === ''" @click="saveAssign">
+          {{ savingAssign ? t('saving') : t('save') }}
         </button>
       </template>
     </AppModal>
 
     <AppModal
-      id="assign-modal"
-      title="Assign Technician"
+      id="status-modal"
+      :title="t('changeStatus')"
     >
       <div class="mb-3">
-        <label
-          for="assign-select"
-          class="form-label"
-        >Technician</label>
-        <select
-          id="assign-select"
-          v-model="assignForm"
-          class="form-select"
-        >
-          <option
-            :value="''"
-            disabled
-          >
-            Select a technician...
-          </option>
-          <option
-            v-for="t in technicians"
-            :key="t.id"
-            :value="t.id"
-          >
-            {{ t.fullName }}
+        <label for="status-select" class="form-label">{{ t('status') }}</label>
+        <select id="status-select" v-model="statusForm" class="form-select">
+          <option v-for="s in requestStatuses" :key="s.value" :value="s.value">
+            {{ t(`status.${s.value}`) }}
           </option>
         </select>
       </div>
       <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          Cancel
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
+        <button type="button" class="btn btn-primary" :disabled="savingStatus" @click="saveStatus">
+          {{ savingStatus ? t('saving') : t('save') }}
         </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="savingAssign || assignForm === ''"
-          @click="saveAssign"
-        >
-          {{ savingAssign ? 'Saving...' : 'Assign' }}
+      </template>
+    </AppModal>
+
+    <AppModal
+      id="exec-modal"
+      :title="execTitle"
+    >
+      <form @submit.prevent="runExec">
+        <div class="mb-3">
+          <label
+            :for="`exec-${execAction}`"
+            class="form-label"
+          >
+            {{ execAction === 'complete' ? t('workPerformed') : t('reason') }}
+          </label>
+          <textarea
+            :id="`exec-${execAction}`"
+            v-model="execForm"
+            class="form-control"
+            rows="3"
+            :required="execRequired"
+          />
+        </div>
+        <div v-if="execError" class="alert alert-danger py-2">{{ execError }}</div>
+      </form>
+      <template #footer>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
+        <button type="button" class="btn btn-primary" :disabled="savingExec" @click="runExec">
+          {{ savingExec ? t('saving') : t('save') }}
         </button>
       </template>
     </AppModal>

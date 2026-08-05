@@ -1,94 +1,108 @@
 <script setup lang="ts">
-import { requestStatuses } from '~/lib/statuses'
-import type { RepairRequest, RequestStatus, Technician } from '~/types'
+import type { RepairRequest, Technician } from '~/types'
 
 const route = useRoute()
 const id = Number(route.params.id)
+
+const { t } = useLocale()
 
 const { data: request, pending, error, refresh } = await useAsyncData(`request-${id}`, () =>
   apiFetch<RepairRequest>(`/requests/${id}`)
 )
 
 const { data: technicians } = await useAsyncData(`request-${id}-technicians`, () =>
-  apiFetch<Technician[]>('/technicians')
+  apiFetch<{ content: Technician[] }>('/technicians', { query: { size: 100 } })
 )
 
-const statusForm = ref<RequestStatus>('NEW')
+const technicianOptions = computed(() => technicians.value?.content ?? [])
+
 const assignForm = ref<number | ''>('')
-const savingStatus = ref(false)
 const savingAssign = ref(false)
 const message = ref('')
+
 const errorMessage = computed(() => {
   const err = error.value as { data?: { message?: string } } | null
   return err?.data?.message || error.value?.message || 'Failed to load request.'
 })
 
-watchEffect(() => {
-  if (request.value) {
-    statusForm.value = request.value.status
-    assignForm.value = request.value.technicianId ?? ''
-  }
-})
-
 const categoryName = computed(() => {
-  if (!request.value) return '-'
-  return typeof request.value.category === 'string'
-    ? request.value.category
-    : request.value.category?.name ?? '-'
+  const c = request.value?.category
+  if (!c) return '-'
+  return c.nameRu || c.nameEn || '-'
 })
 
-const customerName = computed(() => request.value?.customer?.name || '-')
+const customerName = computed(() => request.value?.customer?.fullName || '-')
+const customerPhone = computed(() => request.value?.customer?.phone || '-')
+const assignedTechnician = computed(() => request.value?.currentAssignment?.technician ?? null)
 
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleString() : '-'
 }
-
-async function saveStatus() {
-  message.value = ''
-  savingStatus.value = true
-  try {
-    const action = statusForm.value === 'COMPLETED'
-      ? 'complete'
-      : statusForm.value === 'CANCELLED'
-        ? 'cancel'
-        : statusForm.value === 'IN_PROGRESS'
-          ? 'start'
-          : statusForm.value === 'WAITING_PARTS'
-            ? 'wait-for-parts'
-            : null
-    if (action) await apiFetch(`/requests/${id}/${action}`, { method: 'POST' })
-    message.value = 'Status updated successfully.'
-    refresh()
-  } catch (e) {
-    const err = e as { data?: { message?: string } }
-    message.value = err.data?.message || 'Failed to update status.'
-  } finally {
-    savingStatus.value = false
-  }
-}
-
-const { t } = useLocale()
 
 async function saveAssign() {
   message.value = ''
   savingAssign.value = true
   try {
     await apiFetch(`/requests/${id}/assign`, { method: 'POST', body: { technicianId: assignForm.value } })
-    message.value = 'Technician assigned successfully.'
+    message.value = t('assignedSuccessfully')
     refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string } }
-    message.value = err.data?.message || 'Failed to assign technician.'
+    const err = e as { data?: { message?: string }, message?: string }
+    message.value = err.data?.message || err.message || 'Failed to assign technician.'
   } finally {
     savingAssign.value = false
   }
+}
+
+const execAction = ref('')
+const execForm = ref('')
+const savingExec = ref(false)
+const execError = ref('')
+
+function openExecModal(action: string) {
+  execAction.value = action
+  execForm.value = ''
+  execError.value = ''
+  showModal('exec-modal')
+}
+
+async function runExec() {
+  savingExec.value = true
+  execError.value = ''
+  try {
+    const body = execAction.value === 'complete'
+      ? { workPerformed: execForm.value }
+      : execAction.value === 'wait-for-parts' || execAction.value === 'cancel'
+        ? { reason: execForm.value }
+        : execAction.value === 'resume'
+          ? { note: execForm.value || undefined }
+          : undefined
+    await apiFetch(`/requests/${id}/${execAction.value}`, { method: 'POST', body })
+    hideModal('exec-modal')
+    message.value = t('statusUpdated')
+    refresh()
+  } catch (e) {
+    const err = e as { data?: { message?: string }, message?: string }
+    execError.value = err.data?.message || err.message || 'Action failed.'
+  } finally {
+    savingExec.value = false
+  }
+}
+
+function can(action: string) {
+  const s = request.value?.status
+  if (action === 'start') return s === 'ASSIGNED'
+  if (action === 'wait-for-parts' || action === 'complete') return s === 'IN_PROGRESS' || s === 'WAITING_FOR_PARTS'
+  if (action === 'resume') return s === 'WAITING_FOR_PARTS'
+  if (action === 'cancel') return s !== 'COMPLETED' && s !== 'CANCELLED'
+  return false
 }
 </script>
 
 <template>
   <AppContent
-    :title="`Request #${id}`"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('requests'), to: '/requests' }, { label: `#${id}` }]"
+    :title="`#${request?.requestNumber || id}`"
+    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('requests'), to: '/requests' }, { label: `#${request?.requestNumber || id}` }]"
   >
     <div
       v-if="error"
@@ -100,7 +114,7 @@ async function saveAssign() {
         class="btn btn-sm btn-outline-danger ms-2"
         @click="() => refresh()"
       >
-        Retry
+        {{ t('retry') }}
       </button>
     </div>
 
@@ -124,64 +138,57 @@ async function saveAssign() {
           <div class="col-lg-8">
             <div class="card mb-4">
               <div class="card-header">
-                <h3 class="card-title">
-                  Problem Description
-                </h3>
+                <div class="d-flex align-items-center justify-content-between">
+                  <h3 class="card-title mb-0">
+                    {{ t('description') }}
+                  </h3>
+                  <StatusBadge :status="request.status" />
+                </div>
               </div>
               <div class="card-body">
-                <p class="mb-3">
-                  {{ request.description || 'No description provided.' }}
+                <p class="mb-0">
+                  {{ request.description || '-' }}
                 </p>
-                <div
-                  v-if="request.photoUrl"
-                  class="mt-3"
-                >
-                  <img
-                    :src="request.photoUrl"
-                    class="img-fluid rounded border"
-                    alt="Request photo"
-                  >
-                </div>
               </div>
             </div>
 
             <div class="card mb-4">
               <div class="card-header">
                 <h3 class="card-title">
-                  Customer Information
+                  {{ t('client') }}
                 </h3>
               </div>
               <div class="card-body">
                 <dl class="row mb-0">
                   <dt class="col-sm-4">
-                    Full name
+                    {{ t('fullName') }}
                   </dt>
                   <dd class="col-sm-8">
                     <NuxtLink
-                      v-if="request.customerId"
-                      :to="`/customers/${request.customerId}`"
+                      v-if="request.customer?.id"
+                      :to="`/customers/${request.customer.id}`"
                     >{{ customerName }}</NuxtLink>
                     <template v-else>
                       {{ customerName }}
                     </template>
                   </dd>
                   <dt class="col-sm-4">
-                    Phone number
+                    {{ t('phone') }}
                   </dt>
                   <dd class="col-sm-8">
-                    {{ request.customer?.phone || '-' }}
+                    {{ customerPhone }}
                   </dd>
                   <dt class="col-sm-4">
-                    Telegram Chat ID
-                  </dt>
-                  <dd class="col-sm-8">
-                    {{ request.customer?.telegramChatId ?? '-' }}
-                  </dd>
-                  <dt class="col-sm-4">
-                    Address
+                    {{ t('address') }}
                   </dt>
                   <dd class="col-sm-8">
                     {{ request.address || '-' }}
+                  </dd>
+                  <dt class="col-sm-4">
+                    {{ t('customerPreferredVisitAt') }}
+                  </dt>
+                  <dd class="col-sm-8">
+                    {{ formatDate(request.customerPreferredVisitAt) }}
                   </dd>
                 </dl>
               </div>
@@ -192,60 +199,82 @@ async function saveAssign() {
             <div class="card mb-4">
               <div class="card-header">
                 <h3 class="card-title">
-                  Current Status
+                  {{ t('details') }}
                 </h3>
               </div>
               <div class="card-body">
-                <div class="mb-3">
-                  <StatusBadge
-                    :status="request.status"
-                    class="fs-6"
-                  />
-                </div>
-                <div class="input-group">
-                  <select
-                    v-model="statusForm"
-                    class="form-select"
-                  >
-                    <option
-                      v-for="s in requestStatuses"
-                      :key="s.value"
-                      :value="s.value"
-                    >
-                      {{ s.label }}
-                    </option>
-                  </select>
-                  <button
-                    type="button"
-                    class="btn btn-primary"
-                    :disabled="savingStatus"
-                    @click="saveStatus"
-                  >
-                    {{ savingStatus ? 'Saving...' : 'Update' }}
-                  </button>
-                </div>
+                <dl class="row mb-0">
+                  <dt class="col-5">
+                    {{ t('status') }}
+                  </dt>
+                  <dd class="col-7">
+                    <StatusBadge :status="request.status" />
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('priority') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ request.priority }}
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('categories') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ categoryName }}
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('source') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ request.source }}
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('created') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ formatDate(request.createdAt) }}
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('lastUpdated') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ formatDate(request.updatedAt) }}
+                  </dd>
+                </dl>
               </div>
             </div>
 
             <div class="card mb-4">
               <div class="card-header">
                 <h3 class="card-title">
-                  Assigned Technician
+                  {{ t('assignedTechnician') }}
                 </h3>
               </div>
               <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
+                <div
+                  v-if="assignedTechnician"
+                  class="d-flex align-items-center mb-3"
+                >
                   <i class="bi bi-person-wrench fs-3 me-2 text-primary" />
                   <div>
                     <div class="fw-semibold">
-                      {{ request.technician?.fullName || 'Not assigned' }}
+                      {{ assignedTechnician.fullName }}
                     </div>
                     <div class="text-muted small">
-                      {{ request.technician?.phone || '' }}
+                      {{ assignedTechnician.phone || '' }}
                     </div>
                   </div>
                 </div>
-                <div class="input-group">
+                <div
+                  v-else
+                  class="text-muted mb-3"
+                >
+                  {{ t('notAssigned') }}
+                </div>
+                <div
+                  v-if="request.status === 'NEW' || request.status === 'ASSIGNED'"
+                  class="input-group"
+                >
                   <select
                     v-model="assignForm"
                     class="form-select"
@@ -254,14 +283,14 @@ async function saveAssign() {
                       :value="''"
                       disabled
                     >
-                      Select technician...
+                      {{ t('selectTechnician') }}
                     </option>
                     <option
-                      v-for="t in technicians"
-                      :key="t.id"
-                      :value="t.id"
+                      v-for="tech in technicianOptions"
+                      :key="tech.id"
+                      :value="tech.id"
                     >
-                      {{ t.fullName }}
+                      {{ tech.fullName }}
                     </option>
                   </select>
                   <button
@@ -270,7 +299,7 @@ async function saveAssign() {
                     :disabled="savingAssign || assignForm === ''"
                     @click="saveAssign"
                   >
-                    {{ savingAssign ? 'Saving...' : 'Assign' }}
+                    {{ savingAssign ? t('saving') : t('assignTechnician') }}
                   </button>
                 </div>
               </div>
@@ -279,35 +308,82 @@ async function saveAssign() {
             <div class="card mb-4">
               <div class="card-header">
                 <h3 class="card-title">
-                  Details
+                  {{ t('actions') }}
                 </h3>
               </div>
-              <div class="card-body">
-                <dl class="row mb-0">
-                  <dt class="col-5">
-                    Category
-                  </dt>
-                  <dd class="col-7">
-                    {{ categoryName }}
-                  </dd>
-                  <dt class="col-5">
-                    Created
-                  </dt>
-                  <dd class="col-7">
-                    {{ formatDate(request.createdAt) }}
-                  </dd>
-                  <dt class="col-5">
-                    Last updated
-                  </dt>
-                  <dd class="col-7">
-                    {{ formatDate(request.updatedAt) }}
-                  </dd>
-                </dl>
+              <div class="card-body d-flex flex-column gap-2">
+                <button
+                  v-if="can('start')"
+                  type="button"
+                  class="btn btn-primary"
+                  @click="openExecModal('start')"
+                >
+                  <i class="bi bi-play-circle me-2" />{{ t('start') }}
+                </button>
+                <button
+                  v-if="can('wait-for-parts')"
+                  type="button"
+                  class="btn btn-outline-warning"
+                  @click="openExecModal('wait-for-parts')"
+                >
+                  <i class="bi bi-box-seam me-2" />{{ t('waitForParts') }}
+                </button>
+                <button
+                  v-if="can('resume')"
+                  type="button"
+                  class="btn btn-primary"
+                  @click="openExecModal('resume')"
+                >
+                  <i class="bi bi-play-circle me-2" />{{ t('resume') }}
+                </button>
+                <button
+                  v-if="can('complete')"
+                  type="button"
+                  class="btn btn-success"
+                  @click="openExecModal('complete')"
+                >
+                  <i class="bi bi-check2-circle me-2" />{{ t('complete') }}
+                </button>
+                <button
+                  v-if="can('cancel')"
+                  type="button"
+                  class="btn btn-outline-danger"
+                  @click="openExecModal('cancel')"
+                >
+                  <i class="bi bi-x-circle me-2" />{{ t('cancelRequest') }}
+                </button>
               </div>
             </div>
           </div>
         </div>
       </template>
     </template>
+
+    <AppModal
+      id="exec-modal"
+      :title="execAction === 'complete' ? t('complete') : execAction === 'cancel' ? t('cancelRequest') : execAction === 'wait-for-parts' ? t('waitForParts') : t('resume')"
+    >
+      <form @submit.prevent="runExec">
+        <div class="mb-3">
+          <label :for="`exec-${execAction}`" class="form-label">
+            {{ execAction === 'complete' ? t('workPerformed') : t('reason') }}
+          </label>
+          <textarea
+            :id="`exec-${execAction}`"
+            v-model="execForm"
+            class="form-control"
+            rows="3"
+            :required="execAction !== 'resume'"
+          />
+        </div>
+        <div v-if="execError" class="alert alert-danger py-2">{{ execError }}</div>
+      </form>
+      <template #footer>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
+        <button type="button" class="btn btn-primary" :disabled="savingExec" @click="runExec">
+          {{ savingExec ? t('saving') : t('save') }}
+        </button>
+      </template>
+    </AppModal>
   </AppContent>
 </template>

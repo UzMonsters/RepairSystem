@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import type { Customer } from '~/types'
+import type { Customer, Page } from '~/types'
 
 const { t } = useLocale()
 const search = ref('')
+const page = ref(1)
+const size = ref(10)
+
+const query = computed(() => ({
+  page: page.value - 1,
+  size: size.value,
+  search: search.value.trim() || undefined
+}))
 
 const { data, pending, error, refresh } = await useAsyncData('customers-list', () =>
-  apiFetch<Customer[]>('/customers')
+  apiFetch<Page<Customer>>('/customers', { query: query.value })
 )
 
 const errorMessage = computed(() => {
@@ -13,13 +21,29 @@ const errorMessage = computed(() => {
   return err?.data?.message || error.value?.message || 'Failed to load customers.'
 })
 
-const filtered = computed(() => {
-  const q = search.value.trim().toLowerCase()
-  if (!q) return data.value ?? []
-  return (data.value ?? []).filter(c =>
-    c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q)
-  )
-})
+const rows = computed(() => data.value?.content ?? [])
+const totalElements = computed(() => data.value?.totalElements ?? 0)
+const totalPages = computed(() => data.value?.totalPages ?? 1)
+
+function applyFilters() {
+  page.value = 1
+  refresh()
+}
+
+function goToPage(target: number) {
+  page.value = target
+  refresh()
+}
+
+function changeSize(s: number) {
+  size.value = s
+  page.value = 1
+  refresh()
+}
+
+function formatDate(value?: string) {
+  return value ? new Date(value).toLocaleDateString() : '-'
+}
 </script>
 
 <template>
@@ -31,21 +55,20 @@ const filtered = computed(() => {
       <div class="card-header">
         <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
           <h3 class="card-title mb-0">
-            Customer List
+            {{ t('customerList') }}
           </h3>
-          <div
-            class="input-group input-group-sm"
-            style="max-width: 260px;"
-          >
+          <div class="input-group input-group-sm search-box">
             <input
               v-model="search"
               type="search"
               class="form-control"
-              placeholder="Search by name or phone..."
+              :placeholder="t('searchByNameOrPhone')"
+              @keyup.enter="applyFilters"
             >
             <button
               type="button"
               class="btn btn-outline-secondary"
+              @click="applyFilters"
             >
               <i class="bi bi-search" />
             </button>
@@ -64,57 +87,84 @@ const filtered = computed(() => {
             class="btn btn-sm btn-outline-danger ms-2"
             @click="() => refresh()"
           >
-            Retry
+            {{ t('retry') }}
           </button>
         </div>
 
         <table
           v-else
-          class="table table-striped table-hover align-middle mb-0"
+          class="table table-hover align-middle mb-0"
         >
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Total Requests</th>
+              <th>{{ t('name') }}</th>
+              <th>{{ t('phone') }}</th>
+              <th>{{ t('language') }}</th>
+              <th>{{ t('telegramLinked') }}</th>
+              <th>{{ t('active') }}</th>
+              <th>{{ t('created') }}</th>
               <th class="text-end">
-                Actions
+                {{ t('actions') }}
               </th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="4"
+                colspan="7"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
               </td>
             </tr>
-            <tr v-else-if="!filtered.length">
+            <tr v-else-if="!rows.length">
               <td
-                colspan="4"
-                class="text-center text-muted py-4"
+                colspan="7"
+                class="text-center py-4"
               >
-                No customers found.
+                <div class="empty-state">
+                  <i class="bi bi-people" />
+                  <p>{{ t('noCustomersFound') }}</p>
+                </div>
               </td>
             </tr>
             <tr
-              v-for="c in filtered"
+              v-for="c in rows"
               :key="c.id"
             >
               <td>
-                <NuxtLink :to="`/customers/${c.id}`">
-                  {{ c.name }}
+                <NuxtLink
+                  :to="`/customers/${c.id}`"
+                  class="fw-semibold link-primary"
+                >
+                  {{ c.fullName }}
                 </NuxtLink>
               </td>
               <td>{{ c.phone }}</td>
-              <td>{{ c.totalRequests ?? 0 }}</td>
-              <td class="text-end">
+              <td>{{ c.preferredLanguage ? t(`language.${c.preferredLanguage}`) : '-' }}</td>
+              <td>
+                <span
+                  v-if="c.telegramLinked"
+                  class="status-chip status-completed"
+                >
+                  <span class="status-dot" />TG
+                </span>
+                <span v-else>-</span>
+              </td>
+              <td>
+                <span
+                  class="badge"
+                  :class="c.active ? 'text-bg-success' : 'text-bg-secondary'"
+                >{{ t(c.active ? 'active' : 'inactive') }}</span>
+              </td>
+              <td class="text-nowrap">
+                {{ formatDate(c.createdAt) }}
+              </td>
+              <td class="text-end text-nowrap">
                 <NuxtLink
                   :to="`/customers/${c.id}`"
                   class="btn btn-sm btn-outline-secondary"
-                  title="View profile"
+                  :title="t('view')"
                 >
                   <i class="bi bi-person" />
                 </NuxtLink>
@@ -123,6 +173,17 @@ const filtered = computed(() => {
           </tbody>
         </table>
       </div>
+
+      <AppPagination
+        v-if="!error"
+        :page="page"
+        :size="size"
+        :total="totalElements"
+        :total-pages="totalPages"
+        :page-sizes="[10, 25, 50, 100]"
+        @update:page="goToPage"
+        @update:size="changeSize"
+      />
     </div>
   </AppContent>
 </template>

@@ -1,9 +1,19 @@
 <script setup lang="ts">
-import type { Review } from '~/types'
+import type { Page, Review } from '~/types'
 
 const { t } = useLocale()
+const page = ref(1)
+const size = ref(10)
+const rating = ref('')
+
+const query = computed(() => ({
+  page: page.value - 1,
+  size: size.value,
+  rating: rating.value || undefined
+}))
+
 const { data, pending, error, refresh } = await useAsyncData('reviews-list', () =>
-  apiFetch<Review[]>('/reviews')
+  apiFetch<Page<Review>>('/reviews', { query: query.value })
 )
 
 const errorMessage = computed(() => {
@@ -11,7 +21,25 @@ const errorMessage = computed(() => {
   return err?.data?.message || error.value?.message || 'Failed to load reviews.'
 })
 
-const customerName = (r: Review) => r.customer || r.customerName || '-'
+const rows = computed(() => data.value?.content ?? [])
+const totalElements = computed(() => data.value?.totalElements ?? 0)
+const totalPages = computed(() => data.value?.totalPages ?? 1)
+
+function applyFilters() {
+  page.value = 1
+  refresh()
+}
+
+function goToPage(target: number) {
+  page.value = target
+  refresh()
+}
+
+function changeSize(s: number) {
+  size.value = s
+  page.value = 1
+  refresh()
+}
 
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleDateString() : '-'
@@ -25,9 +53,24 @@ function formatDate(value?: string) {
   >
     <div class="card">
       <div class="card-header">
-        <h3 class="card-title">
-          Customer Feedback
-        </h3>
+        <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
+          <h3 class="card-title mb-0">
+            {{ t('customerFeedback') }}
+          </h3>
+          <select
+            v-model="rating"
+            class="form-select form-select-sm"
+            style="max-width: 140px;"
+            @change="applyFilters"
+          >
+            <option value="">{{ t('all') }}</option>
+            <option value="5">5 ★</option>
+            <option value="4">4 ★</option>
+            <option value="3">3 ★</option>
+            <option value="2">2 ★</option>
+            <option value="1">1 ★</option>
+          </select>
+        </div>
       </div>
 
       <div class="card-body table-responsive p-0">
@@ -41,63 +84,99 @@ function formatDate(value?: string) {
             class="btn btn-sm btn-outline-danger ms-2"
             @click="() => refresh()"
           >
-            Retry
+            {{ t('retry') }}
           </button>
         </div>
 
         <table
           v-else
-          class="table table-striped table-hover align-middle mb-0"
+          class="table table-hover align-middle mb-0"
         >
           <thead>
             <tr>
-              <th>Customer</th>
-              <th>Rating</th>
-              <th>Comment</th>
-              <th>Related Request</th>
-              <th>Date</th>
+              <th>{{ t('client') }}</th>
+              <th>{{ t('rating') }}</th>
+              <th>{{ t('comment') }}</th>
+              <th>{{ t('relatedRequest') }}</th>
+              <th>{{ t('source') }}</th>
+              <th>{{ t('date') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="5"
+                colspan="6"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
               </td>
             </tr>
-            <tr v-else-if="!data?.length">
+            <tr v-else-if="!rows.length">
               <td
-                colspan="5"
-                class="text-center text-muted py-4"
+                colspan="6"
+                class="text-center py-4"
               >
-                No reviews yet.
+                <div class="empty-state">
+                  <i class="bi bi-star" />
+                  <p>{{ t('noReviewsFound') }}</p>
+                </div>
               </td>
             </tr>
             <tr
-              v-for="r in data"
-              :key="r.id ?? `${r.requestId}-${r.rating}-${r.customer}`"
+              v-for="r in rows"
+              :key="r.reviewId ?? `${r.repairRequestId}-${r.rating}-${r.customerName}`"
             >
               <td class="fw-semibold">
-                {{ customerName(r) }}
+                {{ r.customerName || '-' }}
               </td>
-              <td><RatingStars :rating="r.rating" /></td>
+              <td>
+                <span class="star-rating">
+                  <i
+                    v-for="s in 5"
+                    :key="s"
+                    class="bi"
+                    :class="s <= r.rating ? 'bi-star-fill filled' : 'bi-star'"
+                  />
+                  <span class="ms-1">{{ r.rating }}</span>
+                </span>
+              </td>
               <td>{{ r.comment || '-' }}</td>
               <td>
                 <NuxtLink
-                  v-if="r.requestId"
-                  :to="`/requests/${r.requestId}`"
+                  v-if="r.repairRequestId"
+                  :to="`/requests/${r.repairRequestId}`"
                 >
-                  #{{ r.requestId }}
+                  {{ r.requestNumber || `#${r.repairRequestId}` }}
                 </NuxtLink>
                 <span v-else>-</span>
               </td>
-              <td>{{ formatDate(r.createdAt) }}</td>
+              <td>
+                <span
+                  v-if="r.source"
+                  class="status-chip status-assigned"
+                >
+                  <span class="status-dot" />{{ r.source }}
+                </span>
+                <span v-else>-</span>
+              </td>
+              <td class="text-nowrap">
+                {{ formatDate(r.submittedAt) }}
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <AppPagination
+        v-if="!error"
+        :page="page"
+        :size="size"
+        :total="totalElements"
+        :total-pages="totalPages"
+        :page-sizes="[10, 25, 50, 100]"
+        @update:page="goToPage"
+        @update:size="changeSize"
+      />
     </div>
   </AppContent>
 </template>

@@ -49,6 +49,17 @@ services:
       APP_TELEGRAM_FILE_BASE_URL: ${APP_TELEGRAM_FILE_BASE_URL:-https://api.telegram.org}
       APP_TELEGRAM_REQUEST_TIMEOUT: ${APP_TELEGRAM_REQUEST_TIMEOUT:-PT10S}
       APP_TELEGRAM_MAX_PENDING_PHOTOS: ${APP_TELEGRAM_MAX_PENDING_PHOTOS:-3}
+      APP_STORAGE_ENABLED: ${APP_STORAGE_ENABLED:-true}
+      APP_STORAGE_ENDPOINT: ${APP_STORAGE_ENDPOINT:-http://minio:9000}
+      APP_STORAGE_REGION: ${APP_STORAGE_REGION:-us-east-1}
+      APP_STORAGE_BUCKET: ${APP_STORAGE_BUCKET:-repairauto-local}
+      APP_STORAGE_ACCESS_KEY: ${APP_STORAGE_ACCESS_KEY:-minioadmin}
+      APP_STORAGE_SECRET_KEY: ${APP_STORAGE_SECRET_KEY:-minioadmin}
+      APP_STORAGE_PATH_STYLE: ${APP_STORAGE_PATH_STYLE:-true}
+      APP_STORAGE_CREATE_BUCKET: ${APP_STORAGE_CREATE_BUCKET:-true}
+      APP_STORAGE_DOWNLOAD_URL_TTL: ${APP_STORAGE_DOWNLOAD_URL_TTL:-PT10M}
+      APP_STORAGE_MAX_FILE_SIZE: ${APP_STORAGE_MAX_FILE_SIZE:-10MB}
+      APP_STORAGE_MAX_REQUEST_SIZE: ${APP_STORAGE_MAX_REQUEST_SIZE:-12MB}
     ports:
       - "${SERVER_PORT:-8080}:8080"
     healthcheck:
@@ -56,6 +67,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9007}:9000"
+      - "${MINIO_CONSOLE_PORT:-9008}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:${MINIO_PORT:-9007}/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local.test}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_PORT:-8082}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -70,3 +109,4 @@ services:
 
 volumes:
   repair_system_postgres:
+  minio_data:

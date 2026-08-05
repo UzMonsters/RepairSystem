@@ -1,0 +1,6 @@
+D:\web-sites\заказ\repairSystem\repairSystem\app\components\ApexChart.vue
+D:\web-sites\заказ\repairSystem\repairSystem\app\components\AppSidebar.vue
+D:\web-sites\заказ\repairSystem\repairSystem\app\components\VectorMap.vue
+D:\web-sites\заказ\repairSystem\repairSystem\app\pages\settings\index.vue
+D:\web-sites\заказ\repairSystem\repairSystem\app\pages\technicians\index.vue
+D:\web-sites\заказ\repairSystem\repairSystem\app\pages\index.vue

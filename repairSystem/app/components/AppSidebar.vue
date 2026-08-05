@@ -2,16 +2,37 @@
 import { menu } from '~/lib/menu'
 
 const { user } = useAuth()
+const { t } = useLocale()
 const route = useRoute()
 const sidebarWrapper = ref(null)
+const search = ref('')
 let osInstance = null
 
-const visibleMenu = computed(() => {
+const baseMenu = computed(() => {
   return menu.filter(item => {
     if (item.type !== 'item') return true
     if (!item.roles?.length) return true
     return item.roles.includes(user.value?.role || 'MANAGER')
   })
+})
+
+const visibleMenu = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return baseMenu.value
+  return baseMenu.value.map((item) => {
+    if (item.type === 'header') return item
+    if (item.type === 'item') {
+      const label = (t(item.text) || item.text).toLowerCase()
+      if (label.includes(q)) return item
+      return null
+    }
+    const children = (item.children ?? []).filter((c) => {
+      if (c.type === 'item') return (t(c.text) || c.text).toLowerCase().includes(q)
+      return true
+    })
+    if (!children.length) return null
+    return { ...item, children }
+  }).filter(Boolean)
 })
 
 onMounted(async () => {
@@ -49,9 +70,9 @@ function closeSidebar() {
         <img
           src="/assets/img/AdminLTELogo.png"
           alt="Logo"
-          class="brand-image opacity-75 shadow"
+          class="brand-image"
         >
-        <span class="brand-text fw-light">Repair<b>System</b></span>
+        <span class="brand-text">Repair<b>System</b></span>
       </NuxtLink>
     </div>
 
@@ -59,8 +80,23 @@ function closeSidebar() {
       ref="sidebarWrapper"
       class="sidebar-wrapper"
     >
+      <div class="sidebar-search">
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-search" />
+          </span>
+          <input
+            v-model="search"
+            type="search"
+            class="form-control"
+            placeholder="Search for..."
+            aria-label="Search menu"
+          >
+        </div>
+      </div>
+
       <nav
-        class="mt-2"
+        class="mt-1"
         aria-label="Main navigation"
       >
         <ul

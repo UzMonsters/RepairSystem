@@ -1,9 +1,27 @@
-<script setup>
+<script setup lang="ts">
 defineProps({
   notifications: { type: Array, default: () => [] },
   seeAllUrl: { type: String, default: '#' },
   seeAllText: { type: String, default: 'See All Notifications' }
 })
+
+const { t } = useLocale()
+
+function shortKey(value?: string) {
+  if (!value) return '-'
+  return value.replace(/_/g, ' ').toLowerCase()
+}
+
+function timeAgo(value?: string) {
+  if (!value) return ''
+  const diff = Date.now() - new Date(value).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return t('justNow')
+  if (mins < 60) return `${mins}m`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h`
+  return `${Math.floor(hours / 24)}d`
+}
 </script>
 
 <template>
@@ -21,29 +39,35 @@ defineProps({
       >{{ notifications.length }}</span>
     </a>
     <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-      <span class="dropdown-item dropdown-header">{{ notifications.length }} Notifications</span>
+      <span class="dropdown-item dropdown-header">{{ notifications.length }} {{ t('notifications') }}</span>
       <template
         v-for="(n, idx) in notifications"
         :key="idx"
       >
         <div class="dropdown-divider" />
-        <a
-          :href="n.url || '#'"
+        <NuxtLink
+          :to="n.repairRequestId ? `/requests/${n.repairRequestId}` : '/notifications'"
           class="dropdown-item"
         >
-          <i :class="[n.icon || 'bi-info-circle', n.iconTheme && `text-${n.iconTheme}`, 'me-2']" />
-          {{ n.text }}
-          <span
-            v-if="n.time"
-            class="float-end text-secondary fs-7"
-          >{{ n.time }}</span>
-        </a>
+          <i class="bi bi-bell me-2" />
+          <span class="d-inline-block" style="max-width: 220px;">
+            {{ shortKey(n.notificationType) }}
+            <span
+              v-if="n.requestNumber"
+              class="float-end text-secondary fs-7"
+            >{{ n.requestNumber }}</span>
+          </span>
+          <span class="d-block text-secondary fs-7">
+            {{ n.status }}
+            <span class="float-end">{{ timeAgo(n.createdAt) }}</span>
+          </span>
+        </NuxtLink>
       </template>
       <div class="dropdown-divider" />
-      <a
-        :href="seeAllUrl"
+      <NuxtLink
+        :to="seeAllUrl"
         class="dropdown-item dropdown-footer"
-      >{{ seeAllText }}</a>
+      >{{ seeAllText }}</NuxtLink>
     </div>
   </li>
 </template>

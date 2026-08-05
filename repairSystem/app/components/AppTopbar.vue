@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AppNotification } from '~/types'
+import type { NotificationSummary, Page } from '~/types'
 
 const { user, logout } = useAuth()
 const { locale, setLocale, t } = useLocale()
@@ -9,11 +9,12 @@ const role = computed(() => user.value?.role || '')
 const email = computed(() => user.value?.email || '')
 const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
 const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value === 'en' ? 'EN' : 'UZ')
-const notifications = ref<AppNotification[]>([])
+const notifications = ref<NotificationSummary[]>([])
 
 onMounted(async () => {
   try {
-    notifications.value = await apiFetch<AppNotification[]>('/notifications')
+    const page = await apiFetch<Page<NotificationSummary>>('/notifications', { query: { page: 0, size: 5 } })
+    notifications.value = page.content ?? []
   } catch (e) {
     void e
   }
@@ -21,7 +22,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <nav class="app-header navbar navbar-expand navbar-bg-dark">
+  <nav class="app-header navbar navbar-expand">
     <div class="container-fluid">
       <ul class="navbar-nav">
         <li class="nav-item">
@@ -64,7 +65,7 @@ onMounted(async () => {
                 <span class="me-2">UZ</span>
                 {{ t('uzbek') }}
                 <i
-                  v-if="locale.value === 'uz'"
+                  v-if="locale === 'uz'"
                   class="bi bi-check-lg ms-auto"
                 />
               </button>

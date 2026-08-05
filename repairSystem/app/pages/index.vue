@@ -1,17 +1,53 @@
 <script setup lang="ts">
-import type { DashboardData, RepairRequest } from '~/types'
+import type { DashboardOverview, Page, RepairRequest } from '~/types'
 
+const { t } = useLocale()
 const { data, pending, error, refresh } = await useAsyncData('dashboard', () =>
-  apiFetch<DashboardData>('/dashboard/overview')
+  apiFetch<DashboardOverview>('/dashboard/overview')
 )
 
+const { data: recentRequests } = await useAsyncData('dashboard-recent', () =>
+  apiFetch<Page<RepairRequest>>('/requests', { query: { page: 0, size: 6, sort: 'createdAt,desc' } })
+)
+
+const completionRate = computed(() => {
+  const total = data.value?.totalRequests ?? 0
+  if (!total) return null
+  return ((data.value!.completedTotal / total) * 100).toFixed(1)
+})
+
+const cancellationRate = computed(() => {
+  const total = data.value?.totalRequests ?? 0
+  if (!total) return null
+  return ((data.value!.cancelledTotal / total) * 100).toFixed(1)
+})
+
+const averageRating = computed(() => {
+  const r = data.value?.averageRating
+  return r == null ? '-' : Number(r).toFixed(1)
+})
+
 const stats = computed(() => [
-  { label: 'Total Requests', value: data.value?.totalRequests ?? 0, icon: 'bi-clipboard-check', color: 'text-bg-primary' },
-  { label: 'New Requests', value: data.value?.newRequests ?? 0, icon: 'bi-plus-circle', color: 'text-bg-info' },
-  { label: 'Requests In Progress', value: data.value?.inProgress ?? 0, icon: 'bi-gear', color: 'text-bg-warning' },
-  { label: 'Completed Requests', value: data.value?.completed ?? 0, icon: 'bi-check-circle', color: 'text-bg-success' },
-  { label: 'Total Customers', value: data.value?.totalCustomers ?? 0, icon: 'bi-people', color: 'text-bg-teal' },
-  { label: 'Total Technicians', value: data.value?.totalTechnicians ?? 0, icon: 'bi-person-wrench', color: 'text-bg-danger' }
+  { icon: 'bi-clipboard-check', title: t('totalRequests'), value: data.value?.totalRequests ?? 0, sub: t('all') },
+  { icon: 'bi-plus-circle', title: t('newToday'), value: data.value?.newToday ?? 0, sub: data.value?.businessDate ?? '-' },
+  { icon: 'bi-folder2-open', title: t('openRequests'), value: data.value?.openRequests ?? 0, sub: t('all') },
+  { icon: 'bi-gear', title: t('inProgress'), value: data.value?.inProgress ?? 0, sub: t('all') },
+  { icon: 'bi-hourglass-split', title: t('waitingForParts'), value: data.value?.waitingForParts ?? 0, sub: t('all') },
+  { icon: 'bi-check-circle', title: t('completedTotal'), value: data.value?.completedTotal ?? 0, rate: completionRate.value ? `${completionRate.value}%` : undefined, isUp: true },
+  { icon: 'bi-calendar-check', title: t('completedToday'), value: data.value?.completedToday ?? 0, sub: t('today') },
+  { icon: 'bi-x-circle', title: t('cancelledTotal'), value: data.value?.cancelledTotal ?? 0, rate: cancellationRate.value ? `${cancellationRate.value}%` : undefined, isUp: false },
+  { icon: 'bi-star', title: t('averageRating'), value: averageRating.value, sub: `${data.value?.totalReviews ?? 0} ${t('reviews')}` },
+  { icon: 'bi-chat-quote', title: t('totalReviews'), value: data.value?.totalReviews ?? 0, sub: t('all') },
+  { icon: 'bi-person-wrench', title: t('activeTechnicians'), value: data.value?.activeTechnicians ?? 0, sub: t('all') },
+  { icon: 'bi-person-check', title: t('techniciansWithActiveWork'), value: data.value?.techniciansWithActiveWork ?? 0, sub: t('all') }
+])
+
+const statusSummary = computed(() => [
+  { label: t('status.NEW'), value: data.value?.newToday ?? 0, badge: 'status-new' },
+  { label: t('status.IN_PROGRESS'), value: data.value?.inProgress ?? 0, badge: 'status-in-progress' },
+  { label: t('status.WAITING_FOR_PARTS'), value: data.value?.waitingForParts ?? 0, badge: 'status-waiting' },
+  { label: t('status.COMPLETED'), value: data.value?.completedTotal ?? 0, badge: 'status-completed' },
+  { label: t('status.CANCELLED'), value: data.value?.cancelledTotal ?? 0, badge: 'status-cancelled' }
 ])
 
 const errorMessage = computed(() => {
@@ -19,16 +55,13 @@ const errorMessage = computed(() => {
   return err?.data?.message || error.value?.message || 'Failed to load dashboard.'
 })
 
-function categoryName(r: RepairRequest) {
-  return typeof r.category === 'string' ? r.category : r.category?.name ?? '-'
+function categoryName(c?: RepairRequest['category']) {
+  if (!c) return '-'
+  return c.nameRu || c.nameEn || c.nameUz
 }
 
 function formatTime(value?: string) {
   return value ? new Date(value).toLocaleString() : '-'
-}
-
-function activityIcon(type: string) {
-  return type === 'NEW_REQUEST' ? 'bi-clipboard-plus' : 'bi-arrow-repeat'
 }
 </script>
 
@@ -47,7 +80,7 @@ function activityIcon(type: string) {
         class="btn btn-sm btn-outline-danger ms-2"
         @click="() => refresh()"
       >
-        Retry
+        {{ t('retry') }}
       </button>
     </div>
 
@@ -59,82 +92,70 @@ function activityIcon(type: string) {
     </div>
 
     <template v-else>
-      <div class="row g-3 g-lg-4">
-        <div
+      <div class="kpi-grid">
+        <KpiCard
           v-for="s in stats"
-          :key="s.label"
-          class="col-xl-2 col-lg-4 col-md-6"
-        >
-          <div
-            class="small-box"
-            :class="s.color"
-          >
-            <div class="inner">
-              <h3>{{ s.value }}</h3>
-              <p>{{ s.label }}</p>
-            </div>
-            <i
-              class="small-box-icon bi"
-              :class="s.icon"
-            />
-          </div>
-        </div>
+          :key="s.title"
+          :icon="s.icon"
+          :title="s.title"
+          :value="s.value"
+          :rate="s.rate"
+          :is-up="s.isUp"
+          :sub="s.sub"
+        />
       </div>
 
-      <div class="row mt-2">
-        <div class="col-lg-7">
-          <div class="card mb-4">
-            <div class="card-header">
-              <h3 class="card-title">
-                Recent Requests
+      <div class="row mt-4 g-4">
+        <div class="col-lg-8">
+          <div class="card dash-card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <h3 class="card-title mb-0">
+                {{ t('recentRequests') }}
               </h3>
-              <div class="card-tools">
-                <NuxtLink
-                  to="/requests"
-                  class="btn btn-sm btn-primary"
-                >
-                  View All
-                </NuxtLink>
-              </div>
+              <NuxtLink
+                to="/requests"
+                class="btn btn-sm btn-primary"
+              >
+                {{ t('viewAll') }}
+              </NuxtLink>
             </div>
             <div class="card-body table-responsive p-0">
-              <table class="table table-striped table-hover align-middle mb-0">
+              <table class="table table-hover align-middle mb-0">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Customer</th>
-                    <th>Category</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th class="text-end">
-                      Actions
-                    </th>
+                    <th>{{ t('requestNumber') }}</th>
+                    <th>{{ t('client') }}</th>
+                    <th>{{ t('categories') }}</th>
+                    <th>{{ t('status') }}</th>
+                    <th>{{ t('created') }}</th>
                   </tr>
                 </thead>
                 <tbody>
+                  <tr v-if="!recentRequests?.content.length">
+                    <td
+                      colspan="5"
+                      class="text-center py-5"
+                    >
+                      <div class="empty-state">
+                        <i class="bi bi-clipboard" />
+                        <p>{{ t('noRequestsFound') }}</p>
+                      </div>
+                    </td>
+                  </tr>
                   <tr
-                    v-for="r in data?.recentRequests"
+                    v-for="r in recentRequests?.content"
                     :key="r.id"
                   >
                     <td>
                       <NuxtLink :to="`/requests/${r.id}`">
-                        #{{ r.id }}
+                        {{ r.requestNumber || `#${r.id}` }}
                       </NuxtLink>
                     </td>
-                    <td>{{ r.customer?.name || '-' }}</td>
-                    <td>{{ categoryName(r) }}</td>
+                    <td>{{ r.customer?.fullName || '-' }}</td>
+                    <td>{{ categoryName(r.category) }}</td>
                     <td><StatusBadge :status="r.status" /></td>
                     <td class="text-nowrap">
                       {{ formatTime(r.createdAt) }}
-                    </td>
-                    <td class="text-end">
-                      <NuxtLink
-                        :to="`/requests/${r.id}`"
-                        class="btn btn-sm btn-outline-secondary"
-                        title="View request"
-                      >
-                        <i class="bi bi-eye" />
-                      </NuxtLink>
                     </td>
                   </tr>
                 </tbody>
@@ -143,41 +164,29 @@ function activityIcon(type: string) {
           </div>
         </div>
 
-        <div class="col-lg-5">
-          <div class="card mb-4">
+        <div class="col-lg-4">
+          <div class="card dash-card h-100">
             <div class="card-header">
-              <h3 class="card-title">
-                Today's Activity
+              <h3 class="card-title mb-0">
+                {{ t('requests') }} · {{ t('status') }}
               </h3>
-              <div class="card-tools">
-                <span
-                  class="badge text-bg-primary"
-                >{{ data?.activity.length }}</span>
-              </div>
             </div>
-            <div class="card-body p-0">
-              <ul class="list-group list-group-flush mb-0">
-                <li
-                  v-for="a in data?.activity"
-                  :key="a.id"
-                  class="list-group-item d-flex align-items-start gap-3 py-3"
-                >
-                  <span class="badge text-bg-primary rounded-circle p-2 mt-1">
-                    <i
-                      class="bi"
-                      :class="activityIcon(a.type)"
-                    />
-                  </span>
-                  <div class="flex-grow-1">
-                    <div class="fw-semibold small">
-                      {{ a.text }}
-                    </div>
-                    <div class="text-muted small">
-                      <i class="bi bi-clock me-1" />{{ formatTime(a.time) }}
-                    </div>
-                  </div>
-                </li>
-              </ul>
+            <div class="card-body">
+              <div
+                v-for="s in statusSummary"
+                :key="s.label"
+                class="status-summary-item"
+              >
+                <span class="status-summary-label">{{ s.label }}</span>
+                <span class="status-summary-value">{{ s.value }}</span>
+                <div class="status-summary-bar">
+                  <div
+                    class="status-summary-fill"
+                    :class="s.badge"
+                    :style="{ width: `${data?.totalRequests ? (s.value / data.totalRequests) * 100 : 0}%` }"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

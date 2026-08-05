@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import type { Category } from '~/types'
+import type { Category, Page } from '~/types'
 
-const { t } = useLocale()
+const { t, locale } = useLocale()
+const page = ref(1)
+const size = ref(20)
+
+const query = computed(() => ({
+  page: page.value - 1,
+  size: size.value
+}))
+
 const { data, pending, error, refresh } = await useAsyncData('categories-list', () =>
-  apiFetch<Category[]>('/categories')
+  apiFetch<Page<Category>>('/categories', { query: query.value })
 )
 
 const errorMessage = computed(() => {
@@ -11,47 +19,101 @@ const errorMessage = computed(() => {
   return err?.data?.message || error.value?.message || 'Failed to load categories.'
 })
 
+const rows = computed(() => data.value?.content ?? [])
+const totalElements = computed(() => data.value?.totalElements ?? 0)
+const totalPages = computed(() => data.value?.totalPages ?? 1)
+
+function goToPage(target: number) {
+  page.value = target
+  refresh()
+}
+
+function changeSize(s: number) {
+  size.value = s
+  page.value = 1
+  refresh()
+}
+
+function localizedName(c: Category) {
+  if (locale.value === 'ru') return c.nameRu || c.nameEn
+  if (locale.value === 'en') return c.nameEn || c.nameRu
+  return c.nameUz || c.nameRu || c.nameEn
+}
+
 const editingId = ref<number | null>(null)
-const form = ref('')
+const form = ref({
+  nameEn: '',
+  nameRu: '',
+  nameUz: '',
+  descriptionEn: '',
+  descriptionRu: '',
+  descriptionUz: '',
+  displayOrder: 0
+})
 const saving = ref(false)
+const saveError = ref('')
 
 function openCreate() {
   editingId.value = null
-  form.value = ''
+  form.value = { nameEn: '', nameRu: '', nameUz: '', descriptionEn: '', descriptionRu: '', descriptionUz: '', displayOrder: 0 }
+  saveError.value = ''
   showModal('category-modal')
 }
 
 function openEdit(c: Category) {
   editingId.value = c.id
-  form.value = c.name
+  form.value = {
+    nameEn: c.nameEn ?? '',
+    nameRu: c.nameRu ?? '',
+    nameUz: c.nameUz ?? '',
+    descriptionEn: '',
+    descriptionRu: '',
+    descriptionUz: '',
+    displayOrder: c.displayOrder ?? 0
+  }
+  saveError.value = ''
   showModal('category-modal')
 }
 
 async function save() {
-  if (!form.value.trim()) return
   saving.value = true
+  saveError.value = ''
   try {
+    const body = {
+      nameEn: form.value.nameEn.trim(),
+      nameRu: form.value.nameRu.trim(),
+      nameUz: form.value.nameUz.trim(),
+      descriptionEn: form.value.descriptionEn.trim() || undefined,
+      descriptionRu: form.value.descriptionRu.trim() || undefined,
+      descriptionUz: form.value.descriptionUz.trim() || undefined,
+      displayOrder: form.value.displayOrder
+    }
     if (editingId.value == null) {
-      await apiFetch('/categories', { method: 'POST', body: { name: form.value.trim() } })
+      await apiFetch('/categories', { method: 'POST', body })
     } else {
-      await apiFetch(`/categories/${editingId.value}`, { method: 'PUT', body: { name: form.value.trim() } })
+      await apiFetch(`/categories/${editingId.value}`, { method: 'PUT', body })
     }
     hideModal('category-modal')
     refresh()
   } catch (e) {
-    void e
+    const err = e as { data?: { message?: string }, message?: string }
+    saveError.value = err.data?.message || err.message || 'Failed to save category.'
   } finally {
     saving.value = false
   }
 }
 
-async function removeCategory(c: Category) {
-  if (!confirm(`Delete category "${c.name}"? This action cannot be undone.`)) return
+const togglingId = ref<number | null>(null)
+
+async function toggleActive(c: Category) {
+  togglingId.value = c.id
   try {
-    await apiFetch(`/categories/${c.id}`, { method: 'DELETE' })
+    await apiFetch(`/categories/${c.id}/activation`, { method: 'PATCH', body: { active: !c.active } })
     refresh()
   } catch (e) {
     void e
+  } finally {
+    togglingId.value = null
   }
 }
 </script>
@@ -63,7 +125,7 @@ async function removeCategory(c: Category) {
   >
     <div class="card">
       <div class="card-header">
-        <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
+        <div class="d-flex align-items-center justify-content-between">
           <h3 class="card-title mb-0">
             {{ t('categories') }}
           </h3>
@@ -72,7 +134,7 @@ async function removeCategory(c: Category) {
             class="btn btn-sm btn-primary"
             @click="openCreate"
           >
-            <i class="bi bi-plus-lg me-1" />{{ t('new') }} {{ t('categories') }}
+            <i class="bi bi-plus-lg me-1" />{{ t('newCategory') }}
           </button>
         </div>
       </div>
@@ -82,97 +144,127 @@ async function removeCategory(c: Category) {
           v-if="error"
           class="alert alert-danger m-3"
         >
-          {{ errorMessage }} 
+          {{ errorMessage }}
           <button
             type="button"
             class="btn btn-sm btn-outline-danger ms-2"
             @click="() => refresh()"
           >
-            Retry
+            {{ t('retry') }}
           </button>
         </div>
 
         <table
           v-else
-          class="table table-striped table-hover align-middle mb-0"
+          class="table table-hover align-middle mb-0"
         >
           <thead>
             <tr>
               <th>#</th>
-              <th>Names</th>
+              <th>{{ t('name') }}</th>
+              <th>{{ t('nameEn') }}</th>
+              <th>{{ t('nameRu') }}</th>
+              <th>{{ t('nameUz') }}</th>
+              <th>{{ t('displayOrder') }}</th>
+              <th>{{ t('active') }}</th>
               <th class="text-end">
-                Actions
+                {{ t('actions') }}
               </th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="3"
+                colspan="8"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
               </td>
             </tr>
-            <tr v-else-if="!data?.length">
+            <tr v-else-if="!rows.length">
               <td
-                colspan="3"
-                class="text-center text-muted py-4"
+                colspan="8"
+                class="text-center py-4"
               >
-                No categories found.
+                <div class="empty-state">
+                  <i class="bi bi-tags" />
+                  <p>{{ t('noCategoriesFound') }}</p>
+                </div>
               </td>
             </tr>
             <tr
-              v-for="c in data"
+              v-for="c in rows"
               :key="c.id"
             >
               <td>{{ c.id }}</td>
               <td class="fw-semibold">
-                {{ c.name }}
+                {{ localizedName(c) }}
+              </td>
+              <td>{{ c.nameEn || '-' }}</td>
+              <td>{{ c.nameRu || '-' }}</td>
+              <td>{{ c.nameUz || '-' }}</td>
+              <td>{{ c.displayOrder ?? '-' }}</td>
+              <td>
+                <span class="badge" :class="c.active ? 'text-bg-success' : 'text-bg-secondary'">{{ t(c.active ? 'active' : 'inactive') }}</span>
               </td>
               <td class="text-end text-nowrap">
                 <button
                   type="button"
                   class="btn btn-sm btn-outline-secondary"
-                  title="Edit"
+                  :title="t('edit')"
                   @click="openEdit(c)"
                 >
                   <i class="bi bi-pencil" />
                 </button>
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-danger ms-1"
-                  title="Delete"
-                  @click="removeCategory(c)"
+                  class="btn btn-sm btn-outline-secondary ms-1"
+                  :title="t('active')"
+                  :disabled="togglingId === c.id"
+                  @click="toggleActive(c)"
                 >
-                  <i class="bi bi-trash" />
+                  <i class="bi bi-toggle-on" />
                 </button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <AppPagination
+        v-if="!error"
+        :page="page"
+        :size="size"
+        :total="totalElements"
+        :total-pages="totalPages"
+        :page-sizes="[10, 25, 50, 100]"
+        @update:page="goToPage"
+        @update:size="changeSize"
+      />
     </div>
 
     <AppModal
       id="category-modal"
-      :title="editingId == null ? 'New Category' : 'Edit Category'"
+      :title="editingId == null ? t('newCategory') : t('editCategory')"
     >
       <form @submit.prevent="save">
         <div class="mb-3">
-          <label
-            for="category-name"
-            class="form-label"
-          >Name</label>
-          <input
-            id="category-name"
-            v-model="form"
-            type="text"
-            class="form-control"
-            placeholder="Air Conditioner"
-            required
-          >
+          <label for="category-en" class="form-label">{{ t('nameEn') }}</label>
+          <input id="category-en" v-model="form.nameEn" type="text" class="form-control" required />
         </div>
+        <div class="mb-3">
+          <label for="category-ru" class="form-label">{{ t('nameRu') }}</label>
+          <input id="category-ru" v-model="form.nameRu" type="text" class="form-control" required />
+        </div>
+        <div class="mb-3">
+          <label for="category-uz" class="form-label">{{ t('nameUz') }}</label>
+          <input id="category-uz" v-model="form.nameUz" type="text" class="form-control" required />
+        </div>
+        <div class="mb-3">
+          <label for="category-order" class="form-label">{{ t('displayOrder') }}</label>
+          <input id="category-order" v-model.number="form.displayOrder" type="number" min="0" class="form-control" />
+        </div>
+        <div v-if="saveError" class="alert alert-danger py-2">{{ saveError }}</div>
       </form>
       <template #footer>
         <button
@@ -180,15 +272,15 @@ async function removeCategory(c: Category) {
           class="btn btn-secondary"
           data-bs-dismiss="modal"
         >
-          Cancel
+          {{ t('cancel') }}
         </button>
         <button
           type="button"
           class="btn btn-primary"
-          :disabled="saving || !form.trim()"
+          :disabled="saving"
           @click="save"
         >
-          {{ saving ? 'Saving...' : 'Save' }}
+          {{ saving ? t('saving') : t('save') }}
         </button>
       </template>
     </AppModal>

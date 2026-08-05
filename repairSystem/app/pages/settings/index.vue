@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { user } = useAuth()
+const { t } = useLocale()
 const isAdmin = computed(() => user.value?.role === 'ADMIN')
 const botUsername = ref('')
 const loading = ref(false)
