@@ -162,6 +162,44 @@ async function openWorkload(tech: Technician) {
   }
 }
 
+const telegramTech = ref<Technician | null>(null)
+const telegramDeepLink = ref('')
+const telegramExpiresAt = ref('')
+const generatingLink = ref(false)
+const telegramLinkError = ref('')
+
+async function openTelegramLink(tech: Technician) {
+  telegramTech.value = tech
+  telegramDeepLink.value = ''
+  telegramExpiresAt.value = ''
+  telegramLinkError.value = ''
+  showModal('telegram-link-modal')
+  generatingLink.value = true
+  try {
+    const res = await apiFetch<{ deepLink: string, expiresAt?: string }>(`/technicians/${tech.id}/telegram-link`, { method: 'POST' })
+    telegramDeepLink.value = res.deepLink
+    telegramExpiresAt.value = res.expiresAt ?? ''
+  } catch (e) {
+    const err = e as { data?: { message?: string }, message?: string }
+    telegramLinkError.value = err.data?.message || err.message || 'Failed to create Telegram link.'
+  } finally {
+    generatingLink.value = false
+  }
+}
+
+const copied = ref(false)
+
+async function copyTelegramLink() {
+  if (!telegramDeepLink.value) return
+  try {
+    await navigator.clipboard.writeText(telegramDeepLink.value)
+    copied.value = true
+    setTimeout(() => (copied.value = false), 2000)
+  } catch {
+    void telegramDeepLink.value
+  }
+}
+
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleDateString() : '-'
 }
@@ -294,6 +332,14 @@ function formatDate(value?: string) {
                 <button
                   type="button"
                   class="btn btn-sm btn-outline-secondary"
+                  :title="t('telegramLink')"
+                  @click="openTelegramLink(tech)"
+                >
+                  <i class="bi bi-telegram" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary ms-1"
                   :title="t('workload')"
                   @click="openWorkload(tech)"
                 >
@@ -503,6 +549,64 @@ function formatDate(value?: string) {
           <span class="workload-value">{{ workload.remainingCapacity }}</span>
         </div>
       </div>
+    </AppModal>
+
+    <AppModal
+      id="telegram-link-modal"
+      :title="`${t('telegramLinkTitle')} — ${telegramTech?.fullName || ''}`"
+    >
+      <div
+        v-if="generatingLink"
+        class="text-center py-4"
+      >
+        <div class="spinner-border spinner-border-sm text-primary" />
+      </div>
+      <div
+        v-else-if="telegramLinkError"
+        class="alert alert-danger mb-0"
+      >
+        {{ telegramLinkError }}
+      </div>
+      <div v-else>
+        <div
+          v-if="telegramDeepLink"
+          class="alert alert-info py-2"
+        >
+          <i class="bi bi-info-circle me-1" />
+          {{ t('telegramLinkHint') }}
+        </div>
+        <div class="input-group mb-3">
+          <input
+            :value="telegramDeepLink"
+            type="text"
+            class="form-control"
+            readonly
+          >
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            :disabled="!telegramDeepLink"
+            @click="copyTelegramLink"
+          >
+            <i class="bi bi-clipboard me-1" />{{ copied ? t('linkCopied') : t('copyLink') }}
+          </button>
+        </div>
+        <div
+          v-if="telegramExpiresAt"
+          class="text-muted small"
+        >
+          {{ t('expiresAt') }}: {{ new Date(telegramExpiresAt).toLocaleString() }}
+        </div>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('close') }}
+        </button>
+      </template>
     </AppModal>
   </AppContent>
 </template>

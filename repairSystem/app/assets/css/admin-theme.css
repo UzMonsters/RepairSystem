@@ -42,6 +42,22 @@ html {
 body {
   background: var(--rs-bg);
   color: var(--rs-text);
+  /* Force the dark palette regardless of the Bootstrap data-bs-theme value.
+     Otherwise Bootstrap components that read --bs-body-color (e.g. .card)
+     fall back to the light-theme black text (#212529). */
+  --bs-body-color: var(--rs-text);
+  --bs-body-color-rgb: 255, 255, 255;
+  --bs-body-bg: var(--rs-bg);
+  --bs-body-bg-rgb: 8, 16, 40;
+  --bs-secondary-color: var(--rs-text-2);
+  --bs-secondary-color-rgb: 174, 185, 225;
+  --bs-tertiary-color: var(--rs-muted);
+  --bs-tertiary-color-rgb: 126, 137, 172;
+  --bs-emphasis-color: var(--rs-text);
+  --bs-emphasis-color-rgb: 255, 255, 255;
+  --bs-border-color: var(--rs-border);
+  --bs-border-color-translucent: var(--rs-border-soft);
+  color-scheme: dark;
   font-family: "Source Sans 3", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-variant-ligatures: none;
 }
@@ -289,6 +305,7 @@ body {
   border-radius: var(--rs-radius);
   box-shadow: var(--rs-shadow);
   background: var(--rs-panel);
+  color: var(--rs-text);
 }
 
 .card-header {
