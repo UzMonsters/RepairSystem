@@ -52,11 +52,25 @@ const form = ref({
 })
 const saving = ref(false)
 const saveError = ref('')
+const phoneInvalid = ref(false)
+const maxInvalid = ref(false)
+
+function resetFormErrors() {
+  saveError.value = ''
+  phoneInvalid.value = false
+  maxInvalid.value = false
+}
+
+function isValidPhone(value: string) {
+  let digits = value.trim().replace(/[\s()-]/g, '')
+  if (digits.startsWith('+')) digits = digits.slice(1)
+  return (digits.startsWith('998') && digits.length === 12) || digits.length === 9
+}
 
 function openCreate() {
   editingId.value = null
   form.value = { fullName: '', phone: '', specialization: '', notes: '', maximumConcurrentRequests: 5, preferredLanguage: 'UZ' }
-  saveError.value = ''
+  resetFormErrors()
   showModal('technician-modal')
 }
 
@@ -70,20 +84,30 @@ function openEdit(tech: Technician) {
     maximumConcurrentRequests: tech.maximumConcurrentRequests ?? 5,
     preferredLanguage: tech.preferredLanguage ?? 'UZ'
   }
-  saveError.value = ''
+  resetFormErrors()
   showModal('technician-modal')
 }
 
 async function save() {
   saving.value = true
-  saveError.value = ''
+  resetFormErrors()
   try {
+    const phoneValue = form.value.phone.trim()
+    if (!isValidPhone(phoneValue)) {
+      phoneInvalid.value = true
+      return
+    }
+    const max = form.value.maximumConcurrentRequests
+    if (typeof max === 'number' && (max < 1 || max > 100)) {
+      maxInvalid.value = true
+      return
+    }
     const body = {
-      fullName: form.value.fullName,
-      phone: form.value.phone,
+      fullName: form.value.fullName.trim(),
+      phone: phoneValue,
       specialization: form.value.specialization || undefined,
       notes: form.value.notes || undefined,
-      maximumConcurrentRequests: form.value.maximumConcurrentRequests,
+      maximumConcurrentRequests: typeof max === 'number' ? max : undefined,
       preferredLanguage: form.value.preferredLanguage
     }
     if (editingId.value == null) {
@@ -94,8 +118,10 @@ async function save() {
     hideModal('technician-modal')
     refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    saveError.value = err.data?.message || err.message || 'Failed to save technician.'
+    const err = e as { data?: { message?: string, code?: string }, message?: string }
+    saveError.value = err.data?.code === 'INVALID_PHONE_NUMBER'
+      ? t('invalidPhoneNumber')
+      : (err.data?.message || err.message || 'Failed to save technician.')
   } finally {
     saving.value = false
   }
@@ -327,9 +353,17 @@ function formatDate(value?: string) {
             v-model="form.phone"
             type="tel"
             class="form-control"
-            placeholder="+998..."
+            :class="{ 'is-invalid': phoneInvalid }"
+            placeholder="+998 XX XXX XX XX"
             required
+            @input="phoneInvalid = false"
           >
+          <div
+            v-if="phoneInvalid"
+            class="invalid-feedback d-block"
+          >
+            {{ t('invalidPhoneNumber') }}
+          </div>
         </div>
         <div class="mb-3">
           <label
@@ -355,7 +389,15 @@ function formatDate(value?: string) {
             min="1"
             max="100"
             class="form-control"
+            :class="{ 'is-invalid': maxInvalid }"
+            @input="maxInvalid = false"
           >
+          <div
+            v-if="maxInvalid"
+            class="invalid-feedback d-block"
+          >
+            {{ t('invalidMaxConcurrentRequests') }}
+          </div>
         </div>
         <div class="mb-3">
           <label
