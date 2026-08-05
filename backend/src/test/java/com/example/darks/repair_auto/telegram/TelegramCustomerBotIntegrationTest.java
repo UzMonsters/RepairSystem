@@ -146,6 +146,9 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(update(10, 1001, 5001, "/start"));
         send(callback(11, 1001, 5001, "cb-lang", "lang:UZ"));
         send(update(12, 1001, 5001, "Ali Valiyev"));
+        assertThat(telegramBotClient.messages().getLast().replyMarkupJson())
+                .contains("\"request_contact\":true")
+                .contains("Telefon raqamni ulashish");
         send(contact(13, 1001, 5001, "+998901112233", 1001));
         send(contact(13, 1001, 5001, "+998901112233", 1001));
 
@@ -157,6 +160,9 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(customer.getPreferredLanguage()).isEqualTo(LanguageCode.UZ);
         assertThat(customer.getRegistrationSource().name()).isEqualTo("TELEGRAM");
         assertThat(updateRepository.findAll()).hasSize(4);
+        assertThat(telegramBotClient.messages())
+                .anyMatch(message -> message.replyMarkupJson() != null
+                        && message.replyMarkupJson().contains("\"remove_keyboard\":true"));
         assertThat(telegramBotClient.messages()).anyMatch(message -> message.text().contains("Asosiy menyu"));
     }
 
@@ -406,6 +412,9 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         send(callback(171, 14014, 18014, "cb-profile", "menu:profile"));
         send(callback(172, 14014, 18014, "cb-profile-phone", "profile:phone"));
+        assertThat(telegramBotClient.messages().getLast().replyMarkupJson())
+                .contains("\"request_contact\":true")
+                .contains("Share phone number");
         send(contact(173, 14014, 18014, "+998901515151", 14014));
 
         assertThat(telegramBotClient.lastText()).contains("could not be linked");

@@ -227,7 +227,7 @@ public class TelegramCustomerBotService {
         }
         session.draftFullName(text, now());
         session.state(TelegramCustomerSessionState.AWAITING_CONTACT, now());
-        send(session, "send_contact", null);
+        send(session, "send_contact", contactKeyboard(session));
     }
 
     private void handleContact(TelegramCustomerSession session, TelegramUpdatePayload.TelegramContact contact) {
@@ -245,7 +245,8 @@ public class TelegramCustomerBotService {
                         session.getLanguage());
                 session.linkCustomer(customer, now());
                 session.state(TelegramCustomerSessionState.MAIN_MENU, now());
-                send(session, "updated", mainKeyboard(session));
+                send(session, "updated", keyboards.removeReplyKeyboard());
+                showMenu(session);
                 return;
             }
             Customer customer = customerService.linkOrCreateTelegramCustomer(
@@ -257,6 +258,7 @@ public class TelegramCustomerBotService {
             session.linkCustomer(customer, now());
             session.clearDraft(now());
             session.state(TelegramCustomerSessionState.MAIN_MENU, now());
+            send(session, "updated", keyboards.removeReplyKeyboard());
             showMenu(session);
         } catch (BusinessRuleException exception) {
             if ("TELEGRAM_CUSTOMER_ARCHIVED".equals(exception.code())) {
@@ -356,7 +358,7 @@ public class TelegramCustomerBotService {
             send(session, "send_new_name", null);
         } else if (data.equals("profile:phone")) {
             session.state(TelegramCustomerSessionState.UPDATING_PROFILE_PHONE, now());
-            send(session, "send_new_phone", null);
+            send(session, "send_new_phone", contactKeyboard(session));
         } else {
             send(session, "invalid_action", mainKeyboard(session));
         }
@@ -381,7 +383,7 @@ public class TelegramCustomerBotService {
 
     private void startRequest(TelegramCustomerSession session) {
         if (!registered(session)) {
-            send(session, "send_contact", null);
+            send(session, "send_contact", contactKeyboard(session));
             return;
         }
         session.clearDraft(now());
@@ -438,7 +440,7 @@ public class TelegramCustomerBotService {
 
     private void showHistory(TelegramCustomerSession session, int page) {
         if (!registered(session)) {
-            send(session, "send_contact", null);
+            send(session, "send_contact", contactKeyboard(session));
             return;
         }
         var response = repairRequestService.customerHistory(
@@ -483,7 +485,7 @@ public class TelegramCustomerBotService {
 
     private void showProfile(TelegramCustomerSession session) {
         if (!registered(session)) {
-            send(session, "send_contact", null);
+            send(session, "send_contact", contactKeyboard(session));
             return;
         }
         Customer customer = session.getCustomer();
@@ -526,7 +528,7 @@ public class TelegramCustomerBotService {
 
     private void startReview(TelegramCustomerSession session) {
         if (!activeRegistered(session)) {
-            send(session, "send_contact", null);
+            send(session, "send_contact", contactKeyboard(session));
             return;
         }
         session.clearReviewDraft(now());
@@ -546,7 +548,7 @@ public class TelegramCustomerBotService {
 
     private void chooseReviewRequest(TelegramCustomerSession session, String data) {
         if (!activeRegistered(session)) {
-            send(session, "send_contact", null);
+            send(session, "send_contact", contactKeyboard(session));
             return;
         }
         Long requestId = parseLong(data.substring("revreq:".length()));
@@ -713,6 +715,10 @@ public class TelegramCustomerBotService {
 
     private String mainKeyboard(LanguageCode language) {
         return keyboards.main(messages, language);
+    }
+
+    private String contactKeyboard(TelegramCustomerSession session) {
+        return keyboards.contact(messages, session.getLanguage());
     }
 
     private String contactName(TelegramUpdatePayload.TelegramContact contact) {

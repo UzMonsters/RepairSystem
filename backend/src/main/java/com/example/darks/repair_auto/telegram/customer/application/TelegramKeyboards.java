@@ -35,6 +35,16 @@ public class TelegramKeyboards {
         return inline(List.of(List.of(button(messages.get(language, "skip"), "photo:skip"))));
     }
 
+    public String contact(TelegramMessages messages, LanguageCode language) {
+        return "{\"keyboard\":[[{\"text\":\""
+                + json(messages.get(language, "share_contact_button"))
+                + "\",\"request_contact\":true}]],\"resize_keyboard\":true,\"one_time_keyboard\":true}";
+    }
+
+    public String removeReplyKeyboard() {
+        return "{\"remove_keyboard\":true}";
+    }
+
     public String confirm(TelegramMessages messages, LanguageCode language) {
         return inline(List.of(
                 List.of(button(messages.get(language, "confirm"), "confirm:create")),
