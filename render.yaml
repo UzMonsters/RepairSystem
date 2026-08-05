@@ -1,0 +1,76 @@
+services:
+  - type: web
+    name: repair-system-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health
+    maxShutdownDelaySeconds: 60
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DATABASE_HOST
+        fromDatabase:
+          name: repair-system-db
+          property: host
+      - key: DATABASE_PORT
+        fromDatabase:
+          name: repair-system-db
+          property: port
+      - key: DATABASE_NAME
+        fromDatabase:
+          name: repair-system-db
+          property: database
+      - key: DATABASE_USER
+        fromDatabase:
+          name: repair-system-db
+          property: user
+      - key: DATABASE_PASSWORD
+        fromDatabase:
+          name: repair-system-db
+          property: password
+      - key: APP_CORS_ALLOWED_ORIGINS
+        value: https://repair-system-frontend.onrender.com
+      - key: APP_BUSINESS_TIME_ZONE
+        value: Asia/Tashkent
+      - key: APP_JWT_SECRET
+        generateValue: true
+      - key: APP_BOOTSTRAP_ADMIN_ENABLED
+        value: true
+      - key: APP_BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: APP_BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: APP_BOOTSTRAP_ADMIN_FULL_NAME
+        value: System Administrator
+      - key: APP_OPENAPI_ENABLED
+        value: false
+      - key: APP_SWAGGER_UI_ENABLED
+        value: false
+      - key: APP_STORAGE_ENABLED
+        value: false
+      - key: APP_TELEGRAM_ENABLED
+        value: false
+
+  - type: web
+    name: repair-system-frontend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./repairSystem/Dockerfile
+    dockerContext: ./repairSystem
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NUXT_BACKEND_URL
+        value: https://repair-system-backend.onrender.com
+
+databases:
+  - name: repair-system-db
+    plan: free
+    databaseName: repair_auto
+    user: repair_auto
+    postgresMajorVersion: "17"

@@ -44,7 +44,9 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
-    backendUrl: process.env.NUXT_BACKEND_URL || 'http://localhost:8080'
+    backendUrl: process.env.NUXT_BACKEND_URL
+      || (process.env.NUXT_BACKEND_HOSTPORT ? `http://${process.env.NUXT_BACKEND_HOSTPORT}` : undefined)
+      || 'http://localhost:8080'
   },
 
   compatibilityDate: '2026-06-30',

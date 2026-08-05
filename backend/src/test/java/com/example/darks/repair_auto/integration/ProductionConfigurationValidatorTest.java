@@ -26,7 +26,7 @@ class ProductionConfigurationValidatorTest {
         assertThatThrownBy(validator::afterSingletonsInstantiated)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("PRODUCTION_CONFIGURATION_INVALID")
-                .hasMessageContaining("SPRING_DATASOURCE_URL")
+                .hasMessageContaining("spring.datasource.url")
                 .hasMessageNotContaining("secret-value");
     }
 
@@ -72,6 +72,9 @@ class ProductionConfigurationValidatorTest {
                 .withProperty("SPRING_DATASOURCE_URL", "jdbc:postgresql://db:5432/repair_auto")
                 .withProperty("SPRING_DATASOURCE_USERNAME", "repair_auto")
                 .withProperty("SPRING_DATASOURCE_PASSWORD", "secret-value")
+                .withProperty("spring.datasource.url", "jdbc:postgresql://db:5432/repair_auto")
+                .withProperty("spring.datasource.username", "repair_auto")
+                .withProperty("spring.datasource.password", "secret-value")
                 .withProperty("APP_JWT_SECRET", "strong-production-secret-value-123456")
                 .withProperty("APP_BOOTSTRAP_ADMIN_ENABLED", "false")
                 .withProperty("APP_CORS_ALLOWED_ORIGINS", "https://admin.repairauto.example")
