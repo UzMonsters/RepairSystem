@@ -167,6 +167,35 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void givenRegisteredCustomerThenMainMenuUsesReplyKeyboard() throws Exception {
+        register(18018, 22018, "+998901919191", "Reply Menu", LanguageCode.EN);
+
+        assertThat(telegramBotClient.messages().getLast().replyMarkupJson())
+                .contains("\"keyboard\"")
+                .contains("\"resize_keyboard\":true")
+                .contains("\"is_persistent\":true")
+                .doesNotContain("\"inline_keyboard\"")
+                .contains("Create request")
+                .contains("My requests")
+                .contains("Leave a review")
+                .contains("Profile")
+                .contains("Change language")
+                .contains("Send /cancel to reset the current draft or /menu to return to the menu.");
+    }
+
+    @Test
+    void givenRegisteredCustomerWhenReplyKeyboardCreateRequestSentThenWorkflowStarts() throws Exception {
+        register(19019, 23019, "+998902020202", "Reply Action", LanguageCode.EN);
+
+        send(update(211, 19019, 23019, "Create request"));
+
+        assertThat(telegramBotClient.lastText()).contains("Choose a repair category");
+        assertThat(telegramBotClient.messages().getLast().replyMarkupJson())
+                .contains("\"inline_keyboard\"")
+                .contains("cat:" + categoryId);
+    }
+
+    @Test
     void givenForeignContactThenRegistrationIsRejectedWithoutCustomerCreation() throws Exception {
         send(update(20, 2002, 6002, "/start"));
         send(callback(21, 2002, 6002, "cb-lang", "lang:EN"));

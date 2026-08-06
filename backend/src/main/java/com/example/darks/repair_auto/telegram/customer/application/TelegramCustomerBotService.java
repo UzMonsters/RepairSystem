@@ -196,6 +196,9 @@ public class TelegramCustomerBotService {
             send(session, "invalid_action", mainKeyboard(session));
             return;
         }
+        if (handleMenuText(session, text)) {
+            return;
+        }
         switch (session.getState()) {
             case AWAITING_NAME, UPDATING_PROFILE_NAME -> handleName(session, text);
             case AWAITING_DESCRIPTION -> {
@@ -211,6 +214,39 @@ public class TelegramCustomerBotService {
             case AWAITING_REVIEW_COMMENT -> handleReviewComment(session, text);
             default -> send(session, "invalid_action", mainKeyboard(session));
         }
+    }
+
+    private boolean handleMenuText(TelegramCustomerSession session, String text) {
+        if (!registered(session)) {
+            return false;
+        }
+        LanguageCode language = session.getLanguage();
+        if (text.equals(messages.get(language, "create_request"))) {
+            startRequest(session);
+            return true;
+        }
+        if (text.equals(messages.get(language, "my_requests"))) {
+            showHistory(session, 0);
+            return true;
+        }
+        if (text.equals(messages.get(language, "leave_review"))) {
+            startReview(session);
+            return true;
+        }
+        if (text.equals(messages.get(language, "profile"))) {
+            showProfile(session);
+            return true;
+        }
+        if (text.equals(messages.get(language, "change_language"))) {
+            session.state(TelegramCustomerSessionState.LANGUAGE_SELECTION, now());
+            send(session, "choose_language", keyboards.language());
+            return true;
+        }
+        if (text.equals(messages.get(language, "help"))) {
+            send(session, "help", mainKeyboard(session));
+            return true;
+        }
+        return false;
     }
 
     private void handleName(TelegramCustomerSession session, String text) {

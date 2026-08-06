@@ -174,6 +174,9 @@ public class TelegramTechnicianBotService {
             send(session, "invalid_action", mainKeyboard());
             return;
         }
+        if (handleMenuText(session, text)) {
+            return;
+        }
         Long requestId = session.getSelectedRequestId();
         switch (session.getState()) {
             case AWAITING_REJECTION_REASON -> {
@@ -204,6 +207,26 @@ public class TelegramTechnicianBotService {
             }
             default -> send(session, "invalid_action", mainKeyboard());
         }
+    }
+
+    private boolean handleMenuText(TelegramTechnicianSession session, String text) {
+        if ("Pending".equals(text)) {
+            showAssignments(session, AssignmentStatus.PENDING);
+            return true;
+        }
+        if ("Active".equals(text)) {
+            showActive(session);
+            return true;
+        }
+        if ("Recent".equals(text)) {
+            showRecent(session);
+            return true;
+        }
+        if ("Language".equals(text)) {
+            send(session, "choose_language", languageKeyboard());
+            return true;
+        }
+        return false;
     }
 
     private void handleCallback(
@@ -488,11 +511,9 @@ public class TelegramTechnicianBotService {
     }
 
     private String mainKeyboard() {
-        return inline(List.of(
-                List.of(button("Pending", "tmenu:pending")),
-                List.of(button("Active", "tmenu:active")),
-                List.of(button("Recent", "tmenu:recent")),
-                List.of(button("Language", "tmenu:lang"))));
+        return reply(List.of(
+                List.of("Pending", "Active"),
+                List.of("Recent", "Language")));
     }
 
     private String languageKeyboard() {
@@ -527,6 +548,16 @@ public class TelegramTechnicianBotService {
                 .map(row -> "[" + String.join(",", row) + "]")
                 .reduce((left, right) -> left + "," + right)
                 .orElse("") + "]}";
+    }
+
+    private String reply(List<List<String>> rows) {
+        return "{\"keyboard\":[" + rows.stream()
+                .map(row -> "[" + row.stream()
+                        .map(text -> "{\"text\":\"" + json(text) + "\"}")
+                        .reduce((left, right) -> left + "," + right)
+                        .orElse("") + "]")
+                .reduce((left, right) -> left + "," + right)
+                .orElse("") + "],\"resize_keyboard\":true,\"is_persistent\":true}";
     }
 
     private String button(String text, String callbackData) {
