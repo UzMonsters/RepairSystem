@@ -216,7 +216,7 @@ function formatDate(value?: string) {
           <h3 class="card-title mb-0">
             {{ t('technicians') }}
           </h3>
-          <div class="d-flex gap-2 flex-wrap">
+          <div class="d-flex gap-2 flex-nowrap">
             <div class="input-group input-group-sm search-box">
               <input
                 v-model="search"
@@ -235,7 +235,7 @@ function formatDate(value?: string) {
             </div>
             <button
               type="button"
-              class="btn btn-sm btn-primary"
+              class="btn btn-sm btn-primary  w-75"
               @click="openCreate"
             >
               <i class="bi bi-plus-lg me-1" />{{ t('newTechnician') }}
