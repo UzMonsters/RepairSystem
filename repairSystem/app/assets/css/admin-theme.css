@@ -650,12 +650,17 @@ body {
 }
 
 .pagination-size {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--rs-panel-2);
   border: 1px solid var(--rs-border);
   border-radius: 8px;
   color: var(--rs-text);
   font-size: 0.82rem;
   padding: 4px 8px;
+}
+
+.pagination-size option {
+  background: var(--rs-panel);
+  color: var(--rs-text);
 }
 
 .pagination-controls {
