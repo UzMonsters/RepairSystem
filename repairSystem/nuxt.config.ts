@@ -18,6 +18,7 @@ export default defineNuxtConfig({
         { name: 'description', content: 'Repair Service CRM' }
       ],
       link: [
+        { rel: 'icon', type: 'image/png', href: '/assets/img/AdminLTELogo.png' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
