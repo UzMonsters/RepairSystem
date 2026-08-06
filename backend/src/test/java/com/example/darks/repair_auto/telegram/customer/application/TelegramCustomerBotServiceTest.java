@@ -49,7 +49,8 @@ class TelegramCustomerBotServiceTest {
                 .contains("Leave a review")
                 .contains("Profile")
                 .contains("Change language")
-                .contains("Send /cancel to reset the current draft or /menu to return to the menu.");
+                .contains("Help")
+                .doesNotContain("Send /cancel to reset the current draft or /menu to return to the menu.");
     }
 
     @Test
@@ -82,6 +83,32 @@ class TelegramCustomerBotServiceTest {
         assertThat(botClient.last().replyMarkupJson())
                 .contains("\"inline_keyboard\"")
                 .contains("cat:123");
+    }
+
+    @Test
+    void givenRegisteredCustomerWhenReplyKeyboardHelpSentThenHelpTextIsShown() {
+        TelegramCustomerSession session = linkedSession(20020L, 24020L);
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(20020L)).thenReturn(Optional.of(session));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(message(212L, 20020L, 24020L, "Help"));
+
+        assertThat(botClient.last().text()).contains("Send /cancel to reset the current draft or /menu to return to the menu.");
+        assertThat(botClient.last().replyMarkupJson()).contains("Help");
     }
 
     private TelegramCustomerSession linkedSession(Long userId, Long chatId) {

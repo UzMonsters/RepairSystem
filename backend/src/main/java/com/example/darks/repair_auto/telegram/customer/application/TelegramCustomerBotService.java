@@ -242,7 +242,7 @@ public class TelegramCustomerBotService {
             send(session, "choose_language", keyboards.language());
             return true;
         }
-        if (text.equals(messages.get(language, "help"))) {
+        if (text.equals(messages.get(language, "help_button")) || text.equals(messages.get(language, "help"))) {
             send(session, "help", mainKeyboard(session));
             return true;
         }

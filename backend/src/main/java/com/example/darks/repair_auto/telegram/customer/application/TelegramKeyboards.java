@@ -18,7 +18,7 @@ public class TelegramKeyboards {
         return reply(List.of(
                 List.of(messages.get(language, "create_request"), messages.get(language, "my_requests")),
                 List.of(messages.get(language, "leave_review"), messages.get(language, "profile")),
-                List.of(messages.get(language, "change_language"), messages.get(language, "help"))));
+                List.of(messages.get(language, "change_language"), messages.get(language, "help_button"))));
     }
 
     public String categories(List<RepairCategory> categories, LanguageCode language) {
