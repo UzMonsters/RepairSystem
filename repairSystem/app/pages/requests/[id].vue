@@ -34,9 +34,28 @@ const categoryName = computed(() => {
 const customerName = computed(() => request.value?.customer?.fullName || '-')
 const customerPhone = computed(() => request.value?.customer?.phone || '-')
 const assignedTechnician = computed(() => request.value?.currentAssignment?.technician ?? null)
+const isAssignmentPending = computed(() =>
+  request.value?.status === 'ASSIGNED' && request.value?.currentAssignment?.status === 'PENDING'
+)
 
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleString() : '-'
+}
+
+const savingAccept = ref(false)
+
+async function acceptAssignment() {
+  savingAccept.value = true
+  try {
+    await apiFetch(`/requests/${id}/assignment/accept`, { method: 'POST' })
+    message.value = t('statusUpdated')
+    refresh()
+  } catch (e) {
+    const err = e as { data?: { message?: string }, message?: string }
+    message.value = err.data?.message || err.message || 'Failed to accept assignment.'
+  } finally {
+    savingAccept.value = false
+  }
 }
 
 async function saveAssign() {
@@ -91,7 +110,7 @@ async function runExec() {
 
 function can(action: string) {
   const s = request.value?.status
-  if (action === 'start') return s === 'ASSIGNED'
+  if (action === 'start') return s === 'ASSIGNED' && request.value?.currentAssignment?.status === 'ACCEPTED'
   if (action === 'wait-for-parts' || action === 'complete') return s === 'IN_PROGRESS' || s === 'WAITING_FOR_PARTS'
   if (action === 'resume') return s === 'WAITING_FOR_PARTS'
   if (action === 'cancel') return s !== 'COMPLETED' && s !== 'CANCELLED'
@@ -300,6 +319,22 @@ function can(action: string) {
                     @click="saveAssign"
                   >
                     {{ savingAssign ? t('saving') : t('assignTechnician') }}
+                  </button>
+                </div>
+                <div
+                  v-if="isAssignmentPending"
+                  class="alert alert-warning mb-0"
+                >
+                  <div class="mb-2">
+                    {{ t('assignmentPending') }}
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-warning btn-sm"
+                    :disabled="savingAccept"
+                    @click="acceptAssignment"
+                  >
+                    <i class="bi bi-check2-circle me-1" />{{ savingAccept ? t('saving') : t('acceptAssignment') }}
                   </button>
                 </div>
               </div>

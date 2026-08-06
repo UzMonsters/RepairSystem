@@ -9,6 +9,7 @@ type ApiRequest = {
 }
 
 export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> {
+  const { logout } = useAuth()
   const token = useCookie<string | null>('access_token', { default: () => null })
   const headers = new Headers(options.headers as HeadersInit | undefined)
   headers.set('accept', 'application/json')
@@ -17,6 +18,11 @@ export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> 
   return $fetch<T>(`/api${path.startsWith('/') ? path : `/${path}`}`, {
     ...options,
     headers,
-    credentials: 'include'
+    credentials: 'include',
+    onResponseError: async ({ response }) => {
+      if (response.status === 401) {
+        await logout()
+      }
+    }
   })
 }

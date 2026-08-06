@@ -78,7 +78,8 @@ async function saveSettings() {
                   class="form-label"
                 >{{ t('telegramBotUsername') }}</label>
                 <div class="input-group">
-                  <span class="input-group-text">@</span>
+                  <span 
+                    style="background:rgba(255, 255, 255, 0.06)"  class="input-group-text">@</span>
                   <input
                     id="telegram-username"
                     v-model="botUsername"

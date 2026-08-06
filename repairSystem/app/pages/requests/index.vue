@@ -104,6 +104,19 @@ const execForm = ref('')
 const savingExec = ref(false)
 const execError = ref('')
 
+const actionError = ref('')
+
+async function acceptAssignment(r: RepairRequest) {
+  actionError.value = ''
+  try {
+    await apiFetch(`/requests/${r.id}/assignment/accept`, { method: 'POST' })
+    refresh()
+  } catch (e) {
+    const err = e as { data?: { message?: string }, message?: string }
+    actionError.value = err.data?.message || err.message || 'Failed to accept assignment.'
+  }
+}
+
 function openExecModal(action: string, r: RepairRequest) {
   execAction.value = action
   execRequestId.value = r.id
@@ -238,6 +251,12 @@ const execRequired = computed(() => execAction.value !== 'resume')
 
       <div class="card-body table-responsive p-0">
         <div
+          v-if="actionError"
+          class="alert alert-danger m-3"
+        >
+          {{ actionError }}
+        </div>
+        <div
           v-if="error"
           class="alert alert-danger m-3"
         >
@@ -354,7 +373,16 @@ const execRequired = computed(() => execAction.value !== 'resume')
                       </a>
                     </li>
                     <li><hr class="dropdown-divider"></li>
-                    <li v-if="r.status === 'ASSIGNED'">
+                    <li v-if="r.status === 'ASSIGNED' && r.currentAssignment?.status === 'PENDING'">
+                      <a
+                        href="#"
+                        class="dropdown-item"
+                        @click.prevent="acceptAssignment(r)"
+                      >
+                        <i class="bi bi-check2-circle me-2" />{{ t('acceptAssignment') }}
+                      </a>
+                    </li>
+                    <li v-if="r.status === 'ASSIGNED' && r.currentAssignment?.status === 'ACCEPTED'">
                       <a
                         href="#"
                         class="dropdown-item"

@@ -15,13 +15,10 @@ public class TelegramKeyboards {
     }
 
     public String main(TelegramMessages messages, LanguageCode language) {
-        return inline(List.of(
-                List.of(button(messages.get(language, "create_request"), "menu:create")),
-                List.of(button(messages.get(language, "my_requests"), "menu:history")),
-                List.of(button(messages.get(language, "leave_review"), "menu:review")),
-                List.of(button(messages.get(language, "profile"), "menu:profile")),
-                List.of(button(messages.get(language, "change_language"), "menu:language")),
-                List.of(button(messages.get(language, "help"), "menu:help"))));
+        return reply(List.of(
+                List.of(messages.get(language, "create_request"), messages.get(language, "my_requests")),
+                List.of(messages.get(language, "leave_review"), messages.get(language, "profile")),
+                List.of(messages.get(language, "change_language"), messages.get(language, "help"))));
     }
 
     public String categories(List<RepairCategory> categories, LanguageCode language) {
@@ -135,6 +132,16 @@ public class TelegramKeyboards {
                 .map(row -> "[" + String.join(",", row) + "]")
                 .reduce((left, right) -> left + "," + right)
                 .orElse("") + "]}";
+    }
+
+    private String reply(List<List<String>> rows) {
+        return "{\"keyboard\":[" + rows.stream()
+                .map(row -> "[" + row.stream()
+                        .map(text -> "{\"text\":\"" + json(text) + "\"}")
+                        .reduce((left, right) -> left + "," + right)
+                        .orElse("") + "]")
+                .reduce((left, right) -> left + "," + right)
+                .orElse("") + "],\"resize_keyboard\":true,\"is_persistent\":true}";
     }
 
     private String button(String text, String callbackData) {

@@ -114,8 +114,7 @@ function formatTime(value?: string) {
               </h3>
               <NuxtLink
                 to="/requests"
-                class="btn btn-sm btn-primary"
-              >
+                class="btn btn-sm btn-primary">
                 {{ t('viewAll') }}
               </NuxtLink>
             </div>
