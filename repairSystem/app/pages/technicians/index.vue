@@ -52,11 +52,25 @@ const form = ref({
 })
 const saving = ref(false)
 const saveError = ref('')
+const phoneInvalid = ref(false)
+const maxInvalid = ref(false)
+
+function resetFormErrors() {
+  saveError.value = ''
+  phoneInvalid.value = false
+  maxInvalid.value = false
+}
+
+function isValidPhone(value: string) {
+  let digits = value.trim().replace(/[\s()-]/g, '')
+  if (digits.startsWith('+')) digits = digits.slice(1)
+  return (digits.startsWith('998') && digits.length === 12) || digits.length === 9
+}
 
 function openCreate() {
   editingId.value = null
   form.value = { fullName: '', phone: '', specialization: '', notes: '', maximumConcurrentRequests: 5, preferredLanguage: 'UZ' }
-  saveError.value = ''
+  resetFormErrors()
   showModal('technician-modal')
 }
 
@@ -70,20 +84,30 @@ function openEdit(tech: Technician) {
     maximumConcurrentRequests: tech.maximumConcurrentRequests ?? 5,
     preferredLanguage: tech.preferredLanguage ?? 'UZ'
   }
-  saveError.value = ''
+  resetFormErrors()
   showModal('technician-modal')
 }
 
 async function save() {
   saving.value = true
-  saveError.value = ''
+  resetFormErrors()
   try {
+    const phoneValue = form.value.phone.trim()
+    if (!isValidPhone(phoneValue)) {
+      phoneInvalid.value = true
+      return
+    }
+    const max = form.value.maximumConcurrentRequests
+    if (typeof max === 'number' && (max < 1 || max > 100)) {
+      maxInvalid.value = true
+      return
+    }
     const body = {
-      fullName: form.value.fullName,
-      phone: form.value.phone,
+      fullName: form.value.fullName.trim(),
+      phone: phoneValue,
       specialization: form.value.specialization || undefined,
       notes: form.value.notes || undefined,
-      maximumConcurrentRequests: form.value.maximumConcurrentRequests,
+      maximumConcurrentRequests: typeof max === 'number' ? max : undefined,
       preferredLanguage: form.value.preferredLanguage
     }
     if (editingId.value == null) {
@@ -94,8 +118,10 @@ async function save() {
     hideModal('technician-modal')
     refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    saveError.value = err.data?.message || err.message || 'Failed to save technician.'
+    const err = e as { data?: { message?: string, code?: string }, message?: string }
+    saveError.value = err.data?.code === 'INVALID_PHONE_NUMBER'
+      ? t('invalidPhoneNumber')
+      : (err.data?.message || err.message || 'Failed to save technician.')
   } finally {
     saving.value = false
   }
@@ -136,6 +162,44 @@ async function openWorkload(tech: Technician) {
   }
 }
 
+const telegramTech = ref<Technician | null>(null)
+const telegramDeepLink = ref('')
+const telegramExpiresAt = ref('')
+const generatingLink = ref(false)
+const telegramLinkError = ref('')
+
+async function openTelegramLink(tech: Technician) {
+  telegramTech.value = tech
+  telegramDeepLink.value = ''
+  telegramExpiresAt.value = ''
+  telegramLinkError.value = ''
+  showModal('telegram-link-modal')
+  generatingLink.value = true
+  try {
+    const res = await apiFetch<{ deepLink: string, expiresAt?: string }>(`/technicians/${tech.id}/telegram-link`, { method: 'POST' })
+    telegramDeepLink.value = res.deepLink
+    telegramExpiresAt.value = res.expiresAt ?? ''
+  } catch (e) {
+    const err = e as { data?: { message?: string }, message?: string }
+    telegramLinkError.value = err.data?.message || err.message || 'Failed to create Telegram link.'
+  } finally {
+    generatingLink.value = false
+  }
+}
+
+const copied = ref(false)
+
+async function copyTelegramLink() {
+  if (!telegramDeepLink.value) return
+  try {
+    await navigator.clipboard.writeText(telegramDeepLink.value)
+    copied.value = true
+    setTimeout(() => (copied.value = false), 2000)
+  } catch {
+    void telegramDeepLink.value
+  }
+}
+
 function formatDate(value?: string) {
   return value ? new Date(value).toLocaleDateString() : '-'
 }
@@ -152,7 +216,7 @@ function formatDate(value?: string) {
           <h3 class="card-title mb-0">
             {{ t('technicians') }}
           </h3>
-          <div class="d-flex gap-2 flex-wrap">
+          <div class="d-flex gap-2 flex-nowrap">
             <div class="input-group input-group-sm search-box">
               <input
                 v-model="search"
@@ -171,7 +235,7 @@ function formatDate(value?: string) {
             </div>
             <button
               type="button"
-              class="btn btn-sm btn-primary"
+              class="btn btn-sm btn-primary  w-75"
               @click="openCreate"
             >
               <i class="bi bi-plus-lg me-1" />{{ t('newTechnician') }}
@@ -268,6 +332,14 @@ function formatDate(value?: string) {
                 <button
                   type="button"
                   class="btn btn-sm btn-outline-secondary"
+                  :title="t('telegramLink')"
+                  @click="openTelegramLink(tech)"
+                >
+                  <i class="bi bi-telegram" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary ms-1"
                   :title="t('workload')"
                   @click="openWorkload(tech)"
                 >
@@ -327,9 +399,17 @@ function formatDate(value?: string) {
             v-model="form.phone"
             type="tel"
             class="form-control"
-            placeholder="+998..."
+            :class="{ 'is-invalid': phoneInvalid }"
+            placeholder="+998 XX XXX XX XX"
             required
+            @input="phoneInvalid = false"
           >
+          <div
+            v-if="phoneInvalid"
+            class="invalid-feedback d-block"
+          >
+            {{ t('invalidPhoneNumber') }}
+          </div>
         </div>
         <div class="mb-3">
           <label
@@ -355,7 +435,15 @@ function formatDate(value?: string) {
             min="1"
             max="100"
             class="form-control"
+            :class="{ 'is-invalid': maxInvalid }"
+            @input="maxInvalid = false"
           >
+          <div
+            v-if="maxInvalid"
+            class="invalid-feedback d-block"
+          >
+            {{ t('invalidMaxConcurrentRequests') }}
+          </div>
         </div>
         <div class="mb-3">
           <label
@@ -461,6 +549,64 @@ function formatDate(value?: string) {
           <span class="workload-value">{{ workload.remainingCapacity }}</span>
         </div>
       </div>
+    </AppModal>
+
+    <AppModal
+      id="telegram-link-modal"
+      :title="`${t('telegramLinkTitle')} — ${telegramTech?.fullName || ''}`"
+    >
+      <div
+        v-if="generatingLink"
+        class="text-center py-4"
+      >
+        <div class="spinner-border spinner-border-sm text-primary" />
+      </div>
+      <div
+        v-else-if="telegramLinkError"
+        class="alert alert-danger mb-0"
+      >
+        {{ telegramLinkError }}
+      </div>
+      <div v-else>
+        <div
+          v-if="telegramDeepLink"
+          class="alert alert-info py-2"
+        >
+          <i class="bi bi-info-circle me-1" />
+          {{ t('telegramLinkHint') }}
+        </div>
+        <div class="input-group mb-3">
+          <input
+            :value="telegramDeepLink"
+            type="text"
+            class="form-control"
+            readonly
+          >
+          <button
+            type="button"
+            class="btn btn-outline-primary"
+            :disabled="!telegramDeepLink"
+            @click="copyTelegramLink"
+          >
+            <i class="bi bi-clipboard me-1" />{{ copied ? t('linkCopied') : t('copyLink') }}
+          </button>
+        </div>
+        <div
+          v-if="telegramExpiresAt"
+          class="text-muted small"
+        >
+          {{ t('expiresAt') }}: {{ new Date(telegramExpiresAt).toLocaleString() }}
+        </div>
+      </div>
+      <template #footer>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('close') }}
+        </button>
+      </template>
     </AppModal>
   </AppContent>
 </template>
