@@ -177,6 +177,11 @@ public class Technician {
         this.updatedAt = now;
     }
 
+    public void updateTelegramLanguage(LanguageCode preferredLanguage, OffsetDateTime now) {
+        this.preferredLanguage = preferredLanguage == null ? LanguageCode.UZ : preferredLanguage;
+        this.updatedAt = now;
+    }
+
     public void unlinkTelegram(OffsetDateTime now) {
         this.telegramUserId = null;
         this.telegramChatId = null;

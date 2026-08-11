@@ -353,8 +353,8 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
         String tokenHash = linkService.hash(rawToken(link));
 
         List<Object> results = runConcurrently(
-                () -> linkService.consume(tokenHash, 9701L, 19701L),
-                () -> linkService.consume(tokenHash, 9702L, 19702L));
+                () -> linkService.consume(tokenHash, 9701L, 19701L, LanguageCode.EN),
+                () -> linkService.consume(tokenHash, 9702L, 19702L, LanguageCode.EN));
 
         assertThat(results).filteredOn(result -> !(result instanceof Exception)).hasSize(1);
         assertThat(results).filteredOn(result -> result instanceof Exception).hasSize(1);
