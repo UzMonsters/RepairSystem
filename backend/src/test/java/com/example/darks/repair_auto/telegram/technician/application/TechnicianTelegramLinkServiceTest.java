@@ -3,10 +3,12 @@ package com.example.darks.repair_auto.telegram.technician.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
+import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramProperties;
@@ -81,6 +83,34 @@ class TechnicianTelegramLinkServiceTest {
         assertThat(target.getPreferredLanguage()).isEqualTo(LanguageCode.EN);
     }
 
+    @Test
+    void givenExistingActiveTokenWhenCreatingNewLinkThenRevocationIsFlushedBeforeReplacementInsert() {
+        Technician technician = technician(55L, LanguageCode.EN);
+        User user = user(77L);
+        TelegramTechnicianLinkToken existingToken = token(technician);
+        TelegramTechnicianLinkTokenRepository tokens = mock(TelegramTechnicianLinkTokenRepository.class);
+        TechnicianRepository technicians = mock(TechnicianRepository.class);
+        UserRepository users = mock(UserRepository.class);
+        when(technicians.findByIdForUpdate(55L)).thenReturn(Optional.of(technician));
+        when(users.findById(77L)).thenReturn(Optional.of(user));
+        when(tokens.findFirstByTechnicianIdAndUsedAtIsNullAndRevokedAtIsNull(55L))
+                .thenReturn(Optional.of(existingToken));
+        TechnicianTelegramLinkService service = new TechnicianTelegramLinkService(
+                technicians,
+                users,
+                tokens,
+                mock(TelegramTechnicianSessionRepository.class),
+                mock(TelegramUserContextRepository.class),
+                new TelegramProperties(),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.create(55L, new AuthenticatedUser(user));
+
+        assertThat(ReflectionTestUtils.getField(existingToken, "revokedAt")).isNotNull();
+        verify(tokens).flush();
+        verify(tokens).saveAndFlush(org.mockito.ArgumentMatchers.any(TelegramTechnicianLinkToken.class));
+    }
+
     private TestContext context(TelegramTechnicianLinkToken token) {
         TelegramTechnicianLinkTokenRepository tokens = mock(TelegramTechnicianLinkTokenRepository.class);
         TechnicianRepository technicians = mock(TechnicianRepository.class);
@@ -119,6 +149,18 @@ class TechnicianTelegramLinkServiceTest {
                 mock(User.class),
                 NOW.plusHours(1),
                 NOW);
+    }
+
+    private User user(Long id) {
+        User user = new User(
+                "Admin",
+                "admin@example.com",
+                "hash",
+                com.example.darks.repair_auto.identity.domain.UserRole.ADMIN,
+                true,
+                NOW);
+        ReflectionTestUtils.setField(user, "id", id);
+        return user;
     }
 
     private record TestContext(TechnicianTelegramLinkService service, TechnicianRepository technicians) {
