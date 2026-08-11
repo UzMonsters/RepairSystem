@@ -180,7 +180,8 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
                 .contains("Leave a review")
                 .contains("Profile")
                 .contains("Change language")
-                .contains("Send /cancel to reset the current draft or /menu to return to the menu.");
+                .contains("Help")
+                .doesNotContain("Send /cancel to reset the current draft or /menu to return to the menu.");
     }
 
     @Test
