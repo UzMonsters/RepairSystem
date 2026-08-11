@@ -76,6 +76,7 @@ import org.springframework.test.web.servlet.MockMvc;
         "app.telegram.enabled=true",
         "app.telegram.bot-token=test-token",
         "app.telegram.bot-username=repairauto_test_bot",
+        "app.telegram.technician.bot-username=@RepairAutoStaffTestBot",
         "app.telegram.webhook-secret=test-secret"
 })
 @AutoConfigureMockMvc
@@ -191,6 +192,14 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
                 2,
                 LanguageCode.EN,
                 true)).id();
+    }
+
+    @Test
+    void givenTechnicianBotUsernameConfiguredWithAtSignWhenLinkCreatedThenDeepLinkOmitsAtSign() throws Exception {
+        TechnicianTelegramLinkResponse link = createLink();
+
+        assertThat(link.deepLink()).startsWith("https://t.me/RepairAutoStaffTestBot?start=tech_");
+        assertThat(link.deepLink()).doesNotContain("https://t.me/@");
     }
 
     @Test
