@@ -25,8 +25,6 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   const err = error as ApiErrorLike | null | undefined
   return err?.data?.data?.message
     || err?.data?.message
-    || err?.message
-    || err?.statusMessage
     || fallback
 }
 

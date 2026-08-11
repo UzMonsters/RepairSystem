@@ -22,8 +22,7 @@ const { data, pending, error, refresh } = await useAsyncData('users-list', () =>
 )
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || t('failedToLoadUsers')
+  return getApiErrorMessage(error.value, t('failedToLoadUsers'))
 })
 
 const rows = computed(() => data.value?.content ?? [])

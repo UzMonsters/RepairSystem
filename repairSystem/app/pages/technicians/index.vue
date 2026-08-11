@@ -18,8 +18,7 @@ const { data, pending, error, refresh } = await useAsyncData('technicians-list',
 )
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load technicians.'
+  return getApiErrorMessage(error.value, 'Failed to load technicians.')
 })
 
 const rows = computed(() => data.value?.content ?? [])

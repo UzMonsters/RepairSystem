@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Page, Review } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
 
 const { t } = useLocale()
 const page = ref(1)
@@ -17,8 +18,7 @@ const { data, pending, error, refresh } = await useAsyncData('reviews-list', () 
 )
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load reviews.'
+  return getApiErrorMessage(error.value, 'Failed to load reviews.')
 })
 
 const rows = computed(() => data.value?.content ?? [])

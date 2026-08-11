@@ -814,6 +814,27 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   color: rgba(174, 185, 225, 0.6);
 }
 
+.form-control[type="file"] {
+  color: var(--rs-text-2);
+  color-scheme: dark;
+  overflow: hidden;
+}
+
+.form-control[type="file"]::file-selector-button {
+  margin: -0.375rem 0.75rem -0.375rem -0.75rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--rs-panel-2);
+  border: 0;
+  border-right: 1px solid var(--rs-border);
+  color: var(--rs-text);
+  cursor: pointer;
+}
+
+.form-control[type="file"]::file-selector-button:hover {
+  background: var(--rs-primary);
+  color: #fff;
+}
+
 .form-control:focus,
 .form-select:focus {
   background: rgba(255, 255, 255, 0.06);
@@ -850,6 +871,14 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   background: rgba(255, 90, 101, 0.1);
   color: var(--rs-danger);
   border-color: rgba(255, 90, 101, 0.3);
+}
+
+.notification-error-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1080;
+  max-width: min(420px, calc(100vw - 40px));
 }
 
 /* ------------------------------------------------------------

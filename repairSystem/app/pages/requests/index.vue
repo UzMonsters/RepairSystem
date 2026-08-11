@@ -68,8 +68,7 @@ function formatDate(value?: string) {
 }
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Unknown error.'
+  return getApiErrorMessage(error.value, 'Unknown error.')
 })
 
 const assignRequestId = ref<number | null>(null)

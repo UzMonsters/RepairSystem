@@ -69,6 +69,9 @@ export interface Category {
   nameEn: string
   nameRu: string
   nameUz: string
+  descriptionEn?: string
+  descriptionRu?: string
+  descriptionUz?: string
   active?: boolean
   displayOrder?: number
   createdAt?: string

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Customer, Page, RepairRequest } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
 
 const { t } = useLocale()
 const route = useRoute()
@@ -14,8 +15,7 @@ const { data: history, error: historyError, refresh: refreshHistory } = await us
 )
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load customer.'
+  return getApiErrorMessage(error.value, 'Failed to load customer.')
 })
 
 const historyRows = computed(() => history.value?.content ?? [])

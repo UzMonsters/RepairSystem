@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DashboardOverview, Page, RepairRequest } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
 
 const { t } = useLocale()
 const { data, pending, error, refresh } = await useAsyncData('dashboard', () =>
@@ -51,8 +52,7 @@ const statusSummary = computed(() => [
 ])
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load dashboard.'
+  return getApiErrorMessage(error.value, 'Failed to load dashboard.')
 })
 
 function categoryName(c?: RepairRequest['category']) {

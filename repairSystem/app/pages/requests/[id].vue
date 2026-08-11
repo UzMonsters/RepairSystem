@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import type { AssignmentDetail, Attachment, RepairExecution, RepairRequest, StatusHistoryItem, Technician } from '~/types'
 
 const route = useRoute()
@@ -24,7 +24,10 @@ const { data: attachments, refresh: refreshAttachments } = await useAsyncData(`r
 )
 
 const { data: execution, refresh: refreshExecution } = await useAsyncData(`request-${id}-execution`, () =>
-  apiFetch<RepairExecution>(`/requests/${id}/execution`)
+  apiFetch<RepairExecution>(`/requests/${id}/execution`).catch((e) => {
+    if (getApiErrorCode(e) === 'REPAIR_EXECUTION_NOT_FOUND') return null
+    throw e
+  })
 )
 
 const { data: statusHistory, refresh: refreshStatusHistory } = await useAsyncData(`request-${id}-status-history`, () =>
@@ -49,8 +52,7 @@ async function refreshRequestData() {
 }
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load request.'
+  return getApiErrorMessage(error.value, 'Failed to load request.')
 })
 
 const categoryName = computed(() => {
@@ -225,7 +227,10 @@ async function runExec() {
           : execAction.value === 'resume'
             ? { note: execForm.value || undefined }
             : undefined
-    await apiFetch(`/requests/${id}/${execAction.value}`, { method: 'POST', body })
+    await apiFetch(`/requests/${id}/${execAction.value}`, {
+      method: execAction.value === 'diagnosis' ? 'PATCH' : 'POST',
+      body
+    })
     hideModal('exec-modal')
     message.value = t('statusUpdated')
     await refreshRequestData()

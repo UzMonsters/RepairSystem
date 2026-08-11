@@ -16,8 +16,7 @@ const { data, pending, error, refresh } = await useAsyncData('categories-list', 
 )
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load categories.'
+  return getApiErrorMessage(error.value, 'Failed to load categories.')
 })
 
 const rows = computed(() => data.value?.content ?? [])
@@ -61,18 +60,27 @@ function openCreate() {
   showModal('category-modal')
 }
 
-function openEdit(c: Category) {
+async function openEdit(c: Category) {
   editingId.value = c.id
   form.value = {
     nameEn: c.nameEn ?? '',
     nameRu: c.nameRu ?? '',
     nameUz: c.nameUz ?? '',
-    descriptionEn: '',
-    descriptionRu: '',
-    descriptionUz: '',
+    descriptionEn: c.descriptionEn ?? '',
+    descriptionRu: c.descriptionRu ?? '',
+    descriptionUz: c.descriptionUz ?? '',
     displayOrder: c.displayOrder ?? 0
   }
   saveError.value = ''
+  try {
+    const detail = await apiFetch<Category>(`/categories/${c.id}`)
+    form.value.descriptionEn = detail.descriptionEn ?? ''
+    form.value.descriptionRu = detail.descriptionRu ?? ''
+    form.value.descriptionUz = detail.descriptionUz ?? ''
+  } catch (e) {
+    saveError.value = getApiErrorMessage(e, 'Failed to load category details.')
+    return
+  }
   showModal('category-modal')
 }
 
@@ -302,6 +310,45 @@ async function toggleActive(c: Category) {
             min="0"
             class="form-control"
           >
+        </div>
+        <div class="mb-3">
+          <label
+            for="category-description-en"
+            class="form-label"
+          >{{ t('description') }} (EN)</label>
+          <textarea
+            id="category-description-en"
+            v-model="form.descriptionEn"
+            class="form-control"
+            rows="2"
+            maxlength="500"
+          />
+        </div>
+        <div class="mb-3">
+          <label
+            for="category-description-ru"
+            class="form-label"
+          >{{ t('description') }} (RU)</label>
+          <textarea
+            id="category-description-ru"
+            v-model="form.descriptionRu"
+            class="form-control"
+            rows="2"
+            maxlength="500"
+          />
+        </div>
+        <div class="mb-3">
+          <label
+            for="category-description-uz"
+            class="form-label"
+          >{{ t('description') }} (UZ)</label>
+          <textarea
+            id="category-description-uz"
+            v-model="form.descriptionUz"
+            class="form-control"
+            rows="2"
+            maxlength="500"
+          />
         </div>
         <div
           v-if="saveError"
