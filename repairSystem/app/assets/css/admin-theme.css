@@ -1074,3 +1074,18 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
     width: 4.6rem;
   }
 }
+
+/* ------------------------------------------------------------
+   Clearfix neutralization
+   ------------------------------------------------------------
+   AdminLTE applies the Bootstrap clearfix ::after to every
+   .card-header / .card-body / .card-footer. When the header/body
+   is also a flex container (e.g. "card-header d-flex ..." on the
+   dashboard) that pseudo-element becomes an empty flex item and
+   pushes the action button away from the right edge. Drop it only
+   for flex containers so float-based headers keep their clearfix.
+   ------------------------------------------------------------ */
+.card-header.d-flex::after,
+.card-body.d-flex::after {
+  display: none;
+}

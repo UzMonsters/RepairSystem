@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { Category, Page } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
 
 const { t, locale } = useLocale()
 const page = ref(1)
-const size = ref(20)
+const size = ref(10)
 
 const query = computed(() => ({
   page: page.value - 1,
@@ -94,10 +95,9 @@ async function save() {
       await apiFetch(`/categories/${editingId.value}`, { method: 'PUT', body })
     }
     hideModal('category-modal')
-    refresh()
+    await refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    saveError.value = err.data?.message || err.message || 'Failed to save category.'
+    saveError.value = getApiErrorMessage(e, 'Failed to save category.')
   } finally {
     saving.value = false
   }
@@ -109,9 +109,9 @@ async function toggleActive(c: Category) {
   togglingId.value = c.id
   try {
     await apiFetch(`/categories/${c.id}/activation`, { method: 'PATCH', body: { active: !c.active } })
-    refresh()
+    await refresh()
   } catch (e) {
-    void e
+    saveError.value = getApiErrorMessage(e, 'Failed to change category status.')
   } finally {
     togglingId.value = null
   }

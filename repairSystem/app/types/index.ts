@@ -115,6 +115,80 @@ export interface CurrentAssignmentSummary {
   respondedAt?: string
 }
 
+export interface AssignmentDetail {
+  id: number
+  repairRequestId: number
+  technician: AssignmentTechnicianSummary
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'UNASSIGNED' | 'REASSIGNED' | 'COMPLETED' | 'CANCELLED'
+  scheduledVisitAt?: string
+  assignedBy?: AssignmentUserSummary
+  assignedAt?: string
+  respondedAt?: string
+  rejectionReason?: string
+  closureReason?: string
+  closedAt?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface AssignmentUserSummary {
+  id: number
+  fullName: string
+  email: string
+  role: UserRole
+}
+
+export interface RepairRequestUserSummary {
+  id: number
+  fullName: string
+  email?: string
+  role?: UserRole
+}
+
+export interface Attachment {
+  id: number
+  repairRequestId: number
+  type: 'CUSTOMER_PROBLEM_PHOTO' | 'DIAGNOSIS_PHOTO' | 'COMPLETION_PHOTO' | 'GENERAL_DOCUMENT'
+  originalFileName: string
+  contentType?: string
+  sizeBytes?: number
+  status: string
+  uploadedBy?: RepairRequestUserSummary
+  uploadedByTechnician?: AssignmentTechnicianSummary
+  uploadedAt?: string
+}
+
+export interface RepairExecution {
+  id?: number
+  repairRequestId: number
+  startedAt?: string
+  startedBy?: RepairRequestUserSummary
+  diagnosis?: string
+  diagnosisUpdatedAt?: string
+  diagnosisUpdatedBy?: RepairRequestUserSummary
+  waitingReason?: string
+  waitingSince?: string
+  workPerformed?: string
+  completionNote?: string
+  completedAt?: string
+  completedBy?: RepairRequestUserSummary
+  cancellationReason?: string
+  cancelledAt?: string
+  cancelledBy?: RepairRequestUserSummary
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface StatusHistoryItem {
+  id: number
+  repairRequestId: number
+  fromStatus?: RequestStatus
+  toStatus: RequestStatus
+  reason?: string
+  changedBy?: RepairRequestUserSummary
+  changedAt?: string
+}
+
 export interface RepairRequest {
   id: number
   requestNumber: string

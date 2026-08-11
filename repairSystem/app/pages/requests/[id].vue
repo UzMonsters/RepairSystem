@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { RepairRequest, Technician } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
+import type { AssignmentDetail, Attachment, RepairExecution, RepairRequest, StatusHistoryItem, Technician } from '~/types'
 
 const route = useRoute()
 const id = Number(route.params.id)
@@ -14,11 +15,38 @@ const { data: technicians } = await useAsyncData(`request-${id}-technicians`, ()
   apiFetch<{ content: Technician[] }>('/technicians', { query: { size: 100 } })
 )
 
+const { data: assignments, refresh: refreshAssignments } = await useAsyncData(`request-${id}-assignments`, () =>
+  apiFetch<AssignmentDetail[]>(`/requests/${id}/assignments`)
+)
+
+const { data: attachments, refresh: refreshAttachments } = await useAsyncData(`request-${id}-attachments`, () =>
+  apiFetch<Attachment[]>(`/requests/${id}/attachments`)
+)
+
+const { data: execution, refresh: refreshExecution } = await useAsyncData(`request-${id}-execution`, () =>
+  apiFetch<RepairExecution>(`/requests/${id}/execution`)
+)
+
+const { data: statusHistory, refresh: refreshStatusHistory } = await useAsyncData(`request-${id}-status-history`, () =>
+  apiFetch<StatusHistoryItem[]>(`/requests/${id}/status-history`)
+)
+
 const technicianOptions = computed(() => technicians.value?.content ?? [])
 
 const assignForm = ref<number | ''>('')
 const savingAssign = ref(false)
 const message = ref('')
+const actionError = ref('')
+
+async function refreshRequestData() {
+  await Promise.all([
+    refresh(),
+    refreshAssignments(),
+    refreshAttachments(),
+    refreshExecution(),
+    refreshStatusHistory()
+  ])
+}
 
 const errorMessage = computed(() => {
   const err = error.value as { data?: { message?: string } } | null
@@ -49,10 +77,9 @@ async function acceptAssignment() {
   try {
     await apiFetch(`/requests/${id}/assignment/accept`, { method: 'POST' })
     message.value = t('statusUpdated')
-    refresh()
+    await refreshRequestData()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    message.value = err.data?.message || err.message || 'Failed to accept assignment.'
+    message.value = getApiErrorMessage(e, 'Failed to accept assignment.')
   } finally {
     savingAccept.value = false
   }
@@ -64,12 +91,112 @@ async function saveAssign() {
   try {
     await apiFetch(`/requests/${id}/assign`, { method: 'POST', body: { technicianId: assignForm.value } })
     message.value = t('assignedSuccessfully')
-    refresh()
+    await refreshRequestData()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    message.value = err.data?.message || err.message || 'Failed to assign technician.'
+    message.value = getApiErrorMessage(e, 'Failed to assign technician.')
   } finally {
     savingAssign.value = false
+  }
+}
+
+const assignmentAction = ref<'reassign' | 'unassign' | ''>('')
+const assignmentReason = ref('')
+const savingAssignmentAction = ref(false)
+
+function openAssignmentAction(action: 'reassign' | 'unassign') {
+  assignmentAction.value = action
+  assignmentReason.value = ''
+  actionError.value = ''
+  showModal('assignment-action-modal')
+}
+
+async function runAssignmentAction() {
+  if (!assignmentAction.value || !assignmentReason.value.trim()) return
+  savingAssignmentAction.value = true
+  actionError.value = ''
+  try {
+    const body = assignmentAction.value === 'reassign'
+      ? { technicianId: assignForm.value, reason: assignmentReason.value.trim() }
+      : { reason: assignmentReason.value.trim() }
+    if (assignmentAction.value === 'reassign' && assignForm.value === '') return
+    await apiFetch(`/requests/${id}/${assignmentAction.value}`, { method: 'POST', body })
+    hideModal('assignment-action-modal')
+    message.value = t('assignmentUpdated')
+    await refreshRequestData()
+  } catch (e) {
+    actionError.value = getApiErrorMessage(e, 'Failed to update assignment.')
+  } finally {
+    savingAssignmentAction.value = false
+  }
+}
+
+const scheduleForm = ref('')
+const savingSchedule = ref(false)
+
+async function saveSchedule(clearSchedule = false) {
+  if (!clearSchedule && !scheduleForm.value) return
+  savingSchedule.value = true
+  actionError.value = ''
+  try {
+    await apiFetch(`/requests/${id}/schedule`, {
+      method: 'PATCH',
+      body: clearSchedule
+        ? { clearSchedule: true }
+        : { scheduledVisitAt: new Date(scheduleForm.value).toISOString() }
+    })
+    message.value = t('scheduleUpdated')
+    scheduleForm.value = ''
+    await refreshRequestData()
+  } catch (e) {
+    actionError.value = getApiErrorMessage(e, 'Failed to update schedule.')
+  } finally {
+    savingSchedule.value = false
+  }
+}
+
+const attachmentType = ref<'CUSTOMER_PROBLEM_PHOTO' | 'DIAGNOSIS_PHOTO' | 'COMPLETION_PHOTO' | 'GENERAL_DOCUMENT'>('GENERAL_DOCUMENT')
+const attachmentFile = ref<File | null>(null)
+const uploadingAttachment = ref(false)
+
+function selectAttachment(event: Event) {
+  attachmentFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
+}
+
+async function uploadAttachment() {
+  if (!attachmentFile.value) return
+  uploadingAttachment.value = true
+  actionError.value = ''
+  try {
+    const formData = new FormData()
+    formData.append('type', attachmentType.value)
+    formData.append('file', attachmentFile.value)
+    await apiFetch(`/requests/${id}/attachments`, { method: 'POST', body: formData })
+    attachmentFile.value = null
+    message.value = t('attachmentUploaded')
+    await refreshAttachments()
+  } catch (e) {
+    actionError.value = getApiErrorMessage(e, 'Failed to upload attachment.')
+  } finally {
+    uploadingAttachment.value = false
+  }
+}
+
+async function downloadAttachment(attachment: Attachment) {
+  try {
+    const result = await apiFetch<{ url: string }>(`/attachments/${attachment.id}/download-url`)
+    window.open(result.url, '_blank', 'noopener,noreferrer')
+  } catch (e) {
+    actionError.value = getApiErrorMessage(e, 'Failed to create download link.')
+  }
+}
+
+async function deleteAttachment(attachment: Attachment) {
+  try {
+    await apiFetch(`/attachments/${attachment.id}`, { method: 'DELETE', body: {} })
+    message.value = t('attachmentDeleted')
+    await refreshAttachments()
+  } catch (e) {
+    actionError.value = getApiErrorMessage(e, 'Failed to delete attachment.')
   }
 }
 
@@ -91,18 +218,19 @@ async function runExec() {
   try {
     const body = execAction.value === 'complete'
       ? { workPerformed: execForm.value }
-      : execAction.value === 'wait-for-parts' || execAction.value === 'cancel'
-        ? { reason: execForm.value }
-        : execAction.value === 'resume'
-          ? { note: execForm.value || undefined }
-          : undefined
+      : execAction.value === 'diagnosis'
+        ? { diagnosis: execForm.value }
+        : execAction.value === 'wait-for-parts' || execAction.value === 'cancel'
+          ? { reason: execForm.value }
+          : execAction.value === 'resume'
+            ? { note: execForm.value || undefined }
+            : undefined
     await apiFetch(`/requests/${id}/${execAction.value}`, { method: 'POST', body })
     hideModal('exec-modal')
     message.value = t('statusUpdated')
-    refresh()
+    await refreshRequestData()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    execError.value = err.data?.message || err.message || 'Action failed.'
+    execError.value = getApiErrorMessage(e, 'Action failed.')
   } finally {
     savingExec.value = false
   }
@@ -111,6 +239,7 @@ async function runExec() {
 function can(action: string) {
   const s = request.value?.status
   if (action === 'start') return s === 'ASSIGNED' && request.value?.currentAssignment?.status === 'ACCEPTED'
+  if (action === 'diagnosis') return s === 'IN_PROGRESS' || s === 'WAITING_FOR_PARTS'
   if (action === 'wait-for-parts' || action === 'complete') return s === 'IN_PROGRESS' || s === 'WAITING_FOR_PARTS'
   if (action === 'resume') return s === 'WAITING_FOR_PARTS'
   if (action === 'cancel') return s !== 'COMPLETED' && s !== 'CANCELLED'
@@ -151,6 +280,12 @@ function can(action: string) {
           class="alert alert-success py-2"
         >
           {{ message }}
+        </div>
+        <div
+          v-if="actionError"
+          class="alert alert-danger py-2"
+        >
+          {{ actionError }}
         </div>
 
         <div class="row">
@@ -322,6 +457,58 @@ function can(action: string) {
                   </button>
                 </div>
                 <div
+                  v-if="request.currentAssignment"
+                  class="d-flex flex-wrap gap-2 mt-3"
+                >
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    @click="openAssignmentAction('reassign')"
+                  >
+                    <i class="bi bi-arrow-repeat me-1" />{{ t('reassignTechnician') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm"
+                    @click="openAssignmentAction('unassign')"
+                  >
+                    <i class="bi bi-person-dash me-1" />{{ t('unassignTechnician') }}
+                  </button>
+                </div>
+                <div
+                  v-if="request.currentAssignment"
+                  class="mt-3"
+                >
+                  <label class="form-label">{{ t('scheduledVisitAt') }}</label>
+                  <div class="input-group">
+                    <input
+                      v-model="scheduleForm"
+                      type="datetime-local"
+                      class="form-control"
+                      :disabled="savingSchedule"
+                    >
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary"
+                      :disabled="savingSchedule || !scheduleForm"
+                      @click="saveSchedule()"
+                    >
+                      {{ t('save') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary"
+                      :disabled="savingSchedule || !request.currentAssignment.scheduledVisitAt"
+                      @click="saveSchedule(true)"
+                    >
+                      {{ t('clear') }}
+                    </button>
+                  </div>
+                  <div class="small text-muted mt-1">
+                    {{ request.currentAssignment.scheduledVisitAt ? formatDate(request.currentAssignment.scheduledVisitAt) : t('notScheduled') }}
+                  </div>
+                </div>
+                <div
                   v-if="isAssignmentPending"
                   class="alert alert-warning mb-0"
                 >
@@ -347,6 +534,14 @@ function can(action: string) {
                 </h3>
               </div>
               <div class="card-body d-flex flex-column gap-2">
+                <button
+                  v-if="can('diagnosis')"
+                  type="button"
+                  class="btn btn-outline-info"
+                  @click="openExecModal('diagnosis')"
+                >
+                  <i class="bi bi-clipboard2-pulse me-2" />{{ t('diagnosis') }}
+                </button>
                 <button
                   v-if="can('start')"
                   type="button"
@@ -394,9 +589,283 @@ function can(action: string) {
       </template>
     </template>
 
+    <div class="row g-4 mt-1">
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <h3 class="card-title mb-0">
+              {{ t('attachments') }}
+            </h3>
+          </div>
+          <div class="card-body">
+            <div class="row g-2 mb-3">
+              <div class="col-md-5">
+                <select
+                  v-model="attachmentType"
+                  class="form-select"
+                >
+                  <option value="GENERAL_DOCUMENT">
+                    {{ t('generalDocument') }}
+                  </option>
+                  <option value="CUSTOMER_PROBLEM_PHOTO">
+                    {{ t('customerProblemPhoto') }}
+                  </option>
+                  <option value="DIAGNOSIS_PHOTO">
+                    {{ t('diagnosisPhoto') }}
+                  </option>
+                  <option value="COMPLETION_PHOTO">
+                    {{ t('completionPhoto') }}
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-7">
+                <input
+                  type="file"
+                  class="form-control"
+                  @change="selectAttachment"
+                >
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm mb-3"
+              :disabled="uploadingAttachment || !attachmentFile"
+              @click="uploadAttachment"
+            >
+              <i class="bi bi-upload me-1" />{{ uploadingAttachment ? t('saving') : t('upload') }}
+            </button>
+            <div
+              v-if="!attachments?.length"
+              class="text-muted"
+            >
+              {{ t('noAttachments') }}
+            </div>
+            <div
+              v-for="attachment in attachments"
+              :key="attachment.id"
+              class="d-flex align-items-center justify-content-between border-top py-2 gap-2"
+            >
+              <div class="text-truncate">
+                <div class="fw-semibold text-truncate">
+                  {{ attachment.originalFileName }}
+                </div>
+                <div class="small text-muted">
+                  {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
+                </div>
+              </div>
+              <div class="btn-group btn-group-sm flex-shrink-0">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  :title="t('download')"
+                  @click="downloadAttachment(attachment)"
+                >
+                  <i class="bi bi-download" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  :title="t('delete')"
+                  @click="deleteAttachment(attachment)"
+                >
+                  <i class="bi bi-trash" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header">
+            <h3 class="card-title mb-0">
+              {{ t('executionDetails') }}
+            </h3>
+          </div>
+          <div class="card-body">
+            <dl
+              v-if="execution"
+              class="row mb-0"
+            >
+              <dt class="col-sm-5">
+                {{ t('diagnosis') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ execution.diagnosis || '-' }}
+              </dd>
+              <dt class="col-sm-5">
+                {{ t('waitingReason') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ execution.waitingReason || '-' }}
+              </dd>
+              <dt class="col-sm-5">
+                {{ t('workPerformed') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ execution.workPerformed || '-' }}
+              </dd>
+              <dt class="col-sm-5">
+                {{ t('completionNote') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ execution.completionNote || '-' }}
+              </dd>
+              <dt class="col-sm-5">
+                {{ t('completed') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ formatDate(execution.completedAt) }}
+              </dd>
+            </dl>
+            <div
+              v-else
+              class="text-muted"
+            >
+              {{ t('noExecutionDetails') }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title mb-0">
+              {{ t('assignmentHistory') }}
+            </h3>
+          </div>
+          <div class="card-body p-0">
+            <div
+              v-if="!assignments?.length"
+              class="text-muted p-3"
+            >
+              {{ t('noAssignmentHistory') }}
+            </div>
+            <div
+              v-for="assignment in assignments"
+              :key="assignment.id"
+              class="border-bottom p-3"
+            >
+              <div class="d-flex justify-content-between gap-2">
+                <strong>{{ assignment.technician.fullName }}</strong>
+                <span class="badge text-bg-secondary">{{ assignment.status }}</span>
+              </div>
+              <div class="small text-muted">
+                {{ formatDate(assignment.assignedAt) }} · {{ assignment.rejectionReason || assignment.closureReason || '-' }}
+              </div>
+              <div
+                v-if="assignment.scheduledVisitAt"
+                class="small"
+              >
+                {{ t('scheduledVisitAt') }}: {{ formatDate(assignment.scheduledVisitAt) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title mb-0">
+              {{ t('statusHistory') }}
+            </h3>
+          </div>
+          <div class="card-body p-0">
+            <div
+              v-if="!statusHistory?.length"
+              class="text-muted p-3"
+            >
+              {{ t('noStatusHistory') }}
+            </div>
+            <div
+              v-for="item in statusHistory"
+              :key="item.id"
+              class="border-bottom p-3"
+            >
+              <div class="d-flex align-items-center gap-2">
+                <StatusBadge :status="item.toStatus" />
+                <span class="small text-muted">{{ formatDate(item.changedAt) }}</span>
+              </div>
+              <div
+                v-if="item.reason"
+                class="small mt-1"
+              >
+                {{ item.reason }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <AppModal
+      id="assignment-action-modal"
+      :title="assignmentAction === 'reassign' ? t('reassignTechnician') : t('unassignTechnician')"
+    >
+      <form @submit.prevent="runAssignmentAction">
+        <div
+          v-if="assignmentAction === 'reassign'"
+          class="mb-3"
+        >
+          <label class="form-label">{{ t('technician') }}</label>
+          <select
+            v-model="assignForm"
+            class="form-select"
+          >
+            <option
+              value=""
+              disabled
+            >
+              {{ t('selectTechnician') }}
+            </option>
+            <option
+              v-for="tech in technicianOptions"
+              :key="tech.id"
+              :value="tech.id"
+            >
+              {{ tech.fullName }}
+            </option>
+          </select>
+        </div>
+        <label class="form-label">{{ t('reason') }}</label>
+        <textarea
+          v-model="assignmentReason"
+          class="form-control"
+          rows="3"
+          required
+        />
+        <div
+          v-if="actionError"
+          class="alert alert-danger py-2 mt-3"
+        >
+          {{ actionError }}
+        </div>
+      </form>
+      <template #footer>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="savingAssignmentAction || !assignmentReason.trim() || (assignmentAction === 'reassign' && assignForm === '')"
+          @click="runAssignmentAction"
+        >
+          {{ savingAssignmentAction ? t('saving') : t('save') }}
+        </button>
+      </template>
+    </AppModal>
+
     <AppModal
       id="exec-modal"
-      :title="execAction === 'complete' ? t('complete') : execAction === 'cancel' ? t('cancelRequest') : execAction === 'wait-for-parts' ? t('waitForParts') : t('resume')"
+      :title="execAction === 'diagnosis' ? t('diagnosis') : execAction === 'complete' ? t('complete') : execAction === 'cancel' ? t('cancelRequest') : execAction === 'wait-for-parts' ? t('waitForParts') : t('resume')"
     >
       <form @submit.prevent="runExec">
         <div class="mb-3">
@@ -404,7 +873,7 @@ function can(action: string) {
             :for="`exec-${execAction}`"
             class="form-label"
           >
-            {{ execAction === 'complete' ? t('workPerformed') : t('reason') }}
+            {{ execAction === 'complete' ? t('workPerformed') : execAction === 'diagnosis' ? t('diagnosis') : t('reason') }}
           </label>
           <textarea
             :id="`exec-${execAction}`"
