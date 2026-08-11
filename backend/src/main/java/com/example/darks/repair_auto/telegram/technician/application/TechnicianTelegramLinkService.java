@@ -77,7 +77,10 @@ public class TechnicianTelegramLinkService {
             throw new BusinessRuleException("TECHNICIAN_INACTIVE", "Inactive technician cannot be linked.", 409);
         }
         tokenRepository.findFirstByTechnicianIdAndUsedAtIsNullAndRevokedAtIsNull(technicianId)
-                .ifPresent(token -> token.revoked(now));
+                .ifPresent(token -> {
+                    token.revoked(now);
+                    tokenRepository.flush();
+                });
         User user = userRepository.findById(authenticatedUser.id()).orElseThrow(this::userNotFound);
         String rawToken = token();
         OffsetDateTime expiresAt = now.plusHours(24);
