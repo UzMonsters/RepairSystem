@@ -4,6 +4,7 @@ import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramProperties;
 import com.example.darks.repair_auto.telegram.core.domain.TelegramUserContext;
 import com.example.darks.repair_auto.telegram.core.domain.TelegramUserMode;
@@ -97,7 +98,7 @@ public class TechnicianTelegramLinkService {
     }
 
     @Transactional(noRollbackFor = BusinessRuleException.class)
-    public LinkResult consume(String tokenHash, Long telegramUserId, Long telegramChatId) {
+    public LinkResult consume(String tokenHash, Long telegramUserId, Long telegramChatId, LanguageCode language) {
         OffsetDateTime now = now();
         TelegramTechnicianLinkToken token = tokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new BusinessRuleException("TELEGRAM_TECHNICIAN_LINK_INVALID", "Invalid link.", 400));
@@ -109,7 +110,7 @@ public class TechnicianTelegramLinkService {
         if (!technician.isActive()) {
             throw new BusinessRuleException("TECHNICIAN_INACTIVE", "Inactive technician cannot be linked.", 409);
         }
-        if (technician.getTelegramUserId() != null) {
+        if (technician.getTelegramUserId() != null && !technician.getTelegramUserId().equals(telegramUserId)) {
             throw new BusinessRuleException(
                     "TECHNICIAN_TELEGRAM_ALREADY_LINKED",
                     "Technician profile is already linked.",
@@ -123,6 +124,7 @@ public class TechnicianTelegramLinkService {
                             "Telegram account is already linked.",
                             409);
                 });
+        technician.updateTelegramLanguage(language, now);
         technician.linkTelegram(telegramUserId, telegramChatId, now);
         token.used(telegramUserId, now);
         contextRepository.findByTelegramUserId(telegramUserId)

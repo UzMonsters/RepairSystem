@@ -52,6 +52,10 @@ public class TelegramTechnicianBotService {
     private final TechnicianTelegramLinkService linkService;
     private final TelegramBotClient botClient;
     private final Clock clock;
+    private static final String MENU_PENDING = "menu_pending";
+    private static final String MENU_ACTIVE = "menu_active";
+    private static final String MENU_RECENT = "menu_recent";
+    private static final String MENU_LANGUAGE = "menu_language";
 
     @Autowired
     public TelegramTechnicianBotService(
@@ -152,10 +156,14 @@ public class TelegramTechnicianBotService {
             showMenu(session);
             return;
         }
+        if ("/start".equalsIgnoreCase(text)) {
+            showMenu(session);
+            return;
+        }
         if ("/cancel".equalsIgnoreCase(text)) {
             session.clearDraft(now());
             session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-            send(session, "cancelled", mainKeyboard());
+            send(session, "cancelled", mainKeyboard(session.getLanguage()));
             return;
         }
         if (!update.photo().isEmpty()) {
@@ -171,7 +179,7 @@ public class TelegramTechnicianBotService {
             return;
         }
         if (text == null) {
-            send(session, "invalid_action", mainKeyboard());
+            send(session, "invalid_action", mainKeyboard(session.getLanguage()));
             return;
         }
         if (handleMenuText(session, text)) {
@@ -183,50 +191,69 @@ public class TelegramTechnicianBotService {
                 assignmentService.rejectByTechnician(requestId, new AssignmentRejectionRequest(text), session.getTechnicianId());
                 session.clearDraft(now());
                 session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "rejected", mainKeyboard());
+                send(session, "rejected", mainKeyboard(session.getLanguage()));
             }
             case AWAITING_DIAGNOSIS -> {
                 executionService.updateDiagnosisByTechnician(requestId, new DiagnosisRequest(text), session.getTechnicianId());
                 session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "diagnosis_saved", jobKeyboard(requestId));
+                send(session, "diagnosis_saved", jobKeyboard(requestId, session.getLanguage()));
             }
             case AWAITING_WAIT_REASON -> {
                 executionService.waitForPartsByTechnician(requestId, new WaitForPartsRequest(text), session.getTechnicianId());
                 session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "waiting", jobKeyboard(requestId));
+                send(session, "waiting", jobKeyboard(requestId, session.getLanguage()));
             }
             case AWAITING_RESUME_NOTE -> {
                 executionService.resumeByTechnician(requestId, new ResumeRepairRequest(text), session.getTechnicianId());
                 session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "resumed", jobKeyboard(requestId));
+                send(session, "resumed", jobKeyboard(requestId, session.getLanguage()));
             }
             case AWAITING_WORK_PERFORMED -> {
                 session.draftText(text, now());
                 session.state(TelegramTechnicianSessionState.AWAITING_COMPLETION_PHOTO, now());
-                send(session, "send_completion_photo", jobKeyboard(requestId));
+                send(session, "send_completion_photo", jobKeyboard(requestId, session.getLanguage()));
             }
-            default -> send(session, "invalid_action", mainKeyboard());
+            default -> send(session, "invalid_action", mainKeyboard(session.getLanguage()));
         }
     }
 
     private boolean handleMenuText(TelegramTechnicianSession session, String text) {
-        if ("Pending".equals(text)) {
+        String action = menuAction(text);
+        if (MENU_PENDING.equals(action)) {
             showAssignments(session, AssignmentStatus.PENDING);
             return true;
         }
-        if ("Active".equals(text)) {
+        if (MENU_ACTIVE.equals(action)) {
             showActive(session);
             return true;
         }
-        if ("Recent".equals(text)) {
+        if (MENU_RECENT.equals(action)) {
             showRecent(session);
             return true;
         }
-        if ("Language".equals(text)) {
+        if (MENU_LANGUAGE.equals(action)) {
             send(session, "choose_language", languageKeyboard());
             return true;
         }
         return false;
+    }
+
+    private String menuAction(String text) {
+        for (LanguageCode language : LanguageCode.values()) {
+            if (msg(language, MENU_PENDING).equals(text)) {
+                return MENU_PENDING;
+            }
+            if (msg(language, MENU_ACTIVE).equals(text)) {
+                return MENU_ACTIVE;
+            }
+            if (msg(language, MENU_RECENT).equals(text)) {
+                return MENU_RECENT;
+            }
+            if (msg(language, MENU_LANGUAGE).equals(text)) {
+                return MENU_LANGUAGE;
+            }
+        }
+        return "";
     }
 
     private void handleCallback(
@@ -254,7 +281,7 @@ public class TelegramTechnicianBotService {
         } else if (data.startsWith("taccept:")) {
             Long requestId = parseId(data, "taccept:");
             assignmentService.acceptByTechnician(requestId, session.getTechnicianId());
-            send(session, "accepted", jobKeyboard(requestId));
+            send(session, "accepted", jobKeyboard(requestId, session.getLanguage()));
         } else if (data.startsWith("treject:")) {
             session.selectRequest(parseId(data, "treject:"), now());
             session.state(TelegramTechnicianSessionState.AWAITING_REJECTION_REASON, now());
@@ -262,7 +289,7 @@ public class TelegramTechnicianBotService {
         } else if (data.startsWith("tstart:")) {
             Long requestId = parseId(data, "tstart:");
             executionService.startByTechnician(requestId, session.getTechnicianId());
-            send(session, "started", jobKeyboard(requestId));
+            send(session, "started", jobKeyboard(requestId, session.getLanguage()));
         } else if (data.startsWith("tdiagnosis:")) {
             session.selectRequest(parseId(data, "tdiagnosis:"), now());
             session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS, now());
@@ -290,9 +317,9 @@ public class TelegramTechnicianBotService {
                     new CompleteRepairRequest(session.getDraftText(), null),
                     session.getTechnicianId());
             session.clearDraft(now());
-            send(session, "completed", mainKeyboard());
+            send(session, "completed", mainKeyboard(session.getLanguage()));
         } else {
-            send(session, "invalid_action", mainKeyboard());
+            send(session, "invalid_action", mainKeyboard(session.getLanguage()));
         }
         if (callback.id() != null) {
             botClient.answerCallback(callback.id(), "");
@@ -305,9 +332,10 @@ public class TelegramTechnicianBotService {
             Technician technician = linkService.consume(
                     session.getPendingTokenHash(),
                     session.getTelegramUserId(),
-                    session.getTelegramChatId()).technician();
+                    session.getTelegramChatId(),
+                    language).technician();
             session.link(technician, language, now());
-            send(session, "linked", mainKeyboard());
+            send(session, "linked", mainKeyboard(language));
             return;
         }
         session.language(language, now());
@@ -321,7 +349,7 @@ public class TelegramTechnicianBotService {
         }
         session.clearDraft(now());
         session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-        send(session, "main_menu", mainKeyboard());
+        send(session, "main_menu", mainKeyboard(session.getLanguage()));
     }
 
     private void showAssignments(TelegramTechnicianSession session, AssignmentStatus status) {
@@ -356,7 +384,7 @@ public class TelegramTechnicianBotService {
 
     private void sendList(TelegramTechnicianSession session, List<RepairAssignment> assignments) {
         if (assignments.isEmpty()) {
-            send(session, "empty_jobs", mainKeyboard());
+            send(session, "empty_jobs", mainKeyboard(session.getLanguage()));
             return;
         }
         StringBuilder builder = new StringBuilder(msg(session.getLanguage(), "jobs"));
@@ -375,13 +403,16 @@ public class TelegramTechnicianBotService {
     private void showJob(TelegramTechnicianSession session, Long requestId) {
         requireOwnedActiveAssignment(session, requestId);
         RepairRequestDetailResponse detail = requestService.get(requestId);
-        botClient.sendMessage(session.getTelegramChatId(), detailText(detail, session.getLanguage()), jobKeyboard(requestId));
+        botClient.sendMessage(
+                session.getTelegramChatId(),
+                detailText(detail, session.getLanguage()),
+                jobKeyboard(requestId, session.getLanguage()));
     }
 
     private void handlePhoto(TelegramTechnicianSession session, List<TelegramUpdatePayload.TelegramPhotoSize> photos) {
         if (session.getState() != TelegramTechnicianSessionState.AWAITING_DIAGNOSIS_PHOTO
                 && session.getState() != TelegramTechnicianSessionState.AWAITING_COMPLETION_PHOTO) {
-            send(session, "invalid_action", mainKeyboard());
+            send(session, "invalid_action", mainKeyboard(session.getLanguage()));
             return;
         }
         Long requestId = session.getSelectedRequestId();
@@ -409,10 +440,10 @@ public class TelegramTechnicianBotService {
             throw new BusinessRuleException("ATTACHMENT_STORAGE_FAILED", "Attachment upload failed.", 503);
         }
         if (type == AttachmentType.COMPLETION_PHOTO) {
-            send(session, "completion_photo_saved", completeKeyboard(requestId));
+            send(session, "completion_photo_saved", completeKeyboard(requestId, session.getLanguage()));
         } else {
             session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-            send(session, "diagnosis_photo_saved", jobKeyboard(requestId));
+            send(session, "diagnosis_photo_saved", jobKeyboard(requestId, session.getLanguage()));
         }
     }
 
@@ -510,10 +541,10 @@ public class TelegramTechnicianBotService {
                 : detail.address());
     }
 
-    private String mainKeyboard() {
+    private String mainKeyboard(LanguageCode language) {
         return reply(List.of(
-                List.of("Pending", "Active"),
-                List.of("Recent", "Language")));
+                List.of(msg(language, MENU_PENDING), msg(language, MENU_ACTIVE)),
+                List.of(msg(language, MENU_RECENT), msg(language, MENU_LANGUAGE))));
     }
 
     private String languageKeyboard() {
@@ -531,16 +562,20 @@ public class TelegramTechnicianBotService {
                 .toList());
     }
 
-    private String jobKeyboard(Long requestId) {
+    private String jobKeyboard(Long requestId, LanguageCode language) {
         return inline(List.of(
-                List.of(button("Accept", "taccept:" + requestId), button("Reject", "treject:" + requestId)),
-                List.of(button("Start", "tstart:" + requestId), button("Diagnosis", "tdiagnosis:" + requestId)),
-                List.of(button("Wait", "twait:" + requestId), button("Resume", "tresume:" + requestId)),
-                List.of(button("Diag photo", "tdiagphoto:" + requestId), button("Complete", "twork:" + requestId))));
+                List.of(button(msg(language, "action_accept"), "taccept:" + requestId),
+                        button(msg(language, "action_reject"), "treject:" + requestId)),
+                List.of(button(msg(language, "action_start"), "tstart:" + requestId),
+                        button(msg(language, "action_diagnosis"), "tdiagnosis:" + requestId)),
+                List.of(button(msg(language, "action_wait"), "twait:" + requestId),
+                        button(msg(language, "action_resume"), "tresume:" + requestId)),
+                List.of(button(msg(language, "action_diag_photo"), "tdiagphoto:" + requestId),
+                        button(msg(language, "action_complete"), "twork:" + requestId))));
     }
 
-    private String completeKeyboard(Long requestId) {
-        return inline(List.of(List.of(button("Complete", "tcomplete:" + requestId))));
+    private String completeKeyboard(Long requestId, LanguageCode language) {
+        return inline(List.of(List.of(button(msg(language, "action_complete"), "tcomplete:" + requestId))));
     }
 
     private String inline(List<List<String>> rows) {
@@ -579,8 +614,20 @@ public class TelegramTechnicianBotService {
                 case "linked" -> "Technician profile linked.";
                 case "not_linked" -> "Technician profile is not linked.";
                 case "main_menu" -> "Technician menu";
+                case MENU_PENDING -> "Pending";
+                case MENU_ACTIVE -> "Active";
+                case MENU_RECENT -> "Recent";
+                case MENU_LANGUAGE -> "Language";
                 case "jobs" -> "Jobs";
                 case "empty_jobs" -> "No jobs found.";
+                case "action_accept" -> "Accept";
+                case "action_reject" -> "Reject";
+                case "action_start" -> "Start";
+                case "action_diagnosis" -> "Diagnosis";
+                case "action_wait" -> "Wait";
+                case "action_resume" -> "Resume";
+                case "action_diag_photo" -> "Diag photo";
+                case "action_complete" -> "Complete";
                 case "accepted" -> "Assignment accepted.";
                 case "rejected" -> "Assignment rejected.";
                 case "started" -> "Repair started.";
@@ -615,8 +662,20 @@ public class TelegramTechnicianBotService {
                 case "linked" -> "Профиль техника привязан.";
                 case "not_linked" -> "Профиль техника не привязан.";
                 case "main_menu" -> "Меню техника";
+                case MENU_PENDING -> "Ожидающие";
+                case MENU_ACTIVE -> "Активные";
+                case MENU_RECENT -> "Недавние";
+                case MENU_LANGUAGE -> "Язык";
                 case "jobs" -> "Заявки";
                 case "empty_jobs" -> "Заявок нет.";
+                case "action_accept" -> "Принять";
+                case "action_reject" -> "Отклонить";
+                case "action_start" -> "Начать";
+                case "action_diagnosis" -> "Диагностика";
+                case "action_wait" -> "Ожидание";
+                case "action_resume" -> "Возобновить";
+                case "action_diag_photo" -> "Фото диагностики";
+                case "action_complete" -> "Завершить";
                 case "accepted" -> "Заявка принята.";
                 case "rejected" -> "Заявка отклонена.";
                 case "started" -> "Ремонт начат.";
@@ -651,8 +710,20 @@ public class TelegramTechnicianBotService {
                 case "linked" -> "Texnik profili bog'landi.";
                 case "not_linked" -> "Texnik profili bog'lanmagan.";
                 case "main_menu" -> "Texnik menyusi";
+                case MENU_PENDING -> "Kutilayotgan";
+                case MENU_ACTIVE -> "Faol";
+                case MENU_RECENT -> "So'nggi";
+                case MENU_LANGUAGE -> "Til";
                 case "jobs" -> "Ishlar";
                 case "empty_jobs" -> "Ishlar topilmadi.";
+                case "action_accept" -> "Qabul qilish";
+                case "action_reject" -> "Rad etish";
+                case "action_start" -> "Boshlash";
+                case "action_diagnosis" -> "Tashxis";
+                case "action_wait" -> "Kutish";
+                case "action_resume" -> "Davom ettirish";
+                case "action_diag_photo" -> "Tashxis fotosi";
+                case "action_complete" -> "Yakunlash";
                 case "accepted" -> "Topshiriq qabul qilindi.";
                 case "rejected" -> "Topshiriq rad etildi.";
                 case "started" -> "Ta'mirlash boshlandi.";
