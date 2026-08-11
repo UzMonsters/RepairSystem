@@ -24,8 +24,11 @@ import com.example.darks.repair_auto.telegram.customer.domain.TelegramCustomerSe
 import com.example.darks.repair_auto.telegram.customer.domain.TelegramCustomerSessionState;
 import com.example.darks.repair_auto.telegram.customer.infrastructure.TelegramCustomerSessionRepository;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -40,6 +43,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class TelegramCustomerBotService {
 
     private static final int HISTORY_PAGE_SIZE = 5;
+    private static final DateTimeFormatter TELEGRAM_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
     private final TelegramCustomerSessionRepository sessionRepository;
     private final RepairCategoryRepository categoryRepository;
@@ -52,6 +57,7 @@ public class TelegramCustomerBotService {
     private final TelegramMessages messages;
     private final TelegramKeyboards keyboards;
     private final TelegramProperties properties;
+    private final DateTimeFormatter telegramDateFormatter;
     private final Clock clock;
 
     @Autowired
@@ -66,7 +72,8 @@ public class TelegramCustomerBotService {
             @Qualifier("customerTelegramBotClient") TelegramBotClient botClient,
             TelegramMessages messages,
             TelegramKeyboards keyboards,
-            TelegramProperties properties) {
+            TelegramProperties properties,
+            ZoneId businessZone) {
         this(
                 sessionRepository,
                 categoryRepository,
@@ -79,6 +86,7 @@ public class TelegramCustomerBotService {
                 messages,
                 keyboards,
                 properties,
+                businessZone,
                 Clock.systemUTC());
     }
 
@@ -94,6 +102,7 @@ public class TelegramCustomerBotService {
             TelegramMessages messages,
             TelegramKeyboards keyboards,
             TelegramProperties properties,
+            ZoneId businessZone,
             Clock clock) {
         this.sessionRepository = sessionRepository;
         this.categoryRepository = categoryRepository;
@@ -106,6 +115,7 @@ public class TelegramCustomerBotService {
         this.messages = messages;
         this.keyboards = keyboards;
         this.properties = properties;
+        this.telegramDateFormatter = TELEGRAM_DATE_FORMATTER.withZone(businessZone);
         this.clock = clock;
     }
 
@@ -697,7 +707,7 @@ public class TelegramCustomerBotService {
                     .append(" | ")
                     .append(escape(messages.requestStatus(request.status(), language)))
                     .append(" | ")
-                    .append(request.createdAt());
+                    .append(formatTelegramDate(request.createdAt()));
         }
         return builder.toString();
     }
@@ -711,7 +721,14 @@ public class TelegramCustomerBotService {
                 + "\nLocation: " + escape(details.address() == null
                         ? details.latitude() + ", " + details.longitude()
                         : details.address())
-                + "\nCreated: " + details.createdAt();
+                + "\nCreated: " + formatTelegramDate(details.createdAt());
+    }
+
+    private String formatTelegramDate(OffsetDateTime value) {
+        if (value == null) {
+            return "";
+        }
+        return telegramDateFormatter.format(Instant.from(value));
     }
 
     private String categoryLabel(RepairRequestSummaryResponse request, LanguageCode language) {

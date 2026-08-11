@@ -1,6 +1,8 @@
 package com.example.darks.repair_auto.telegram.customer.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -8,10 +10,18 @@ import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
 import com.example.darks.repair_auto.catalog.category.infrastructure.RepairCategoryRepository;
 import com.example.darks.repair_auto.customer.application.CustomerService;
 import com.example.darks.repair_auto.customer.domain.Customer;
+import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestCategorySummary;
+import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestCustomerSummary;
+import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestSummaryResponse;
+import com.example.darks.repair_auto.repair.request.application.RepairRequestQuery;
 import com.example.darks.repair_auto.repair.request.application.RepairRequestService;
+import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority;
+import com.example.darks.repair_auto.repair.request.domain.RepairRequestSource;
+import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
 import com.example.darks.repair_auto.review.application.RepairReviewService;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
+import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import com.example.darks.repair_auto.telegram.core.api.TelegramUpdatePayload;
 import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient;
 import com.example.darks.repair_auto.telegram.core.application.TelegramFileMetadata;
@@ -23,6 +33,7 @@ import java.io.InputStream;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,6 +85,7 @@ class TelegramCustomerBotServiceTest {
                 new TelegramMessages(),
                 new TelegramKeyboards(),
                 new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
                 Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
 
         service.handle(message(211L, 19019L, 23019L, "Create request"));
@@ -103,12 +115,51 @@ class TelegramCustomerBotServiceTest {
                 new TelegramMessages(),
                 new TelegramKeyboards(),
                 new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
                 Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
 
         service.handle(message(212L, 20020L, 24020L, "Help"));
 
         assertThat(botClient.last().text()).contains("Send /cancel to reset the current draft or /menu to return to the menu.");
         assertThat(botClient.last().replyMarkupJson()).contains("Help");
+    }
+
+    @Test
+    void givenRegisteredCustomerWhenHistoryShownThenCreatedDateIsCompact() {
+        TelegramCustomerSession session = linkedSession(21021L, 25021L);
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairRequestService repairRequests = mock(RepairRequestService.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(21021L)).thenReturn(Optional.of(session));
+        when(repairRequests.customerHistory(eq(77L), any(RepairRequestQuery.class), any())).thenReturn(
+                new PageResponse<>(
+                        List.of(summary("REP-2026-000002", "2026-08-06T05:45:39.756850Z")),
+                        0,
+                        5,
+                        1,
+                        1,
+                        true,
+                        true));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                repairRequests,
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(message(213L, 21021L, 25021L, "My requests"));
+
+        assertThat(botClient.last().text())
+                .contains("REP-2026-000002 | Washer | New | 06.08.2026 10:45")
+                .doesNotContain("2026-08-06T05:45:39.756850Z");
     }
 
     private TelegramCustomerSession linkedSession(Long userId, Long chatId) {
@@ -138,6 +189,22 @@ class TelegramCustomerBotServiceTest {
                 OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         ReflectionTestUtils.setField(category, "id", 123L);
         return category;
+    }
+
+    private RepairRequestSummaryResponse summary(String requestNumber, String createdAt) {
+        return new RepairRequestSummaryResponse(
+                123L,
+                requestNumber,
+                RepairRequestStatus.NEW,
+                RepairRequestPriority.NORMAL,
+                RepairRequestSource.TELEGRAM,
+                "Washer leaks water.",
+                "Tashkent",
+                null,
+                new RepairRequestCustomerSummary(77L, "Reply Action", "+998902020202", LanguageCode.EN, true),
+                new RepairRequestCategorySummary(123L, "Washer", "Washer RU", "Washer UZ", true, 10),
+                OffsetDateTime.parse(createdAt),
+                OffsetDateTime.parse(createdAt));
     }
 
     private TelegramUpdatePayload message(Long updateId, Long userId, Long chatId, String text) {

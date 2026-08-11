@@ -140,7 +140,7 @@ public class TelegramProperties {
 
         public void setBotUsername(String botUsername) {
             if (botUsername != null && !botUsername.isBlank()) {
-                this.botUsername = botUsername.trim();
+                this.botUsername = botUsername.trim().replaceFirst("^@+", "");
             }
         }
     }
