@@ -8,25 +8,46 @@ type ApiRequest = {
   params?: Record<string, unknown>
 }
 
-function nestedApiField(error: unknown, field: 'message' | 'code'): string | undefined {
-  let current: unknown = error
-  for (let depth = 0; depth < 5; depth += 1) {
+type ErrorPayload = {
+  message?: unknown
+  code?: unknown
+  fieldErrors?: Array<{ message?: unknown }>
+}
+
+function findApiPayload(error: unknown): ErrorPayload | undefined {
+  const visited = new Set<object>()
+
+  function visit(current: unknown): ErrorPayload | undefined {
     if (!current || typeof current !== 'object') return undefined
-    const data = (current as { data?: unknown }).data
-    if (!data || typeof data !== 'object') return undefined
-    const value = (data as Record<string, unknown>)[field]
-    if (typeof value === 'string' && value.trim()) return value
-    current = data
+    if (visited.has(current)) return undefined
+    visited.add(current)
+
+    const record = current as Record<string, unknown>
+    for (const key of ['data', 'response', '_data']) {
+      const nested = visit(record[key])
+      if (nested) return nested
+    }
+
+    if (typeof record.message === 'string' || typeof record.code === 'string' || Array.isArray(record.fieldErrors)) {
+      return record as ErrorPayload
+    }
+    return undefined
   }
-  return undefined
+
+  return visit(error)
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
-  return nestedApiField(error, 'message') || fallback
+  const payload = findApiPayload(error)
+  if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message
+  const fieldMessage = payload?.fieldErrors?.find(field =>
+    typeof field.message === 'string' && field.message.trim())?.message
+  return typeof fieldMessage === 'string' ? fieldMessage : fallback
 }
 
 export function getApiErrorCode(error: unknown): string | undefined {
-  return nestedApiField(error, 'code')
+  const code = findApiPayload(error)?.code
+  return typeof code === 'string' ? code : undefined
 }
 
 export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> {
