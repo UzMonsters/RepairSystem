@@ -39,10 +39,16 @@ function findApiPayload(error: unknown): ErrorPayload | undefined {
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   const payload = findApiPayload(error)
-  if (typeof payload?.message === 'string' && payload.message.trim()) return payload.message
-  const fieldMessage = payload?.fieldErrors?.find(field =>
-    typeof field.message === 'string' && field.message.trim())?.message
-  return typeof fieldMessage === 'string' ? fieldMessage : fallback
+  const message = typeof payload?.message === 'string' ? payload.message.trim() : ''
+  const fieldMessages = (payload?.fieldErrors ?? [])
+    .map(field => typeof field.message === 'string' ? field.message.trim() : '')
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
+
+  if (message && fieldMessages.length) return `${message}\n${fieldMessages.join('\n')}`
+  if (message) return message
+  if (fieldMessages.length) return fieldMessages.join('\n')
+  return fallback
 }
 
 export function getApiErrorCode(error: unknown): string | undefined {

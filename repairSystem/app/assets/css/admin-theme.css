@@ -908,6 +908,7 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   color: var(--rs-text);
   border-color: var(--rs-border);
   border-radius: 12px;
+  white-space: pre-line;
 }
 
 .alert-danger {
