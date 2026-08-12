@@ -252,8 +252,12 @@ public class TelegramCustomerBotService {
             send(session, "choose_language", keyboards.language());
             return true;
         }
-        if (text.equals(messages.get(language, "help_button")) || text.equals(messages.get(language, "help"))) {
+        if (text.equals(messages.get(language, "help_button"))) {
             send(session, "help", mainKeyboard(session));
+            return true;
+        }
+        if (text.equals(messages.get(language, "help"))) {
+            showMenu(session);
             return true;
         }
         return false;
@@ -463,7 +467,7 @@ public class TelegramCustomerBotService {
             return;
         }
         if (session.getCreatedRequest() != null) {
-            sendCreated(session, session.getCreatedRequest().getRequestNumber(), false);
+            sendCreated(session, false);
             return;
         }
         RepairRequest request = repairRequestService.telegramCreate(
@@ -481,7 +485,7 @@ public class TelegramCustomerBotService {
                 session.photoFileIds());
         session.clearDraft(now());
         session.state(TelegramCustomerSessionState.MAIN_MENU, now());
-        sendCreated(session, request.getRequestNumber(), photoFailed);
+        sendCreated(session, photoFailed);
     }
 
     private void showHistory(TelegramCustomerSession session, int page) {
@@ -552,12 +556,13 @@ public class TelegramCustomerBotService {
         String location = session.getDraftAddress() != null
                 ? session.getDraftAddress()
                 : session.getDraftLatitude() + ", " + session.getDraftLongitude();
+        LanguageCode language = session.getLanguage();
         String text = messages.get(session.getLanguage(), "confirm_prompt")
-                + "\nCategory: " + escape(keyboards.label(category, session.getLanguage()))
-                + "\nDescription: " + escape(session.getDraftDescription())
-                + "\nLocation: " + escape(location)
-                + "\nPhotos: " + session.photoFileIds().size()
-                + "\nLanguage: " + session.getLanguage();
+                + "\n" + field(language, "field.category", escape(keyboards.label(category, language)))
+                + "\n" + field(language, "field.description", escape(session.getDraftDescription()))
+                + "\n" + field(language, "field.location", escape(location))
+                + "\n" + field(language, "field.photos", String.valueOf(session.photoFileIds().size()))
+                + "\n" + field(language, "field.language", String.valueOf(language));
         botClient.sendMessage(session.getTelegramChatId(), text, keyboards.confirm(messages, session.getLanguage()));
     }
 
@@ -654,7 +659,6 @@ public class TelegramCustomerBotService {
                 messages.format(
                         session.getLanguage(),
                         "review_confirmation",
-                        escape(request.getRequestNumber()),
                         escape(keyboards.label(request.getCategory(), session.getLanguage())),
                         rating,
                         escape(comment)),
@@ -690,8 +694,8 @@ public class TelegramCustomerBotService {
         }
     }
 
-    private void sendCreated(TelegramCustomerSession session, String requestNumber, boolean photoFailed) {
-        send(session, "request_created", mainKeyboard(session), requestNumber);
+    private void sendCreated(TelegramCustomerSession session, boolean photoFailed) {
+        send(session, "request_created", mainKeyboard(session));
         if (photoFailed) {
             send(session, "photo_failed", mainKeyboard(session));
         }
@@ -701,8 +705,6 @@ public class TelegramCustomerBotService {
         StringBuilder builder = new StringBuilder(messages.get(language, "my_requests"));
         for (RepairRequestSummaryResponse request : requests) {
             builder.append("\n")
-                    .append(escape(request.requestNumber()))
-                    .append(" | ")
                     .append(escape(categoryLabel(request, language)))
                     .append(" | ")
                     .append(escape(messages.requestStatus(request.status(), language)))
@@ -713,15 +715,18 @@ public class TelegramCustomerBotService {
     }
 
     private String detailsText(RepairRequestDetailResponse details, LanguageCode language) {
-        return escape(details.requestNumber())
-                + "\nCategory: " + escape(categoryLabel(details, language))
-                + "\nDescription: " + escape(details.description())
-                + "\nStatus: " + escape(messages.requestStatus(details.status(), language))
-                + "\nPriority: " + details.priority()
-                + "\nLocation: " + escape(details.address() == null
+        return field(language, "field.category", escape(categoryLabel(details, language)))
+                + "\n" + field(language, "field.description", escape(details.description()))
+                + "\n" + field(language, "field.status", escape(messages.requestStatus(details.status(), language)))
+                + "\n" + field(language, "field.priority", escape(messages.requestPriority(details.priority(), language)))
+                + "\n" + field(language, "field.location", escape(details.address() == null
                         ? details.latitude() + ", " + details.longitude()
-                        : details.address())
-                + "\nCreated: " + formatTelegramDate(details.createdAt());
+                        : details.address()))
+                + "\n" + field(language, "field.created", formatTelegramDate(details.createdAt()));
+    }
+
+    private String field(LanguageCode language, String key, String value) {
+        return messages.get(language, key) + ": " + value;
     }
 
     private String formatTelegramDate(OffsetDateTime value) {

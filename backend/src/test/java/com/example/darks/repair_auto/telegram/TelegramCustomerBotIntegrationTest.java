@@ -18,6 +18,7 @@ import com.example.darks.repair_auto.repair.attachment.infrastructure.persistenc
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.ObjectStorageService;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageUpload;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObject;
+import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestSource;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
@@ -232,7 +233,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(attachmentStatus(attachment.getId())).isEqualTo(AttachmentStatus.AVAILABLE.name());
         assertThat(attachmentUploadedByUserId(attachment.getId())).isNull();
         assertThat(attachmentUploadedByCustomerId(attachment.getId())).isEqualTo(requestCustomerId(request.getId()));
-        assertThat(telegramBotClient.messages()).anyMatch(message -> message.text().contains(request.getRequestNumber()));
+        assertThat(telegramBotClient.messages()).noneMatch(message -> message.text().contains(request.getRequestNumber()));
     }
 
     @Test
@@ -397,7 +398,43 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(telegramBotClient.messages())
                 .filteredOn(message -> message.chatId().equals(15011L))
                 .anyMatch(message -> message.text().contains("New"))
+                .anyMatch(message -> message.text().contains("Priority: Normal"))
                 .noneMatch(message -> message.text().contains("NEW"));
+        assertThat(telegramBotClient.messages())
+                .filteredOn(message -> message.chatId().equals(15011L))
+                .noneMatch(message -> message.text().contains("NORMAL"));
+    }
+
+    @Test
+    void givenRussianCustomerWhenHistoryAndDetailsShownThenLabelsAndButtonsAreLocalized() throws Exception {
+        register(11112, 15112, "+998901111212", "Russian Localized", LanguageCode.RU);
+        Long requestId = createTelegramRequest(11112, 15112, 231, "Russian localized details");
+
+        send(callback(240, 11112, 15112, "cb-history-ru", "menu:history"));
+        SentMessage history = telegramBotClient.messages().getLast();
+
+        assertThat(history.text())
+                .contains("Новая")
+                .doesNotContain("REP-")
+                .doesNotContain("NEW");
+        assertThat(history.replyMarkupJson())
+                .contains("Открыть")
+                .doesNotContain("Open");
+
+        send(callback(241, 11112, 15112, "cb-details-ru", "req:" + requestId));
+        SentMessage details = telegramBotClient.messages().getLast();
+
+        assertThat(details.text())
+                .contains("Категория:")
+                .contains("Описание:")
+                .contains("Статус: Новая")
+                .contains("Приоритет: Обычный")
+                .contains("Местоположение:")
+                .contains("Создано:")
+                .doesNotContain("REP-")
+                .doesNotContain("Category:")
+                .doesNotContain("Status:")
+                .doesNotContain("NORMAL");
     }
 
     @Test
@@ -466,13 +503,18 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
-    void givenAllRequestStatusesThenLabelsExistInEnRuAndUz() {
+    void givenAllRequestStatusesAndPrioritiesThenLabelsExistInEnRuAndUz() {
         var messages = new com.example.darks.repair_auto.telegram.customer.application.TelegramMessages();
 
         for (RepairRequestStatus status : RepairRequestStatus.values()) {
             assertThat(messages.requestStatus(status, LanguageCode.EN)).isNotBlank().isNotEqualTo(status.name());
             assertThat(messages.requestStatus(status, LanguageCode.RU)).isNotBlank().isNotEqualTo(status.name());
             assertThat(messages.requestStatus(status, LanguageCode.UZ)).isNotBlank().isNotEqualTo(status.name());
+        }
+        for (RepairRequestPriority priority : RepairRequestPriority.values()) {
+            assertThat(messages.requestPriority(priority, LanguageCode.EN)).isNotBlank().isNotEqualTo(priority.name());
+            assertThat(messages.requestPriority(priority, LanguageCode.RU)).isNotBlank().isNotEqualTo(priority.name());
+            assertThat(messages.requestPriority(priority, LanguageCode.UZ)).isNotBlank().isNotEqualTo(priority.name());
         }
     }
 
