@@ -299,9 +299,14 @@ public class TelegramTechnicianBotService {
             session.state(TelegramTechnicianSessionState.AWAITING_WAIT_REASON, now());
             send(session, "send_wait_reason", null);
         } else if (data.startsWith("tresume:")) {
-            session.selectRequest(parseId(data, "tresume:"), now());
-            session.state(TelegramTechnicianSessionState.AWAITING_RESUME_NOTE, now());
-            send(session, "send_resume_note", null);
+            Long requestId = parseId(data, "tresume:");
+            executionService.resumeByTechnician(
+                    requestId,
+                    new ResumeRepairRequest(null),
+                    session.getTechnicianId());
+            session.clearDraft(now());
+            session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
+            send(session, "resumed", jobKeyboard(requestId, session.getLanguage()));
         } else if (data.startsWith("tdiagphoto:")) {
             session.selectRequest(parseId(data, "tdiagphoto:"), now());
             session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS_PHOTO, now());
@@ -357,6 +362,8 @@ public class TelegramTechnicianBotService {
             send(session, "not_linked", null);
             return;
         }
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         List<RepairAssignment> assignments = assignmentRepository
                 .findByTechnicianIdAndStatusOrderByCreatedAtDesc(session.getTechnicianId(), status);
         sendList(session, assignments);
@@ -367,6 +374,8 @@ public class TelegramTechnicianBotService {
             send(session, "not_linked", null);
             return;
         }
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         sendList(session, assignmentRepository.findByTechnicianIdAndStatusInOrderByCreatedAtDesc(
                 session.getTechnicianId(),
                 List.of(AssignmentStatus.ACCEPTED)));
@@ -377,6 +386,8 @@ public class TelegramTechnicianBotService {
             send(session, "not_linked", null);
             return;
         }
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         sendList(session, assignmentRepository.findByTechnicianIdAndStatusInOrderByCreatedAtDesc(
                 session.getTechnicianId(),
                 List.of(AssignmentStatus.REJECTED, AssignmentStatus.COMPLETED, AssignmentStatus.CANCELLED)));
@@ -406,6 +417,8 @@ public class TelegramTechnicianBotService {
 
     private void showJob(TelegramTechnicianSession session, Long requestId) {
         requireOwnedActiveAssignment(session, requestId);
+        session.selectRequest(requestId, now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         RepairRequestDetailResponse detail = requestService.get(requestId);
         botClient.sendMessage(
                 session.getTelegramChatId(),

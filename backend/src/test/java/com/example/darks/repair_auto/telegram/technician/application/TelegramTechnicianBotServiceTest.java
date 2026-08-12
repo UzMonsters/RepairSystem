@@ -162,6 +162,45 @@ class TelegramTechnicianBotServiceTest {
     }
 
     @Test
+    void givenWaitingAssignmentWhenResumeTappedThenRepairResumesImmediately() {
+        TelegramTechnicianSession session = linkedSession(93007L, 94007L);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        TelegramTechnicianBotService service = service(session, botClient, List.of(assignment(
+                session,
+                AssignmentStatus.ACCEPTED,
+                RepairRequestStatus.IN_PROGRESS)));
+
+        service.handle(callback(13L, 93007L, 94007L, "cb-resume", "tresume:123"));
+
+        assertThat(botClient.last().text()).contains("Repair resumed");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("Diagnosis")
+                .contains("Complete");
+        assertThat(session.getState()).isEqualTo(TelegramTechnicianSessionState.MAIN_MENU);
+        assertThat(session.getSelectedRequestId()).isNull();
+    }
+
+    @Test
+    void givenTechnicianAwaitingWorkTextWhenOpeningActiveThenDraftStateIsCleared() {
+        TelegramTechnicianSession session = linkedSession(93008L, 94008L);
+        session.selectRequest(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.state(
+                TelegramTechnicianSessionState.AWAITING_WORK_PERFORMED,
+                OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        TelegramTechnicianBotService service = service(session, botClient, List.of(assignment(
+                session,
+                AssignmentStatus.ACCEPTED,
+                RepairRequestStatus.IN_PROGRESS)));
+
+        service.handle(message(14L, 93008L, 94008L, "Active"));
+
+        assertThat(botClient.last().text()).contains("Jobs");
+        assertThat(session.getState()).isEqualTo(TelegramTechnicianSessionState.MAIN_MENU);
+        assertThat(session.getSelectedRequestId()).isNull();
+    }
+
+    @Test
     void givenWorkTextSentThenCompletionPhotoPromptDoesNotRepeatActionPanel() {
         TelegramTechnicianSession session = linkedSession(93006L, 94006L);
         session.selectRequest(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
