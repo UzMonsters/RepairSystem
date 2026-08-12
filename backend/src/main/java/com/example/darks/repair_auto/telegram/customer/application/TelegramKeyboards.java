@@ -51,14 +51,14 @@ public class TelegramKeyboards {
 
     public String history(Long requestId, int page, boolean hasNext, TelegramMessages messages, LanguageCode language) {
         List<List<String>> rows = new java.util.ArrayList<>();
-        rows.add(List.of(button("Open", "req:" + requestId)));
+        rows.add(List.of(button(messages.get(language, "open"), "req:" + requestId)));
         if (page > 0 || hasNext) {
             List<String> paging = new java.util.ArrayList<>();
             if (page > 0) {
-                paging.add(button("Previous", "hist:" + (page - 1)));
+                paging.add(button(messages.get(language, "previous"), "hist:" + (page - 1)));
             }
             if (hasNext) {
-                paging.add(button("Next", "hist:" + (page + 1)));
+                paging.add(button(messages.get(language, "next"), "hist:" + (page + 1)));
             }
             rows.add(paging);
         }
@@ -104,8 +104,8 @@ public class TelegramKeyboards {
 
     public String profile(TelegramMessages messages, LanguageCode language) {
         return inline(List.of(
-                List.of(button("Name", "profile:name")),
-                List.of(button("Phone", "profile:phone")),
+                List.of(button(messages.get(language, "field.name"), "profile:name")),
+                List.of(button(messages.get(language, "field.phone"), "profile:phone")),
                 List.of(button(messages.get(language, "change_language"), "menu:language")),
                 List.of(button(messages.get(language, "back"), "menu:back"))));
     }
@@ -124,7 +124,7 @@ public class TelegramKeyboards {
             case RU -> request.categoryNameRu();
             case UZ -> request.categoryNameUz();
         };
-        return request.requestNumber() + " - " + category;
+        return category;
     }
 
     private String inline(List<List<String>> rows) {
