@@ -8,29 +8,25 @@ type ApiRequest = {
   params?: Record<string, unknown>
 }
 
-type ApiErrorLike = {
-  message?: string
-  statusMessage?: string
-  data?: {
-    message?: string
-    code?: string
-    data?: {
-      message?: string
-      code?: string
-    }
+function nestedApiField(error: unknown, field: 'message' | 'code'): string | undefined {
+  let current: unknown = error
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (!current || typeof current !== 'object') return undefined
+    const data = (current as { data?: unknown }).data
+    if (!data || typeof data !== 'object') return undefined
+    const value = (data as Record<string, unknown>)[field]
+    if (typeof value === 'string' && value.trim()) return value
+    current = data
   }
+  return undefined
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
-  const err = error as ApiErrorLike | null | undefined
-  return err?.data?.data?.message
-    || err?.data?.message
-    || fallback
+  return nestedApiField(error, 'message') || fallback
 }
 
 export function getApiErrorCode(error: unknown): string | undefined {
-  const err = error as ApiErrorLike | null | undefined
-  return err?.data?.data?.code || err?.data?.code
+  return nestedApiField(error, 'code')
 }
 
 export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> {

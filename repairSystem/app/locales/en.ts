@@ -136,6 +136,8 @@ const en = {
   'scheduleUpdated': 'Schedule updated.',
   'attachments': 'Attachments',
   'upload': 'Upload',
+  'chooseFile': 'Choose file',
+  'noFileChosen': 'No file chosen',
   'download': 'Download',
   'noAttachments': 'No attachments.',
   'generalDocument': 'General document',

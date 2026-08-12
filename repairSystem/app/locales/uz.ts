@@ -136,6 +136,8 @@ const uz = {
   'scheduleUpdated': 'Tashrif vaqti yangilandi.',
   'attachments': 'Biriktirmalar',
   'upload': 'Yuklash',
+  'chooseFile': 'Fayl tanlash',
+  'noFileChosen': 'Fayl tanlanmagan',
   'download': 'Yuklab olish',
   'noAttachments': 'Biriktirmalar yo‘q.',
   'generalDocument': 'Umumiy hujjat',

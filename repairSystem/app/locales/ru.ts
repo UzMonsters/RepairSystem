@@ -136,6 +136,8 @@ const ru = {
   'scheduleUpdated': 'Время визита обновлено.',
   'attachments': 'Вложения',
   'upload': 'Загрузить',
+  'chooseFile': 'Выбрать файл',
+  'noFileChosen': 'Файл не выбран',
   'download': 'Скачать',
   'noAttachments': 'Вложений нет.',
   'generalDocument': 'Общий документ',
