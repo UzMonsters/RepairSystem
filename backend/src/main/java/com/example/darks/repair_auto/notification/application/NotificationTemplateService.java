@@ -42,7 +42,6 @@ public class NotificationTemplateService {
             throw new IllegalArgumentException("Missing notification template.");
         }
         String text = template
-                .replace("{requestNumber}", value(payload, "requestNumber"))
                 .replace("{category}", category(payload, safeLanguage))
                 .replace("{technicianName}", value(payload, "technicianName"))
                 .replace("{scheduledVisitAt}", scheduledVisitAt(payload, safeLanguage))
@@ -168,85 +167,85 @@ public class NotificationTemplateService {
 
     private void loadTemplates() {
         put(NotificationType.CUSTOMER_REQUEST_CREATED,
-                "Request {requestNumber} was created for {category}. Status: {status}.",
-                "Заявка {requestNumber} создана для категории {category}. Статус: {status}.",
-                "{category} bo'yicha {requestNumber} so'rovi yaratildi. Holat: {status}.");
+                "Request was created for {category}. Status: {status}.",
+                "Заявка создана для категории {category}. Статус: {status}.",
+                "{category} bo'yicha so'rov yaratildi. Holat: {status}.");
         put(NotificationType.CUSTOMER_TECHNICIAN_ASSIGNED,
-                "Technician {technicianName} was assigned to request {requestNumber}. Visit: {scheduledVisitAt}.",
-                "Мастер {technicianName} назначен на заявку {requestNumber}. Визит: {scheduledVisitAt}.",
-                "{requestNumber} so'roviga {technicianName} biriktirildi. Tashrif: {scheduledVisitAt}.");
+                "Technician {technicianName} was assigned. Visit: {scheduledVisitAt}.",
+                "Мастер {technicianName} назначен. Визит: {scheduledVisitAt}.",
+                "{technicianName} biriktirildi. Tashrif: {scheduledVisitAt}.");
         put(NotificationType.CUSTOMER_TECHNICIAN_REASSIGNED,
-                "Request {requestNumber} was reassigned to technician {technicianName}. Visit: {scheduledVisitAt}.",
-                "Заявка {requestNumber} переназначена мастеру {technicianName}. Визит: {scheduledVisitAt}.",
-                "{requestNumber} so'rovi {technicianName} ustaga qayta biriktirildi. Tashrif: {scheduledVisitAt}.");
+                "Request was reassigned to technician {technicianName}. Visit: {scheduledVisitAt}.",
+                "Заявка переназначена мастеру {technicianName}. Визит: {scheduledVisitAt}.",
+                "So'rov {technicianName} ustaga qayta biriktirildi. Tashrif: {scheduledVisitAt}.");
         put(NotificationType.CUSTOMER_TECHNICIAN_UNASSIGNED,
-                "Request {requestNumber} is waiting for a technician again.",
-                "Заявка {requestNumber} снова ожидает назначения мастера.",
-                "{requestNumber} so'rovi yana usta biriktirilishini kutmoqda.");
+                "Request is waiting for a technician again.",
+                "Заявка снова ожидает назначения мастера.",
+                "So'rov yana usta biriktirilishini kutmoqda.");
         put(NotificationType.CUSTOMER_VISIT_SCHEDULED,
-                "Visit for request {requestNumber} is scheduled for {scheduledVisitAt}.",
-                "Визит по заявке {requestNumber} назначен на {scheduledVisitAt}.",
-                "{requestNumber} so'rovi bo'yicha tashrif {scheduledVisitAt} vaqtiga belgilandi.");
+                "Visit is scheduled for {scheduledVisitAt}.",
+                "Визит назначен на {scheduledVisitAt}.",
+                "Tashrif {scheduledVisitAt} vaqtiga belgilandi.");
         put(NotificationType.CUSTOMER_VISIT_RESCHEDULED,
-                "Visit for request {requestNumber} was moved to {scheduledVisitAt}.",
-                "Визит по заявке {requestNumber} перенесен на {scheduledVisitAt}.",
-                "{requestNumber} so'rovi bo'yicha tashrif {scheduledVisitAt} vaqtiga ko'chirildi.");
+                "Visit was moved to {scheduledVisitAt}.",
+                "Визит перенесен на {scheduledVisitAt}.",
+                "Tashrif {scheduledVisitAt} vaqtiga ko'chirildi.");
         put(NotificationType.CUSTOMER_VISIT_SCHEDULE_CLEARED,
-                "Visit time for request {requestNumber} is no longer confirmed.",
-                "Время визита по заявке {requestNumber} больше не подтверждено.",
-                "{requestNumber} so'rovi bo'yicha tashrif vaqti hozircha tasdiqlanmagan.");
+                "Visit time is no longer confirmed.",
+                "Время визита больше не подтверждено.",
+                "Tashrif vaqti hozircha tasdiqlanmagan.");
         put(NotificationType.CUSTOMER_REPAIR_STARTED,
-                "Repair request {requestNumber} is now {status}.",
-                "Заявка {requestNumber} теперь {status}.",
-                "{requestNumber} so'rovi holati: {status}.");
+                "Repair is now {status}.",
+                "Ремонт теперь {status}.",
+                "Ta'mirlash holati: {status}.");
         put(NotificationType.CUSTOMER_WAITING_FOR_PARTS,
-                "Repair request {requestNumber} is {status}. Required parts are being arranged.",
-                "Заявка {requestNumber} {status}. Необходимые запчасти подготавливаются.",
-                "{requestNumber} so'rovi {status}. Kerakli qismlar tayyorlanmoqda.");
+                "Repair is {status}. Required parts are being arranged.",
+                "Ремонт {status}. Необходимые запчасти подготавливаются.",
+                "Ta'mirlash {status}. Kerakli qismlar tayyorlanmoqda.");
         put(NotificationType.CUSTOMER_REPAIR_RESUMED,
-                "Repair request {requestNumber} resumed and is {status}.",
-                "Работа по заявке {requestNumber} возобновлена, статус: {status}.",
-                "{requestNumber} so'rovi davom ettirildi, holat: {status}.");
+                "Repair resumed and is {status}.",
+                "Ремонт возобновлен, статус: {status}.",
+                "Ta'mirlash davom ettirildi, holat: {status}.");
         put(NotificationType.CUSTOMER_REPAIR_COMPLETED,
-                "Repair request {requestNumber} is {status}. You can leave a review in the bot.",
-                "Заявка {requestNumber} {status}.",
-                "{requestNumber} so'rovi {status}. Botda sharh qoldirishingiz mumkin.");
+                "Repair is {status}. You can leave a review in the bot.",
+                "Ремонт {status}.",
+                "Ta'mirlash {status}. Botda sharh qoldirishingiz mumkin.");
         put(NotificationType.CUSTOMER_REPAIR_COMPLETED,
-                "Repair request {requestNumber} is {status}. You can leave a review in the bot.",
-                "Заявка {requestNumber} {status}. Вы можете оставить отзыв в боте.",
-                "{requestNumber} so'rovi {status}. Botda sharh qoldirishingiz mumkin.");
+                "Repair is {status}. You can leave a review in the bot.",
+                "Ремонт {status}. Вы можете оставить отзыв в боте.",
+                "Ta'mirlash {status}. Botda sharh qoldirishingiz mumkin.");
         put(NotificationType.CUSTOMER_REQUEST_CANCELLED,
-                "Repair request {requestNumber} is {status}.",
-                "Заявка {requestNumber} {status}.",
-                "{requestNumber} so'rovi {status}.");
+                "Repair is {status}.",
+                "Ремонт {status}.",
+                "Ta'mirlash {status}.");
         put(NotificationType.TECHNICIAN_NEW_ASSIGNMENT,
-                "New job {requestNumber}: {category}. Priority: {priority}. Visit: {scheduledVisitAt}. Open My Jobs.",
-                "Новая работа {requestNumber}: {category}. Приоритет: {priority}. Визит: {scheduledVisitAt}. Откройте Мои заявки.",
-                "Yangi ish {requestNumber}: {category}. Muhimlik: {priority}. Tashrif: {scheduledVisitAt}. Mening ishlarimni oching.");
+                "New job: {category}. Priority: {priority}. Visit: {scheduledVisitAt}. Open Pending.",
+                "Новая работа: {category}. Приоритет: {priority}. Визит: {scheduledVisitAt}. Откройте Ожидающие.",
+                "Yangi ish: {category}. Muhimlik: {priority}. Tashrif: {scheduledVisitAt}. Kutilayotgan bo'limini oching.");
         put(NotificationType.TECHNICIAN_REASSIGNED_TO_REQUEST,
-                "Job {requestNumber} was reassigned to you. Priority: {priority}. Visit: {scheduledVisitAt}. Open My Jobs.",
-                "Заявка {requestNumber} переназначена вам. Приоритет: {priority}. Визит: {scheduledVisitAt}. Откройте Мои заявки.",
-                "{requestNumber} ishi sizga qayta biriktirildi. Muhimlik: {priority}. Tashrif: {scheduledVisitAt}. Mening ishlarimni oching.");
+                "Job was reassigned to you. Priority: {priority}. Visit: {scheduledVisitAt}. Open Pending.",
+                "Заявка переназначена вам. Приоритет: {priority}. Визит: {scheduledVisitAt}. Откройте Ожидающие.",
+                "Ish sizga qayta biriktirildi. Muhimlik: {priority}. Tashrif: {scheduledVisitAt}. Kutilayotgan bo'limini oching.");
         put(NotificationType.TECHNICIAN_REMOVED_FROM_REQUEST,
-                "You were removed from job {requestNumber}.",
-                "Вы сняты с заявки {requestNumber}.",
-                "Siz {requestNumber} ishidan olib tashlandingiz.");
+                "You were removed from the job.",
+                "Вы сняты с заявки.",
+                "Siz ishdan olib tashlandingiz.");
         put(NotificationType.TECHNICIAN_VISIT_SCHEDULED,
-                "Visit for job {requestNumber} is scheduled for {scheduledVisitAt}.",
-                "Визит по заявке {requestNumber} назначен на {scheduledVisitAt}.",
-                "{requestNumber} ishi bo'yicha tashrif {scheduledVisitAt} vaqtiga belgilandi.");
+                "Visit for job is scheduled for {scheduledVisitAt}. Open Active.",
+                "Визит по заявке назначен на {scheduledVisitAt}. Откройте Активные.",
+                "Ish bo'yicha tashrif {scheduledVisitAt} vaqtiga belgilandi. Faol bo'limini oching.");
         put(NotificationType.TECHNICIAN_VISIT_RESCHEDULED,
-                "Visit for job {requestNumber} was moved to {scheduledVisitAt}.",
-                "Визит по заявке {requestNumber} перенесен на {scheduledVisitAt}.",
-                "{requestNumber} ishi bo'yicha tashrif {scheduledVisitAt} vaqtiga ko'chirildi.");
+                "Visit for job was moved to {scheduledVisitAt}. Open Active.",
+                "Визит по заявке перенесен на {scheduledVisitAt}. Откройте Активные.",
+                "Ish bo'yicha tashrif {scheduledVisitAt} vaqtiga ko'chirildi. Faol bo'limini oching.");
         put(NotificationType.TECHNICIAN_VISIT_SCHEDULE_CLEARED,
-                "Visit time for job {requestNumber} is no longer confirmed.",
-                "Время визита по заявке {requestNumber} больше не подтверждено.",
-                "{requestNumber} ishi bo'yicha tashrif vaqti hozircha tasdiqlanmagan.");
+                "Visit time for job is no longer confirmed.",
+                "Время визита по заявке больше не подтверждено.",
+                "Ish bo'yicha tashrif vaqti hozircha tasdiqlanmagan.");
         put(NotificationType.TECHNICIAN_REQUEST_CANCELLED,
-                "Job {requestNumber} was cancelled.",
-                "Заявка {requestNumber} отменена.",
-                "{requestNumber} ishi bekor qilindi.");
+                "Job was cancelled.",
+                "Заявка отменена.",
+                "Ish bekor qilindi.");
     }
 
     private void put(NotificationType type, String en, String ru, String uz) {

@@ -125,6 +125,39 @@ class TelegramCustomerBotServiceTest {
     }
 
     @Test
+    void givenRegisteredCustomerWhenLegacyHelpTextSentThenMainKeyboardIsRefreshed() {
+        TelegramCustomerSession session = linkedSession(20120L, 24120L);
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(20120L)).thenReturn(Optional.of(session));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(message(
+                214L,
+                20120L,
+                24120L,
+                "Send /cancel to reset the current draft or /menu to return to the menu."));
+
+        assertThat(botClient.last().text()).contains("Main menu");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("Help")
+                .doesNotContain("Send /cancel to reset the current draft or /menu to return to the menu.");
+    }
+
+    @Test
     void givenRegisteredCustomerWhenHistoryShownThenCreatedDateIsCompact() {
         TelegramCustomerSession session = linkedSession(21021L, 25021L);
         TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
@@ -158,7 +191,8 @@ class TelegramCustomerBotServiceTest {
         service.handle(message(213L, 21021L, 25021L, "My requests"));
 
         assertThat(botClient.last().text())
-                .contains("REP-2026-000002 | Washer | New | 06.08.2026 10:45")
+                .contains("Washer | New | 06.08.2026 10:45")
+                .doesNotContain("REP-2026-000002")
                 .doesNotContain("2026-08-06T05:45:39.756850Z");
     }
 
