@@ -89,7 +89,6 @@ public class NotificationEventFactory {
     private String payload(RepairRequest request, Technician technician, OffsetDateTime scheduledVisitAt) {
         Map<String, Object> payload = new LinkedHashMap<>();
         RepairCategory category = request.getCategory();
-        payload.put("requestNumber", request.getRequestNumber());
         payload.put("categoryNameEn", category.getNameEn());
         payload.put("categoryNameRu", category.getNameRu());
         payload.put("categoryNameUz", category.getNameUz());
