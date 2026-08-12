@@ -1,3 +1,8 @@
-export default defineNuxtRouteMiddleware(() => {
-  // Authorization is temporarily disabled so the dashboard is accessible directly.
+export default defineNuxtRouteMiddleware(async (to) => {
+  const { isAuthenticated, init } = useAuth()
+
+  if (to.path === '/login') return
+
+  await init()
+  if (!isAuthenticated.value) return navigateTo('/login')
 })

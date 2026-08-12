@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { NotificationSummary, Page } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
 
 const { t } = useLocale()
 const page = ref(1)
@@ -18,8 +19,24 @@ const { data, pending, error, refresh } = await useAsyncData('notifications', ()
 )
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load notifications.'
+  return getApiErrorMessage(error.value, 'Failed to load notifications.')
+})
+
+const errorToast = ref('')
+let errorToastTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(error, (value) => {
+  if (errorToastTimer) clearTimeout(errorToastTimer)
+  errorToast.value = value ? errorMessage.value : ''
+  if (errorToast.value) {
+    errorToastTimer = setTimeout(() => {
+      errorToast.value = ''
+    }, 15000)
+  }
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (errorToastTimer) clearTimeout(errorToastTimer)
 })
 
 const rows = computed(() => data.value?.content ?? [])
@@ -54,6 +71,16 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
     :title="t('notifications')"
     :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('notifications') }]"
   >
+    <Teleport to="body">
+      <div
+        v-if="errorToast"
+        class="notification-error-toast alert alert-danger shadow"
+        role="alert"
+      >
+        <i class="bi bi-exclamation-triangle me-2" />
+        {{ errorToast }}
+      </div>
+    </Teleport>
     <div class="card">
       <div class="card-header">
         <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">

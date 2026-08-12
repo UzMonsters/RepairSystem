@@ -8,21 +8,66 @@ type ApiRequest = {
   params?: Record<string, unknown>
 }
 
+type ApiErrorLike = {
+  message?: string
+  statusMessage?: string
+  data?: {
+    message?: string
+    code?: string
+    data?: {
+      message?: string
+      code?: string
+    }
+  }
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  const err = error as ApiErrorLike | null | undefined
+  return err?.data?.data?.message
+    || err?.data?.message
+    || fallback
+}
+
+export function getApiErrorCode(error: unknown): string | undefined {
+  const err = error as ApiErrorLike | null | undefined
+  return err?.data?.data?.code || err?.data?.code
+}
+
 export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> {
-  const { logout } = useAuth()
+  const { refreshSession, logout } = useAuth()
   const token = useCookie<string | null>('access_token', { default: () => null })
   const headers = new Headers(options.headers as HeadersInit | undefined)
   headers.set('accept', 'application/json')
   if (token.value) headers.set('authorization', `Bearer ${token.value}`)
 
-  return $fetch<T>(`/api${path.startsWith('/') ? path : `/${path}`}`, {
-    ...options,
-    headers,
-    credentials: 'include',
-    onResponseError: async ({ response }) => {
-      if (response.status === 401) {
-        await logout()
+  const url = `/api${path.startsWith('/') ? path : `/${path}`}`
+
+  async function execute(retried = false): Promise<T> {
+    try {
+      return await $fetch<T>(url, {
+        ...options,
+        headers,
+        credentials: 'include'
+      })
+    } catch (error) {
+      const status = (error as { status?: number, response?: { status?: number } }).status
+        || (error as { response?: { status?: number } }).response?.status
+      const isRefreshRequest = path === '/auth/refresh'
+      if (status === 401 && !retried && !isRefreshRequest && await refreshSession()) {
+        headers.set('authorization', `Bearer ${token.value}`)
+        return execute(true)
       }
+      if (status === 401 && !isRefreshRequest) await logout()
+
+      // Nuxt wraps the backend error as error.data.data. Promote that payload
+      // so existing callers can consistently read error.data.message.
+      const err = error as { data?: { data?: unknown } }
+      if (err.data?.data && typeof err.data.data === 'object') {
+        err.data = err.data.data as { data?: unknown }
+      }
+      throw err
     }
-  })
+  }
+
+  return execute()
 }

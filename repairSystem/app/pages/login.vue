@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '~/utils/api'
+
 definePageMeta({ layout: 'auth' })
 const { t } = useLocale()
 
@@ -15,8 +17,7 @@ async function onSubmit() {
     await login(email.value, password.value)
     await navigateTo('/')
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    error.value = err.data?.message || err.message || 'Login failed. Please check your credentials.'
+    error.value = getApiErrorMessage(e, 'Login failed. Please check your credentials.')
   } finally {
     loading.value = false
   }
@@ -90,9 +91,6 @@ async function onSubmit() {
             {{ loading ? t('signingIn') : t('signIn') }}
           </button>
         </div>
-        <p class="text-center text-muted small mb-0">
-          {{ t('loginHint') }}
-        </p>
       </form>
     </div>
   </div>

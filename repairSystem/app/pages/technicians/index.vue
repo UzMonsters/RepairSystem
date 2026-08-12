@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { LanguageCode, Page, Technician } from '~/types'
+import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 
 const { t } = useLocale()
 const search = ref('')
@@ -17,8 +18,7 @@ const { data, pending, error, refresh } = await useAsyncData('technicians-list',
 )
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Failed to load technicians.'
+  return getApiErrorMessage(error.value, 'Failed to load technicians.')
 })
 
 const rows = computed(() => data.value?.content ?? [])
@@ -116,12 +116,11 @@ async function save() {
       await apiFetch(`/technicians/${editingId.value}`, { method: 'PUT', body })
     }
     hideModal('technician-modal')
-    refresh()
+    await refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string, code?: string }, message?: string }
-    saveError.value = err.data?.code === 'INVALID_PHONE_NUMBER'
+    saveError.value = getApiErrorCode(e) === 'INVALID_PHONE_NUMBER'
       ? t('invalidPhoneNumber')
-      : (err.data?.message || err.message || 'Failed to save technician.')
+      : getApiErrorMessage(e, 'Failed to save technician.')
   } finally {
     saving.value = false
   }
@@ -133,9 +132,9 @@ async function toggleActive(tech: Technician) {
   togglingId.value = tech.id
   try {
     await apiFetch(`/technicians/${tech.id}/activation`, { method: 'PATCH', body: { active: !tech.active } })
-    refresh()
+    await refresh()
   } catch (e) {
-    void e
+    saveError.value = getApiErrorMessage(e, 'Failed to change technician status.')
   } finally {
     togglingId.value = null
   }
@@ -155,8 +154,7 @@ async function openWorkload(tech: Technician) {
   try {
     workload.value = await apiFetch<Record<string, unknown>>(`/technicians/${tech.id}/workload`)
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    workloadError.value = err.data?.message || err.message || 'Failed to load workload.'
+    workloadError.value = getApiErrorMessage(e, 'Failed to load workload.')
   } finally {
     loadingWorkload.value = false
   }
@@ -180,8 +178,7 @@ async function openTelegramLink(tech: Technician) {
     telegramDeepLink.value = res.deepLink
     telegramExpiresAt.value = res.expiresAt ?? ''
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    telegramLinkError.value = err.data?.message || err.message || 'Failed to create Telegram link.'
+    telegramLinkError.value = getApiErrorMessage(e, 'Failed to create Telegram link.')
   } finally {
     generatingLink.value = false
   }

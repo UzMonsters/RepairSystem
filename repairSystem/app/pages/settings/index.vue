@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { getApiErrorMessage } from '~/utils/api'
+
 const { user } = useAuth()
 const { t } = useLocale()
 const isAdmin = computed(() => user.value?.role === 'ADMIN')
@@ -14,7 +16,7 @@ onMounted(async () => {
     const data = await apiFetch<{ telegramBotUsername?: string }>('/settings')
     botUsername.value = data.telegramBotUsername ?? ''
   } catch (e) {
-    void e
+    error.value = getApiErrorMessage(e, 'Failed to load settings.')
   } finally {
     loading.value = false
   }
@@ -28,8 +30,7 @@ async function saveSettings() {
     await apiFetch('/settings', { method: 'PUT', body: { telegramBotUsername: botUsername.value.trim() } })
     saved.value = true
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    error.value = err.data?.message || err.message || 'Failed to save settings.'
+    error.value = getApiErrorMessage(e, 'Failed to save settings.')
   } finally {
     saving.value = false
   }
@@ -78,8 +79,10 @@ async function saveSettings() {
                   class="form-label"
                 >{{ t('telegramBotUsername') }}</label>
                 <div class="input-group">
-                  <span 
-                    style="background:rgba(255, 255, 255, 0.06)"  class="input-group-text">@</span>
+                  <span
+                    class="input-group-text"
+                    style="background:rgba(255, 255, 255, 0.06)"
+                  >@</span>
                   <input
                     id="telegram-username"
                     v-model="botUsername"

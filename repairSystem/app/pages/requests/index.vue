@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { requestPriorities, requestStatuses } from '~/lib/statuses'
 import type { Category, Page, RepairRequest, Technician } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
 
 const { t } = useLocale()
 const search = ref('')
@@ -67,8 +68,7 @@ function formatDate(value?: string) {
 }
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || 'Unknown error.'
+  return getApiErrorMessage(error.value, 'Unknown error.')
 })
 
 const assignRequestId = ref<number | null>(null)
@@ -90,9 +90,9 @@ async function saveAssign() {
       body: { technicianId: assignForm.value }
     })
     hideModal('assign-modal')
-    refresh()
+    await refresh()
   } catch (e) {
-    void e
+    actionError.value = getApiErrorMessage(e, 'Failed to assign technician.')
   } finally {
     savingAssign.value = false
   }
@@ -110,10 +110,9 @@ async function acceptAssignment(r: RepairRequest) {
   actionError.value = ''
   try {
     await apiFetch(`/requests/${r.id}/assignment/accept`, { method: 'POST' })
-    refresh()
+    await refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    actionError.value = err.data?.message || err.message || 'Failed to accept assignment.'
+    actionError.value = getApiErrorMessage(e, 'Failed to accept assignment.')
   }
 }
 
@@ -144,10 +143,9 @@ async function runExec() {
           : undefined
     await apiFetch(`/requests/${id}/${execAction.value}`, { method: 'POST', body })
     hideModal('exec-modal')
-    refresh()
+    await refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    execError.value = err.data?.message || err.message || 'Action failed.'
+    execError.value = getApiErrorMessage(e, 'Action failed.')
   } finally {
     savingExec.value = false
   }

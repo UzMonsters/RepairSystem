@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CrmUser, Page, UserRole } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
 
 const { t } = useLocale()
 const { user: currentUser } = useAuth()
@@ -21,8 +22,7 @@ const { data, pending, error, refresh } = await useAsyncData('users-list', () =>
 )
 
 const errorMessage = computed(() => {
-  const err = error.value as { data?: { message?: string } } | null
-  return err?.data?.message || error.value?.message || t('failedToLoadUsers')
+  return getApiErrorMessage(error.value, t('failedToLoadUsers'))
 })
 
 const rows = computed(() => data.value?.content ?? [])
@@ -95,10 +95,9 @@ async function save() {
       }
     }
     hideModal('user-modal')
-    refresh()
+    await refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    saveError.value = err.data?.message || err.message || 'Failed to save user.'
+    saveError.value = getApiErrorMessage(e, 'Failed to save user.')
   } finally {
     saving.value = false
   }
@@ -116,10 +115,9 @@ async function toggleActive(u: CrmUser) {
       method: 'PATCH',
       body: { active: !details.active }
     })
-    refresh()
+    await refresh()
   } catch (e) {
-    const err = e as { data?: { message?: string }, message?: string }
-    toggleError.value = err.data?.message || err.message || 'Failed to change activation.'
+    toggleError.value = getApiErrorMessage(e, 'Failed to change activation.')
   } finally {
     togglingId.value = null
   }
@@ -257,7 +255,7 @@ async function toggleActive(u: CrmUser) {
                   class="badge"
                   :class="u.role === 'ADMIN' ? 'text-bg-danger' : 'text-bg-secondary'"
                 >
-                  {{ u.role === 'ADMIN' ? t('admins') : t('managers') }}
+                  {{ u.role === 'ADMIN' ? t('admin') : t('manager') }}
                 </span>
               </td>
               <td class="text-end text-nowrap">
@@ -354,10 +352,10 @@ async function toggleActive(u: CrmUser) {
             class="form-select"
           >
             <option value="ADMIN">
-              {{ t('admins') }}
+              {{ t('admin') }}
             </option>
             <option value="MANAGER">
-              {{ t('managers') }}
+              {{ t('manager') }}
             </option>
           </select>
         </div>
