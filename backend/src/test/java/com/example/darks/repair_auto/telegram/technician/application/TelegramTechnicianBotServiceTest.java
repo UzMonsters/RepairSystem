@@ -292,6 +292,7 @@ class TelegramTechnicianBotServiceTest {
         TelegramTechnicianSessionRepository sessions = mock(TelegramTechnicianSessionRepository.class);
         TechnicianRepository technicians = mock(TechnicianRepository.class);
         RepairAssignmentRepository assignmentRepository = mock(RepairAssignmentRepository.class);
+        when(sessions.findByTelegramUserIdForUpdate(session.getTelegramUserId())).thenReturn(Optional.of(session));
         when(sessions.findByTelegramUserId(session.getTelegramUserId())).thenReturn(Optional.of(session));
         when(technicians.findByIdForUpdate(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
         when(assignmentRepository.findByTechnicianIdAndStatusOrderByCreatedAtDesc(

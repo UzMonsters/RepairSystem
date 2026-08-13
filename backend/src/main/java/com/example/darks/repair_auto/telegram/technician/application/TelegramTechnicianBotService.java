@@ -106,7 +106,7 @@ public class TelegramTechnicianBotService {
         if (text != null && text.startsWith("/start tech_")) {
             linkService.requireUsableToken(linkService.hash(text.substring("/start tech_".length())));
         }
-        TelegramTechnicianSession session = sessionRepository.findByTelegramUserId(sender.id())
+        TelegramTechnicianSession session = sessionRepository.findByTelegramUserIdForUpdate(sender.id())
                 .orElseGet(() -> sessionRepository.saveAndFlush(
                         new TelegramTechnicianSession(sender.id(), chat.id(), now())));
         session.touch(chat.id(), now());
