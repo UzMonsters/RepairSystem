@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -28,6 +30,8 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 @ConditionalOnProperty(prefix = "app.storage", name = "enabled", havingValue = "true")
 public class S3ObjectStorageService implements ObjectStorageService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(S3ObjectStorageService.class);
+
     private final StorageProperties properties;
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
@@ -38,6 +42,8 @@ public class S3ObjectStorageService implements ObjectStorageService {
                 AwsBasicCredentials.create(properties.accessKey(), properties.secretKey()));
         S3Configuration s3Configuration = S3Configuration.builder()
                 .pathStyleAccessEnabled(properties.pathStyle())
+                .chunkedEncodingEnabled(false)
+                .checksumValidationEnabled(false)
                 .build();
         S3ClientBuilder clientBuilder = S3Client.builder()
                 .region(Region.of(properties.region()))
@@ -81,6 +87,12 @@ public class S3ObjectStorageService implements ObjectStorageService {
         try {
             byte[] bytes = command.inputStream().readAllBytes();
             long sizeBytes = bytes.length;
+            LOGGER.info(
+                    "Uploading object to S3 storageKey={} bucket={} sizeBytes={} pathStyle={} chunkedEncoding=false",
+                    command.storageKey(),
+                    properties.bucket(),
+                    sizeBytes,
+                    properties.pathStyle());
             s3Client.putObject(
                     PutObjectRequest.builder()
                             .bucket(properties.bucket())
