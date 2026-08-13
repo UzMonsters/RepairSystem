@@ -18,6 +18,7 @@ import com.example.darks.repair_auto.repair.attachment.infrastructure.persistenc
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.ObjectStorageService;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageUpload;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObject;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObjectDownload;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestSource;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
@@ -837,6 +838,15 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
             } catch (IOException exception) {
                 throw new IllegalStateException(exception);
             }
+        }
+
+        @Override
+        public StoredObjectDownload download(String storageKey) {
+            byte[] bytes = objects.get(storageKey);
+            if (bytes == null) {
+                throw new TelegramApiException("Storage object not found.");
+            }
+            return new StoredObjectDownload("image/jpeg", bytes.length, new ByteArrayInputStream(bytes));
         }
 
         @Override

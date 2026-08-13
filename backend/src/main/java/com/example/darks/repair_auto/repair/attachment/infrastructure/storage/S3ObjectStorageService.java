@@ -23,6 +23,8 @@ import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
@@ -106,6 +108,22 @@ public class S3ObjectStorageService implements ObjectStorageService {
             throw new StorageException("Object upload input could not be read.", exception);
         } catch (RuntimeException exception) {
             throw new StorageException("Object upload failed.", exception);
+        }
+    }
+
+    @Override
+    public StoredObjectDownload download(String storageKey) {
+        try {
+            ResponseInputStream<GetObjectResponse> response = s3Client.getObject(GetObjectRequest.builder()
+                    .bucket(properties.bucket())
+                    .key(storageKey)
+                    .build());
+            return new StoredObjectDownload(
+                    response.response().contentType(),
+                    response.response().contentLength(),
+                    response);
+        } catch (RuntimeException exception) {
+            throw new StorageException("Object download failed.", exception);
         }
     }
 

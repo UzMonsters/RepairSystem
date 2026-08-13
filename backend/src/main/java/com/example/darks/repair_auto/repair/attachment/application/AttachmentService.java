@@ -14,6 +14,7 @@ import com.example.darks.repair_auto.repair.attachment.domain.AttachmentType;
 import com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.persistence.RepairAttachmentRepository;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.ObjectStorageService;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObjectDownload;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageException;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageProperties;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageUpload;
@@ -265,6 +266,20 @@ public class AttachmentService {
                 safeDownloadFileName(attachment),
                 storageProperties.downloadUrlTtl());
         return new DownloadUrlResponse(url.toString(), expiresAt);
+    }
+
+    @Transactional(readOnly = true)
+    public AttachmentDownload download(Long attachmentId) {
+        RepairAttachment attachment = availableAttachment(attachmentId);
+        StoredObjectDownload object = objectStorageService.download(attachment.getStorageKey());
+        String contentType = object.contentType() == null || object.contentType().isBlank()
+                ? "application/octet-stream"
+                : object.contentType();
+        return new AttachmentDownload(
+                safeDownloadFileName(attachment),
+                contentType,
+                object.sizeBytes(),
+                object.inputStream());
     }
 
     public void delete(Long attachmentId, AttachmentDeleteRequest request, AuthenticatedUser user) {

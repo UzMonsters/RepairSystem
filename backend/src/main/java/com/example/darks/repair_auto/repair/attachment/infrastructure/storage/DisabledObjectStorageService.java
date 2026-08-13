@@ -15,6 +15,11 @@ public class DisabledObjectStorageService implements ObjectStorageService {
     }
 
     @Override
+    public StoredObjectDownload download(String storageKey) {
+        throw new StorageException("Object storage is disabled.");
+    }
+
+    @Override
     public URI createDownloadUrl(String storageKey, String downloadFileName, Duration ttl) {
         throw new StorageException("Object storage is disabled.");
     }
