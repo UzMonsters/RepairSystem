@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
@@ -277,6 +279,31 @@ class TelegramTechnicianBotServiceTest {
                 .doesNotContain("Pending");
     }
 
+    @Test
+    void givenModeSwitchAllowedThenTechnicianIsValidatedWithoutWriteLock() {
+        TelegramTechnicianSession session = linkedSession(99003L, 99004L, LanguageCode.EN);
+        TelegramTechnicianSessionRepository sessions = mock(TelegramTechnicianSessionRepository.class);
+        TechnicianRepository technicians = mock(TechnicianRepository.class);
+        when(sessions.findByTelegramUserId(session.getTelegramUserId())).thenReturn(Optional.of(session));
+        when(technicians.findById(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
+        TelegramTechnicianBotService service = new TelegramTechnicianBotService(
+                sessions,
+                technicians,
+                mock(RepairAssignmentRepository.class),
+                mock(RepairAssignmentService.class),
+                mock(RepairExecutionService.class),
+                mock(RepairRequestService.class),
+                mock(AttachmentService.class),
+                mock(TechnicianTelegramLinkService.class),
+                new RecordingTelegramBotClient(),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.requireSwitchAllowed(session.getTelegramUserId(), session.getTelegramChatId());
+
+        verify(technicians).findById(session.getTechnicianId());
+        verify(technicians, never()).findByIdForUpdate(any());
+    }
+
     private TelegramTechnicianBotService service(
             TelegramTechnicianSession session,
             RecordingTelegramBotClient botClient,
@@ -294,6 +321,7 @@ class TelegramTechnicianBotServiceTest {
         RepairAssignmentRepository assignmentRepository = mock(RepairAssignmentRepository.class);
         when(sessions.findByTelegramUserIdForUpdate(session.getTelegramUserId())).thenReturn(Optional.of(session));
         when(sessions.findByTelegramUserId(session.getTelegramUserId())).thenReturn(Optional.of(session));
+        when(technicians.findById(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
         when(technicians.findByIdForUpdate(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
         when(assignmentRepository.findByTechnicianIdAndStatusOrderByCreatedAtDesc(
                 session.getTechnicianId(),
