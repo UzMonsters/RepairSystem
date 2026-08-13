@@ -141,10 +141,12 @@ public class TelegramWebhookService {
             mode = TelegramUserMode.CUSTOMER;
         }
         TelegramUserMode finalMode = mode;
-        TelegramUserContext context = contextRepository.findByTelegramUserId(sender.id())
-                .orElseGet(() -> contextRepository.saveAndFlush(
-                        new TelegramUserContext(sender.id(), chat.id(), finalMode, now())));
-        context.switchMode(finalMode, chat.id(), now());
+        transactionTemplate.executeWithoutResult(status -> {
+            TelegramUserContext context = contextRepository.findByTelegramUserIdForUpdate(sender.id())
+                    .orElseGet(() -> contextRepository.saveAndFlush(
+                            new TelegramUserContext(sender.id(), chat.id(), finalMode, now())));
+            context.switchMode(finalMode, chat.id(), now());
+        });
         return finalMode;
     }
 
