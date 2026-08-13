@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.repair.attachment.infrastructure.storage;
 
 import jakarta.annotation.PostConstruct;
+import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -78,15 +79,19 @@ public class S3ObjectStorageService implements ObjectStorageService {
     @Override
     public StoredObject upload(StorageUpload command) {
         try {
+            byte[] bytes = command.inputStream().readAllBytes();
+            long sizeBytes = bytes.length;
             s3Client.putObject(
                     PutObjectRequest.builder()
                             .bucket(properties.bucket())
                             .key(command.storageKey())
                             .contentType(command.contentType())
-                            .contentLength(command.sizeBytes())
+                            .contentLength(sizeBytes)
                             .build(),
-                    RequestBody.fromInputStream(command.inputStream(), command.sizeBytes()));
-            return new StoredObject(command.storageKey(), command.contentType(), command.sizeBytes());
+                    RequestBody.fromBytes(bytes));
+            return new StoredObject(command.storageKey(), command.contentType(), sizeBytes);
+        } catch (IOException exception) {
+            throw new StorageException("Object upload input could not be read.", exception);
         } catch (RuntimeException exception) {
             throw new StorageException("Object upload failed.", exception);
         }
