@@ -185,8 +185,15 @@ async function uploadAttachment() {
 
 async function downloadAttachment(attachment: Attachment) {
   try {
-    const result = await apiFetch<{ url: string }>(`/attachments/${attachment.id}/download-url`)
-    window.open(result.url, '_blank', 'noopener,noreferrer')
+    const file = await apiFetch<Blob>(`/attachments/${attachment.id}/download`)
+    const url = URL.createObjectURL(file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = attachment.originalFileName || `attachment-${attachment.id}`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
   } catch (e) {
     actionError.value = getApiErrorMessage(e, 'Failed to create download link.')
   }
