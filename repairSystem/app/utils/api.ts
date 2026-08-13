@@ -11,7 +11,7 @@ type ApiRequest = {
 type ErrorPayload = {
   message?: unknown
   code?: unknown
-  fieldErrors?: Array<{ message?: unknown }>
+  fieldErrors?: Array<{ field?: unknown, message?: unknown }>
 }
 
 function findApiPayload(error: unknown): ErrorPayload | undefined {
@@ -41,7 +41,11 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
   const payload = findApiPayload(error)
   const message = typeof payload?.message === 'string' ? payload.message.trim() : ''
   const fieldMessages = (payload?.fieldErrors ?? [])
-    .map(field => typeof field.message === 'string' ? field.message.trim() : '')
+    .map((field) => {
+      const name = typeof field.field === 'string' ? field.field.trim() : ''
+      const detail = typeof field.message === 'string' ? field.message.trim() : ''
+      return name && detail ? `${name}: ${detail}` : detail
+    })
     .filter(Boolean)
     .filter((value, index, values) => values.indexOf(value) === index)
 
@@ -82,13 +86,8 @@ export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> 
       }
       if (status === 401 && !isRefreshRequest) await logout()
 
-      // Nuxt wraps the backend error as error.data.data. Promote that payload
-      // so existing callers can consistently read error.data.message.
-      const err = error as { data?: { data?: unknown } }
-      if (err.data?.data && typeof err.data.data === 'object') {
-        err.data = err.data.data as { data?: unknown }
-      }
-      throw err
+      // Keep FetchError immutable. Error text is normalized by getApiErrorMessage.
+      throw error
     }
   }
 

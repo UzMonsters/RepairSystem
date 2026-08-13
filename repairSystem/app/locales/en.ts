@@ -44,6 +44,7 @@ const en = {
   'signIn': 'Sign in',
   'loginTitle': 'Welcome to the Repair System',
   'loginSubtitle': 'Enter your account to open the dashboard',
+  'loginFieldsRequired': 'Enter your email and password.',
   'notAuthorized': 'You are not authorized to access this page.',
   'signingIn': 'Signing in...',
   'signOut': 'Sign out',

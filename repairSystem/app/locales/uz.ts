@@ -44,6 +44,7 @@ const uz = {
   'signIn': 'Kirish',
   'loginTitle': 'Ta’mirlash tizimiga xush kelibsiz',
   'loginSubtitle': 'Boshqaruv paneliga kirish uchun hisobingizni kiriting',
+  'loginFieldsRequired': 'Email va parolni kiriting.',
   'notAuthorized': 'Sizda ushbu sahifaga kirish huquqi yo‘q.',
   'signingIn': 'Kirmoqda...',
   'signOut': 'Chiqish',

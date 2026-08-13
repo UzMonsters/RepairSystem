@@ -12,6 +12,12 @@ const { login } = useAuth()
 
 async function onSubmit() {
   error.value = ''
+  const missingEmail = !email.value.trim()
+  const missingPassword = !password.value.trim()
+  if (missingEmail || missingPassword) {
+    error.value = t('loginFieldsRequired')
+    return
+  }
   loading.value = true
   try {
     await login(email.value, password.value)

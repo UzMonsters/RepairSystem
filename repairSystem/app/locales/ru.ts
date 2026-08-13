@@ -44,6 +44,7 @@ const ru = {
   'signIn': 'Войти',
   'loginTitle': 'Добро пожаловать в систему ремонта',
   'loginSubtitle': 'Войдите в свою учетную запись, чтобы открыть панель',
+  'loginFieldsRequired': 'Заполните email и пароль.',
   'notAuthorized': 'У вас нет доступа к этой странице.',
   'signingIn': 'Входим...',
   'signOut': 'Выйти',
