@@ -7,6 +7,8 @@ public interface ObjectStorageService {
 
     StoredObject upload(StorageUpload command);
 
+    StoredObjectDownload download(String storageKey);
+
     URI createDownloadUrl(String storageKey, String downloadFileName, Duration ttl);
 
     void delete(String storageKey);

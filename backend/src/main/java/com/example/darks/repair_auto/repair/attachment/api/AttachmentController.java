@@ -4,14 +4,18 @@ import com.example.darks.repair_auto.identity.infrastructure.security.Authentica
 import com.example.darks.repair_auto.repair.attachment.api.dto.AttachmentDeleteRequest;
 import com.example.darks.repair_auto.repair.attachment.api.dto.AttachmentResponse;
 import com.example.darks.repair_auto.repair.attachment.api.dto.DownloadUrlResponse;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
 import com.example.darks.repair_auto.repair.attachment.application.AttachmentService;
 import com.example.darks.repair_auto.repair.attachment.domain.AttachmentType;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -63,6 +67,20 @@ public class AttachmentController {
     @Operation(summary = "Create short-lived attachment download URL", description = "Requires ADMIN or MANAGER.")
     public DownloadUrlResponse downloadUrl(@PathVariable Long attachmentId) {
         return attachmentService.downloadUrl(attachmentId);
+    }
+
+    @GetMapping("/api/v1/attachments/{attachmentId}/download")
+    @Operation(summary = "Download attachment", description = "Streams the attachment through the API. Requires ADMIN or MANAGER.")
+    public ResponseEntity<InputStreamResource> download(@PathVariable Long attachmentId) {
+        AttachmentDownload download = attachmentService.download(attachmentId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(download.contentType()))
+                .contentLength(download.sizeBytes())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename(download.fileName())
+                        .build()
+                        .toString())
+                .body(new InputStreamResource(download.inputStream()));
     }
 
     @DeleteMapping("/api/v1/attachments/{attachmentId}")
