@@ -38,6 +38,8 @@ import java.util.Locale;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class AttachmentService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AttachmentService.class);
     private static final int STREAM_MARK_LIMIT = 64;
     private static final int FAILURE_REASON_LIMIT = 120;
 
@@ -202,6 +205,16 @@ public class AttachmentService {
             bestEffortDelete(attachment.getStorageKey());
             throw exception;
         } catch (StorageException exception) {
+            LOGGER.warn(
+                    "Attachment object storage upload failed attachmentId={} requestId={} type={} storageKey={} errorType={} message={} rootCauseType={} rootCauseMessage={}",
+                    attachment.getId(),
+                    requestId,
+                    type,
+                    attachment.getStorageKey(),
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage(),
+                    rootCause(exception).getClass().getSimpleName(),
+                    rootCause(exception).getMessage());
             failUpload(attachment.getId(), "STORAGE_FAILED");
             bestEffortDelete(attachment.getStorageKey());
             throw new BusinessRuleException(
@@ -471,6 +484,14 @@ public class AttachmentService {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable.", exception);
         }
+    }
+
+    private Throwable rootCause(Throwable exception) {
+        Throwable current = exception;
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current;
     }
 
     private void bestEffortDelete(String storageKey) {
