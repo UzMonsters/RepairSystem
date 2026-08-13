@@ -25,6 +25,7 @@ import com.example.darks.repair_auto.shared.error.ResourceNotFoundException;
 import com.example.darks.repair_auto.technician.domain.Technician;
 import com.example.darks.repair_auto.technician.infrastructure.TechnicianRepository;
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -190,15 +191,17 @@ public class AttachmentService {
             validateDeclaredContentType(declaredContentType, detected.contentType());
             input.reset();
             HashingInputStream hashingInput = new HashingInputStream(input, sha256());
+            byte[] uploadBytes = hashingInput.readAllBytes();
+            long actualSize = hashingInput.sizeBytes();
             objectStorageService.upload(new StorageUpload(
                     attachment.getStorageKey(),
                     detected.contentType(),
-                    declaredSize,
-                    hashingInput));
+                    actualSize,
+                    new ByteArrayInputStream(uploadBytes)));
             return finalizeUpload(
                     attachment.getId(),
                     detected.contentType(),
-                    hashingInput.sizeBytes(),
+                    actualSize,
                     hashingInput.checksum());
         } catch (BusinessRuleException exception) {
             failUpload(attachment.getId(), "VALIDATION_FAILED");
