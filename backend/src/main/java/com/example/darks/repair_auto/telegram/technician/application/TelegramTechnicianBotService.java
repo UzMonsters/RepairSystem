@@ -142,7 +142,7 @@ public class TelegramTechnicianBotService {
                     "Technician profile is not linked.",
                     403);
         }
-        requireLinkedTechnician(session);
+        requireLinkedTechnicianWithoutLock(session);
     }
 
     private void handleMessage(TelegramTechnicianSession session, TelegramUpdatePayload update) {
