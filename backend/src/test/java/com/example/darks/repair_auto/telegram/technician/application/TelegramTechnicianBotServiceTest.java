@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
@@ -14,6 +16,7 @@ import com.example.darks.repair_auto.repair.assignment.domain.AssignmentStatus;
 import com.example.darks.repair_auto.repair.assignment.domain.RepairAssignment;
 import com.example.darks.repair_auto.repair.assignment.infrastructure.RepairAssignmentRepository;
 import com.example.darks.repair_auto.repair.attachment.application.AttachmentService;
+import com.example.darks.repair_auto.repair.attachment.domain.AttachmentType;
 import com.example.darks.repair_auto.repair.execution.application.RepairExecutionService;
 import com.example.darks.repair_auto.repair.request.application.RepairRequestService;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequest;
@@ -277,6 +280,72 @@ class TelegramTechnicianBotServiceTest {
                 .doesNotContain("Pending");
     }
 
+    @Test
+    void givenModeSwitchAllowedThenTechnicianIsValidatedWithoutWriteLock() {
+        TelegramTechnicianSession session = linkedSession(99003L, 99004L, LanguageCode.EN);
+        TelegramTechnicianSessionRepository sessions = mock(TelegramTechnicianSessionRepository.class);
+        TechnicianRepository technicians = mock(TechnicianRepository.class);
+        when(sessions.findByTelegramUserId(session.getTelegramUserId())).thenReturn(Optional.of(session));
+        when(technicians.findById(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
+        TelegramTechnicianBotService service = new TelegramTechnicianBotService(
+                sessions,
+                technicians,
+                mock(RepairAssignmentRepository.class),
+                mock(RepairAssignmentService.class),
+                mock(RepairExecutionService.class),
+                mock(RepairRequestService.class),
+                mock(AttachmentService.class),
+                mock(TechnicianTelegramLinkService.class),
+                new RecordingTelegramBotClient(),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.requireSwitchAllowed(session.getTelegramUserId(), session.getTelegramChatId());
+
+        verify(technicians).findById(session.getTechnicianId());
+        verify(technicians, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void givenTelegramFileMetadataWithoutSizeThenWebhookPhotoSizeIsUsedForTechnicianUpload() {
+        TelegramTechnicianSession session = linkedSession(99005L, 99006L, LanguageCode.EN);
+        session.selectRequest(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.state(
+                TelegramTechnicianSessionState.AWAITING_COMPLETION_PHOTO,
+                OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramTechnicianSessionRepository sessions = mock(TelegramTechnicianSessionRepository.class);
+        TechnicianRepository technicians = mock(TechnicianRepository.class);
+        RepairAssignmentRepository assignmentRepository = mock(RepairAssignmentRepository.class);
+        AttachmentService attachmentService = mock(AttachmentService.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(session.getTelegramUserId())).thenReturn(Optional.of(session));
+        when(technicians.findById(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
+        RepairAssignment assignment = assignment(session, AssignmentStatus.ACCEPTED, RepairRequestStatus.IN_PROGRESS);
+        when(assignmentRepository.findActiveByRequestId(eq(123L), any())).thenReturn(Optional.of(assignment));
+        TelegramTechnicianBotService service = new TelegramTechnicianBotService(
+                sessions,
+                technicians,
+                assignmentRepository,
+                mock(RepairAssignmentService.class),
+                mock(RepairExecutionService.class),
+                mock(RepairRequestService.class),
+                attachmentService,
+                mock(TechnicianTelegramLinkService.class),
+                botClient,
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(photo(20L, 99005L, 99006L, "completion-photo", 3456L));
+
+        assertThat(botClient.lastDownloadMaxSizeBytes()).isEqualTo(3456L);
+        verify(attachmentService).uploadFromTechnician(
+                eq(123L),
+                eq(AttachmentType.COMPLETION_PHOTO),
+                eq("telegram-photo.jpg"),
+                any(),
+                eq(3456L),
+                any(),
+                eq(session.getTechnicianId()));
+    }
+
     private TelegramTechnicianBotService service(
             TelegramTechnicianSession session,
             RecordingTelegramBotClient botClient,
@@ -292,7 +361,9 @@ class TelegramTechnicianBotServiceTest {
         TelegramTechnicianSessionRepository sessions = mock(TelegramTechnicianSessionRepository.class);
         TechnicianRepository technicians = mock(TechnicianRepository.class);
         RepairAssignmentRepository assignmentRepository = mock(RepairAssignmentRepository.class);
+        when(sessions.findByTelegramUserIdForUpdate(session.getTelegramUserId())).thenReturn(Optional.of(session));
         when(sessions.findByTelegramUserId(session.getTelegramUserId())).thenReturn(Optional.of(session));
+        when(technicians.findById(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
         when(technicians.findByIdForUpdate(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
         when(assignmentRepository.findByTechnicianIdAndStatusOrderByCreatedAtDesc(
                 session.getTechnicianId(),
@@ -417,9 +488,24 @@ class TelegramTechnicianBotServiceTest {
                         data));
     }
 
+    private TelegramUpdatePayload photo(Long updateId, Long userId, Long chatId, String fileId, Long size) {
+        return new TelegramUpdatePayload(
+                updateId,
+                new TelegramUpdatePayload.TelegramMessage(
+                        updateId,
+                        new TelegramUpdatePayload.TelegramUser(userId, "Tech", null),
+                        new TelegramUpdatePayload.TelegramChat(chatId, "private"),
+                        null,
+                        null,
+                        null,
+                        List.of(new TelegramUpdatePayload.TelegramPhotoSize(fileId, null, 800, 600, size))),
+                null);
+    }
+
     private static final class RecordingTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new ArrayList<>();
+        private long lastDownloadMaxSizeBytes = -1;
 
         SentMessage last() {
             return messages.getLast();
@@ -427,6 +513,10 @@ class TelegramTechnicianBotServiceTest {
 
         List<SentMessage> messages() {
             return messages;
+        }
+
+        long lastDownloadMaxSizeBytes() {
+            return lastDownloadMaxSizeBytes;
         }
 
         @Override
@@ -445,6 +535,7 @@ class TelegramTechnicianBotServiceTest {
 
         @Override
         public InputStream downloadFile(String filePath, long maxSizeBytes) {
+            this.lastDownloadMaxSizeBytes = maxSizeBytes;
             return InputStream.nullInputStream();
         }
     }

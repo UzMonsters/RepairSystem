@@ -34,6 +34,8 @@ import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 public class TelegramTechnicianBotService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TelegramTechnicianBotService.class);
 
     private final TelegramTechnicianSessionRepository sessionRepository;
     private final TechnicianRepository technicianRepository;
@@ -106,7 +110,7 @@ public class TelegramTechnicianBotService {
         if (text != null && text.startsWith("/start tech_")) {
             linkService.requireUsableToken(linkService.hash(text.substring("/start tech_".length())));
         }
-        TelegramTechnicianSession session = sessionRepository.findByTelegramUserId(sender.id())
+        TelegramTechnicianSession session = sessionRepository.findByTelegramUserIdForUpdate(sender.id())
                 .orElseGet(() -> sessionRepository.saveAndFlush(
                         new TelegramTechnicianSession(sender.id(), chat.id(), now())));
         session.touch(chat.id(), now());
@@ -142,7 +146,7 @@ public class TelegramTechnicianBotService {
                     "Technician profile is not linked.",
                     403);
         }
-        requireLinkedTechnician(session);
+        requireLinkedTechnicianWithoutLock(session);
     }
 
     private void handleMessage(TelegramTechnicianSession session, TelegramUpdatePayload update) {
@@ -434,26 +438,45 @@ public class TelegramTechnicianBotService {
         }
         Long requestId = session.getSelectedRequestId();
         requireOwnedActiveAssignmentForUpload(session, requestId);
-        String fileId = photos.stream()
+        TelegramUpdatePayload.TelegramPhotoSize photo = photos.stream()
                 .max(Comparator.comparingLong(this::photoWeight))
-                .map(TelegramUpdatePayload.TelegramPhotoSize::fileId)
                 .orElseThrow(() -> new BusinessRuleException("TELEGRAM_PHOTO_INVALID", "Photo is invalid.", 400));
+        String fileId = photo.fileId();
         AttachmentType type = session.getState() == TelegramTechnicianSessionState.AWAITING_DIAGNOSIS_PHOTO
                 ? AttachmentType.DIAGNOSIS_PHOTO
                 : AttachmentType.COMPLETION_PHOTO;
         try {
             TelegramFileMetadata metadata = botClient.getFile(fileId);
-            try (InputStream input = botClient.downloadFile(metadata.filePath(), metadata.fileSize())) {
+            long fileSize = metadata.fileSize() > 0 ? metadata.fileSize() : (photo.fileSize() == null ? 0 : photo.fileSize());
+            if (fileSize <= 0) {
+                throw new TelegramApiException("Telegram file size is unavailable.");
+            }
+            try (InputStream input = botClient.downloadFile(metadata.filePath(), fileSize)) {
                 attachmentService.uploadFromTechnician(
                         requestId,
                         type,
                         "telegram-photo.jpg",
                         null,
-                        metadata.fileSize(),
+                        fileSize,
                         input,
                         session.getTechnicianId());
             }
+        } catch (BusinessRuleException exception) {
+            LOGGER.warn(
+                    "Technician Telegram photo upload failed requestId={} technicianId={} type={} code={}",
+                    requestId,
+                    session.getTechnicianId(),
+                    type,
+                    exception.code());
+            throw exception;
         } catch (IOException | TelegramApiException exception) {
+            LOGGER.warn(
+                    "Technician Telegram photo upload failed requestId={} technicianId={} type={} errorType={} message={}",
+                    requestId,
+                    session.getTechnicianId(),
+                    type,
+                    exception.getClass().getSimpleName(),
+                    exception.getMessage());
             throw new BusinessRuleException("ATTACHMENT_STORAGE_FAILED", "Attachment upload failed.", 503);
         }
         if (type == AttachmentType.COMPLETION_PHOTO) {

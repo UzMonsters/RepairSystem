@@ -80,10 +80,29 @@ public class TelegramUpdateRecord {
         return status == TelegramUpdateStatus.PROCESSED;
     }
 
+    public boolean isProcessing() {
+        return status == TelegramUpdateStatus.PROCESSING;
+    }
+
+    public void processing(OffsetDateTime now) {
+        this.status = TelegramUpdateStatus.PROCESSING;
+        this.processedAt = null;
+        this.failureCategory = null;
+        this.updatedAt = now;
+    }
+
     public void retry(OffsetDateTime now) {
-        this.status = TelegramUpdateStatus.RECEIVED;
+        this.status = TelegramUpdateStatus.PROCESSING;
+        this.processedAt = null;
         this.failureCategory = null;
         this.attemptCount++;
+        this.updatedAt = now;
+    }
+
+    public void received(OffsetDateTime now) {
+        this.status = TelegramUpdateStatus.RECEIVED;
+        this.processedAt = null;
+        this.failureCategory = null;
         this.updatedAt = now;
     }
 
