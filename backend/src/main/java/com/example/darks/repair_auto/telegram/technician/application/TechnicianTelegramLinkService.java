@@ -130,7 +130,7 @@ public class TechnicianTelegramLinkService {
         technician.updateTelegramLanguage(language, now);
         technician.linkTelegram(telegramUserId, telegramChatId, now);
         token.used(telegramUserId, now);
-        contextRepository.findByTelegramUserId(telegramUserId)
+        contextRepository.findByTelegramUserIdForUpdate(telegramUserId)
                 .ifPresentOrElse(
                         context -> context.switchMode(TelegramUserMode.TECHNICIAN, telegramChatId, now),
                         () -> contextRepository.saveAndFlush(new TelegramUserContext(
