@@ -115,14 +115,20 @@ public class S3ObjectStorageService implements ObjectStorageService {
             GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                     .bucket(properties.bucket())
                     .key(storageKey)
-                    .responseContentDisposition("attachment; filename=\"" + downloadFileName + "\"")
                     .build();
-            return URI.create(s3Presigner.presignGetObject(GetObjectPresignRequest.builder()
+            URI url = URI.create(s3Presigner.presignGetObject(GetObjectPresignRequest.builder()
                             .signatureDuration(ttl)
                             .getObjectRequest(getObjectRequest)
                             .build())
                     .url()
                     .toString());
+            LOGGER.info(
+                    "Created S3 presigned download URL storageKey={} bucket={} ttl={} pathStyle={} responseOverrides=false",
+                    storageKey,
+                    properties.bucket(),
+                    ttl,
+                    properties.pathStyle());
+            return url;
         } catch (RuntimeException exception) {
             throw new StorageException("Download URL creation failed.", exception);
         }
