@@ -36,7 +36,7 @@ export const menu: MenuNode[] = [
   { type: 'header', text: 'customers' },
   { type: 'item', text: 'customers', href: '/customers', icon: 'bi-people' },
   { type: 'header', text: 'management' },
-  { type: 'item', text: 'technicians', href: '/technicians', icon: 'bi-person-wrench' },
+  { type: 'item', text: 'technicians', href: '/technicians', icon: 'bi-tools' },
   { type: 'item', text: 'categories', href: '/categories', icon: 'bi-tags' },
   { type: 'item', text: 'reviews', href: '/reviews', icon: 'bi-star' },
   { type: 'item', text: 'users', href: '/users', icon: 'bi-person-badge', roles: ['ADMIN'] },

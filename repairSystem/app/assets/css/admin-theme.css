@@ -1062,6 +1062,33 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   border-bottom-left-radius: 0;
 }
 
+.app-header-search {
+  width: min(24vw, 280px);
+  margin-right: .5rem;
+}
+
+.category-description-cell,
+.request-description-cell {
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-language-tabs .nav-link {
+  color: var(--rs-muted);
+}
+
+.category-language-tabs .nav-link.active {
+  color: var(--rs-primary);
+  background: transparent;
+  border-color: var(--rs-primary) var(--rs-primary) transparent;
+}
+
+@media (max-width: 768px) {
+  .app-header-search-item { display: none; }
+}
+
 .link-primary {
   color: var(--rs-primary) !important;
   text-decoration: none;

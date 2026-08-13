@@ -3,6 +3,7 @@ import type { Category, Page } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 
 const { t, locale } = useLocale()
+const activeLanguageTab = ref<'en' | 'ru' | 'uz'>('en')
 const page = ref(1)
 const size = ref(10)
 
@@ -40,6 +41,12 @@ function localizedName(c: Category) {
   return c.nameUz || c.nameRu || c.nameEn
 }
 
+function localizedDescription(c: Category) {
+  if (locale.value === 'ru') return c.descriptionRu || c.descriptionEn || c.descriptionUz || '-'
+  if (locale.value === 'en') return c.descriptionEn || c.descriptionRu || c.descriptionUz || '-'
+  return c.descriptionUz || c.descriptionRu || c.descriptionEn || '-'
+}
+
 const editingId = ref<number | null>(null)
 const form = ref({
   nameEn: '',
@@ -55,6 +62,7 @@ const saveError = ref('')
 
 function openCreate() {
   editingId.value = null
+  activeLanguageTab.value = locale.value
   form.value = { nameEn: '', nameRu: '', nameUz: '', descriptionEn: '', descriptionRu: '', descriptionUz: '', displayOrder: 0 }
   saveError.value = ''
   showModal('category-modal')
@@ -62,6 +70,7 @@ function openCreate() {
 
 async function openEdit(c: Category) {
   editingId.value = c.id
+  activeLanguageTab.value = locale.value
   form.value = {
     nameEn: c.nameEn ?? '',
     nameRu: c.nameRu ?? '',
@@ -170,9 +179,7 @@ async function toggleActive(c: Category) {
             <tr>
               <th>#</th>
               <th>{{ t('name') }}</th>
-              <th>{{ t('nameEn') }}</th>
-              <th>{{ t('nameRu') }}</th>
-              <th>{{ t('nameUz') }}</th>
+              <th>{{ t('description') }}</th>
               <th>{{ t('displayOrder') }}</th>
               <th>{{ t('active') }}</th>
               <th class="text-end">
@@ -183,7 +190,7 @@ async function toggleActive(c: Category) {
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="8"
+                colspan="6"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
@@ -191,7 +198,7 @@ async function toggleActive(c: Category) {
             </tr>
             <tr v-else-if="!rows.length">
               <td
-                colspan="8"
+                colspan="6"
                 class="text-center py-4"
               >
                 <div class="empty-state">
@@ -208,9 +215,9 @@ async function toggleActive(c: Category) {
               <td class="fw-semibold">
                 {{ localizedName(c) }}
               </td>
-              <td>{{ c.nameEn || '-' }}</td>
-              <td>{{ c.nameRu || '-' }}</td>
-              <td>{{ c.nameUz || '-' }}</td>
+              <td class="text-muted category-description-cell">
+                {{ localizedDescription(c) }}
+              </td>
               <td>{{ c.displayOrder ?? '-' }}</td>
               <td>
                 <span
@@ -259,11 +266,46 @@ async function toggleActive(c: Category) {
       :title="editingId == null ? t('newCategory') : t('editCategory')"
     >
       <form @submit.prevent="save">
-        <div class="mb-3">
+        <ul class="nav nav-tabs category-language-tabs mb-3">
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              :class="{ active: activeLanguageTab === 'en' }"
+              @click="activeLanguageTab = 'en'"
+            >
+              {{ t('english') }}
+            </button>
+          </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              :class="{ active: activeLanguageTab === 'ru' }"
+              @click="activeLanguageTab = 'ru'"
+            >
+              {{ t('russian') }}
+            </button>
+          </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              :class="{ active: activeLanguageTab === 'uz' }"
+              @click="activeLanguageTab = 'uz'"
+            >
+              {{ t('uzbek') }}
+            </button>
+          </li>
+        </ul>
+        <div
+          v-if="activeLanguageTab === 'en'"
+          class="mb-3"
+        >
           <label
             for="category-en"
             class="form-label"
-          >{{ t('nameEn') }}</label>
+          >{{ t('name') }}</label>
           <input
             id="category-en"
             v-model="form.nameEn"
@@ -271,12 +313,26 @@ async function toggleActive(c: Category) {
             class="form-control"
             required
           >
+          <label
+            for="category-description-en"
+            class="form-label mt-3"
+          >{{ t('description') }}</label>
+          <textarea
+            id="category-description-en"
+            v-model="form.descriptionEn"
+            class="form-control"
+            rows="3"
+            maxlength="500"
+          />
         </div>
-        <div class="mb-3">
+        <div
+          v-else-if="activeLanguageTab === 'ru'"
+          class="mb-3"
+        >
           <label
             for="category-ru"
             class="form-label"
-          >{{ t('nameRu') }}</label>
+          >{{ t('name') }}</label>
           <input
             id="category-ru"
             v-model="form.nameRu"
@@ -284,12 +340,26 @@ async function toggleActive(c: Category) {
             class="form-control"
             required
           >
+          <label
+            for="category-description-ru"
+            class="form-label mt-3"
+          >{{ t('description') }}</label>
+          <textarea
+            id="category-description-ru"
+            v-model="form.descriptionRu"
+            class="form-control"
+            rows="3"
+            maxlength="500"
+          />
         </div>
-        <div class="mb-3">
+        <div
+          v-else
+          class="mb-3"
+        >
           <label
             for="category-uz"
             class="form-label"
-          >{{ t('nameUz') }}</label>
+          >{{ t('name') }}</label>
           <input
             id="category-uz"
             v-model="form.nameUz"
@@ -297,6 +367,17 @@ async function toggleActive(c: Category) {
             class="form-control"
             required
           >
+          <label
+            for="category-description-uz"
+            class="form-label mt-3"
+          >{{ t('description') }}</label>
+          <textarea
+            id="category-description-uz"
+            v-model="form.descriptionUz"
+            class="form-control"
+            rows="3"
+            maxlength="500"
+          />
         </div>
         <div class="mb-3">
           <label
@@ -310,45 +391,6 @@ async function toggleActive(c: Category) {
             min="0"
             class="form-control"
           >
-        </div>
-        <div class="mb-3">
-          <label
-            for="category-description-en"
-            class="form-label"
-          >{{ t('description') }} (EN)</label>
-          <textarea
-            id="category-description-en"
-            v-model="form.descriptionEn"
-            class="form-control"
-            rows="2"
-            maxlength="500"
-          />
-        </div>
-        <div class="mb-3">
-          <label
-            for="category-description-ru"
-            class="form-label"
-          >{{ t('description') }} (RU)</label>
-          <textarea
-            id="category-description-ru"
-            v-model="form.descriptionRu"
-            class="form-control"
-            rows="2"
-            maxlength="500"
-          />
-        </div>
-        <div class="mb-3">
-          <label
-            for="category-description-uz"
-            class="form-label"
-          >{{ t('description') }} (UZ)</label>
-          <textarea
-            id="category-description-uz"
-            v-model="form.descriptionUz"
-            class="form-control"
-            rows="2"
-            maxlength="500"
-          />
         </div>
         <div
           v-if="saveError"

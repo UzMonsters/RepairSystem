@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Customer, Page } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
+import { formatDate } from '~/utils/date'
 
 const { t } = useLocale()
 const search = ref('')
@@ -39,10 +40,6 @@ function changeSize(s: number) {
   size.value = s
   page.value = 1
   refresh()
-}
-
-function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleDateString() : '-'
 }
 </script>
 

@@ -6,6 +6,7 @@ type ApiRequest = {
   body?: BodyInit | Record<string, unknown> | null
   query?: Record<string, unknown>
   params?: Record<string, unknown>
+  responseType?: 'json' | 'blob' | 'arrayBuffer' | 'text'
 }
 
 type ErrorPayload = {

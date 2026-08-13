@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Page, Review } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
+import { formatDate as formatApiDate } from '~/utils/date'
 
 const { t } = useLocale()
 const page = ref(1)
@@ -42,7 +43,7 @@ function changeSize(s: number) {
 }
 
 function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleDateString() : '-'
+  return formatApiDate(value)
 }
 </script>
 

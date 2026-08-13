@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Customer, Page, RepairRequest } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
+import { formatDate as formatApiDate } from '~/utils/date'
 
 const { t } = useLocale()
 const route = useRoute()
@@ -29,7 +30,7 @@ function categoryName(r: RepairRequest) {
 }
 
 function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleDateString() : '-'
+  return formatApiDate(value)
 }
 </script>
 

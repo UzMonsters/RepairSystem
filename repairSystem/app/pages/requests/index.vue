@@ -2,9 +2,11 @@
 import { requestPriorities, requestStatuses } from '~/lib/statuses'
 import type { Category, Page, RepairRequest, Technician } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
+import { formatDate } from '~/utils/date'
 
-const { t } = useLocale()
-const search = ref('')
+const { t, locale } = useLocale()
+const route = useRoute()
+const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
 const status = ref('')
 const priority = ref('')
 const categoryId = ref('')
@@ -56,15 +58,21 @@ function changeSize(s: number) {
 }
 
 function categoryName(r: RepairRequest) {
-  return r.category?.nameRu ?? r.category?.nameEn ?? '-'
+  const c = r.category
+  if (!c) return '-'
+  if (locale.value === 'ru') return c.nameRu || c.nameEn || c.nameUz || '-'
+  if (locale.value === 'en') return c.nameEn || c.nameRu || c.nameUz || '-'
+  return c.nameUz || c.nameRu || c.nameEn || '-'
+}
+
+function categoryOptionName(c: Category) {
+  if (locale.value === 'ru') return c.nameRu || c.nameEn || c.nameUz
+  if (locale.value === 'en') return c.nameEn || c.nameRu || c.nameUz
+  return c.nameUz || c.nameRu || c.nameEn
 }
 
 function customerName(r: RepairRequest) {
   return r.customer?.fullName ?? '-'
-}
-
-function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleString() : '-'
 }
 
 const errorMessage = computed(() => {
@@ -223,7 +231,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
                 :key="p.value"
                 :value="p.value"
               >
-                {{ p.value }}
+                {{ t(`priority.${p.value}`) }}
               </option>
             </select>
             <select
@@ -240,7 +248,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
                 :key="c.id"
                 :value="c.id"
               >
-                {{ c.nameRu || c.nameEn }}
+                {{ categoryOptionName(c) }}
               </option>
             </select>
           </div>
@@ -275,7 +283,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
           <thead>
             <tr>
               <th>#</th>
-              <th>{{ t('requestNumber') }}</th>
+              <th>{{ t('description') }}</th>
               <th>{{ t('client') }}</th>
               <th>{{ t('categories') }}</th>
               <th>{{ t('priority') }}</th>
@@ -289,7 +297,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="8"
+                colspan="7"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
@@ -297,7 +305,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
             </tr>
             <tr v-else-if="!rows.length">
               <td
-                colspan="8"
+                colspan="7"
                 class="text-center py-4"
               >
                 <div class="empty-state">
@@ -316,9 +324,9 @@ const execRequired = computed(() => execAction.value !== 'resume')
                   #{{ r.id }}
                 </NuxtLink>
               </td>
-              <td>
+              <td class="request-description-cell">
                 <NuxtLink :to="`/requests/${r.id}`">
-                  {{ r.requestNumber || `#${r.id}` }}
+                  {{ r.description || categoryName(r) }}
                 </NuxtLink>
               </td>
               <td>{{ customerName(r) }}</td>
@@ -328,12 +336,12 @@ const execRequired = computed(() => execAction.value !== 'resume')
                   class="badge"
                   :class="r.priority === 'URGENT' || r.priority === 'HIGH' ? 'text-bg-danger' : r.priority === 'LOW' ? 'text-bg-secondary' : 'text-bg-warning'"
                 >
-                  {{ r.priority }}
+                  {{ t(`priority.${r.priority}`) }}
                 </span>
               </td>
               <td><StatusBadge :status="r.status" /></td>
               <td class="text-nowrap">
-                {{ formatDate(r.createdAt) }}
+                {{ formatDate(r.createdAt, true) }}
               </td>
               <td class="text-end text-nowrap">
                 <div class="btn-group">

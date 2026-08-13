@@ -10,6 +10,13 @@ const email = computed(() => user.value?.email || '')
 const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
 const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value === 'en' ? 'EN' : 'UZ')
 const notifications = ref<NotificationSummary[]>([])
+const globalSearch = ref('')
+
+function submitGlobalSearch() {
+  const value = globalSearch.value.trim()
+  if (!value) return
+  navigateTo({ path: '/requests', query: { search: value } })
+}
 
 onMounted(async () => {
   try {
@@ -39,6 +46,26 @@ onMounted(async () => {
       </ul>
 
       <ul class="navbar-nav ms-auto">
+        <li class="nav-item app-header-search-item">
+          <form
+            class="app-header-search input-group input-group-sm"
+            @submit.prevent="submitGlobalSearch"
+          >
+            <input
+              v-model="globalSearch"
+              type="search"
+              class="form-control"
+              :placeholder="t('search')"
+            >
+            <button
+              type="submit"
+              class="btn btn-outline-secondary"
+              :aria-label="t('search')"
+            >
+              <i class="bi bi-search" />
+            </button>
+          </form>
+        </li>
         <NavNotifications
           :notifications="notifications"
           see-all-url="/notifications"

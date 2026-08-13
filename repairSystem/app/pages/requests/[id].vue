@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
+import { formatDate as formatApiDate } from '~/utils/date'
 import type { AssignmentDetail, Attachment, RepairExecution, RepairRequest, StatusHistoryItem, Technician } from '~/types'
 
 const route = useRoute()
@@ -69,7 +70,7 @@ const isAssignmentPending = computed(() =>
 )
 
 function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleString() : '-'
+  return formatApiDate(value, true)
 }
 
 const savingAccept = ref(false)
@@ -185,7 +186,7 @@ async function uploadAttachment() {
 
 async function downloadAttachment(attachment: Attachment) {
   try {
-    const file = await apiFetch<Blob>(`/attachments/${attachment.id}/download`)
+    const file = await apiFetch<Blob>(`/attachments/${attachment.id}/download`, { responseType: 'blob' })
     const url = URL.createObjectURL(file)
     const link = document.createElement('a')
     link.href = url

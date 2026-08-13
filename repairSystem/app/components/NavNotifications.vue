@@ -61,9 +61,9 @@ function timeAgo(value?: string) {
           >
             {{ shortKey(n.notificationType) }}
             <span
-              v-if="n.requestNumber"
+              v-if="n.repairRequestId"
               class="float-end text-secondary fs-7"
-            >{{ n.requestNumber }}</span>
+            >#{{ n.repairRequestId }}</span>
           </span>
           <span class="d-block text-secondary fs-7">
             {{ n.status }}

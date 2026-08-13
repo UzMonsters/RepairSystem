@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { NotificationSummary, Page } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
+import { formatDate as formatApiDate } from '~/utils/date'
 
 const { t } = useLocale()
 const page = ref(1)
@@ -60,7 +61,7 @@ function changeSize(s: number) {
 }
 
 function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleString() : '-'
+  return formatApiDate(value, true)
 }
 
 const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIPPED', 'DEAD']
@@ -175,7 +176,7 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
                   v-if="n.repairRequestId"
                   :to="`/requests/${n.repairRequestId}`"
                 >
-                  {{ n.requestNumber || `#${n.repairRequestId}` }}
+                  {{ n.repairRequestId ? `#${n.repairRequestId}` : '-' }}
                 </NuxtLink>
                 <span v-else>-</span>
               </td>

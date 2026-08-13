@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { LanguageCode, Page, Technician } from '~/types'
 import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
+import { formatDate as formatApiDate } from '~/utils/date'
 
 const { t } = useLocale()
 const search = ref('')
@@ -198,7 +199,7 @@ async function copyTelegramLink() {
 }
 
 function formatDate(value?: string) {
-  return value ? new Date(value).toLocaleDateString() : '-'
+  return formatApiDate(value)
 }
 </script>
 
@@ -592,7 +593,7 @@ function formatDate(value?: string) {
           v-if="telegramExpiresAt"
           class="text-muted small"
         >
-          {{ t('expiresAt') }}: {{ new Date(telegramExpiresAt).toLocaleString() }}
+          {{ t('expiresAt') }}: {{ formatApiDate(telegramExpiresAt, true) }}
         </div>
       </div>
       <template #footer>

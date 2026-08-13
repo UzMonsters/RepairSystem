@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DashboardOverview, Page, RepairRequest } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
+import { formatDate } from '~/utils/date'
 
 const { t } = useLocale()
 const { data, pending, error, refresh } = await useAsyncData('dashboard', () =>
@@ -61,7 +62,7 @@ function categoryName(c?: RepairRequest['category']) {
 }
 
 function formatTime(value?: string) {
-  return value ? new Date(value).toLocaleString() : '-'
+  return formatDate(value, true)
 }
 </script>
 
@@ -123,7 +124,7 @@ function formatTime(value?: string) {
               <table class="table table-hover align-middle mb-0">
                 <thead>
                   <tr>
-                    <th>{{ t('requestNumber') }}</th>
+                    <th>{{ t('description') }}</th>
                     <th>{{ t('client') }}</th>
                     <th>{{ t('categories') }}</th>
                     <th>{{ t('status') }}</th>
@@ -148,7 +149,7 @@ function formatTime(value?: string) {
                   >
                     <td>
                       <NuxtLink :to="`/requests/${r.id}`">
-                        {{ r.requestNumber || `#${r.id}` }}
+                        {{ r.description || categoryName(r.category) }}
                       </NuxtLink>
                     </td>
                     <td>{{ r.customer?.fullName || '-' }}</td>
