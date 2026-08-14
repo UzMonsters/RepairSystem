@@ -328,7 +328,11 @@ public class TelegramCustomerBotService {
                 .max(Comparator.comparingLong(this::photoWeight))
                 .map(TelegramUpdatePayload.TelegramPhotoSize::fileId)
                 .ifPresent(fileId -> session.addPhotoFileId(fileId, properties.getMaxPendingPhotos(), now()));
-        send(session, "photo_prompt", keyboards.photos(messages, session.getLanguage()));
+        send(session,
+                "photo_received",
+                keyboards.photos(messages, session.getLanguage()),
+                session.photoFileIds().size(),
+                properties.getMaxPendingPhotos());
     }
 
     private void handleLocation(TelegramCustomerSession session, TelegramUpdatePayload.TelegramLocation location) {

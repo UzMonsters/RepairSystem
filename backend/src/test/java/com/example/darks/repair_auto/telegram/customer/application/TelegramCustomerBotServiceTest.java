@@ -158,6 +158,36 @@ class TelegramCustomerBotServiceTest {
     }
 
     @Test
+    void givenProblemPhotoWhenAwaitingPhotosThenReceivedCountIsShown() {
+        TelegramCustomerSession session = linkedSession(20220L, 24220L);
+        session.language(LanguageCode.UZ, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.state(TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(20220L)).thenReturn(Optional.of(session));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(photo(215L, 20220L, 24220L, "problem-photo", 3456L));
+
+        assertThat(botClient.last().text()).contains("1/3 foto qabul qilindi");
+        assertThat(botClient.last().replyMarkupJson()).contains("photo:skip");
+        assertThat(session.photoFileIds()).containsExactly("problem-photo");
+    }
+
+    @Test
     void givenRegisteredCustomerWhenHistoryShownThenCreatedDateIsCompact() {
         TelegramCustomerSession session = linkedSession(21021L, 25021L);
         TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
@@ -252,6 +282,22 @@ class TelegramCustomerBotServiceTest {
                         null,
                         null,
                         null),
+                null);
+    }
+
+    private TelegramUpdatePayload photo(Long updateId, Long userId, Long chatId, String fileId, Long size) {
+        return new TelegramUpdatePayload(
+                updateId,
+                new TelegramUpdatePayload.TelegramMessage(
+                        updateId,
+                        new TelegramUpdatePayload.TelegramUser(userId, "Test", null),
+                        new TelegramUpdatePayload.TelegramChat(chatId, "private"),
+                        null,
+                        null,
+                        null,
+                        List.of(
+                                new TelegramUpdatePayload.TelegramPhotoSize("small", "small-unique", 20, 20, 1L),
+                                new TelegramUpdatePayload.TelegramPhotoSize(fileId, fileId + "-unique", 800, 600, size))),
                 null);
     }
 

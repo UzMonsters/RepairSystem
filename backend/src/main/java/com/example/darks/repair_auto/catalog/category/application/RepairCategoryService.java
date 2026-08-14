@@ -8,6 +8,9 @@ import com.example.darks.repair_auto.catalog.category.api.dto.CategorySummaryRes
 import com.example.darks.repair_auto.catalog.category.api.dto.CategoryUpdateRequest;
 import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
 import com.example.darks.repair_auto.catalog.category.infrastructure.RepairCategoryRepository;
+import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
+import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
+import com.example.darks.repair_auto.settings.domain.Language;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import java.time.OffsetDateTime;
@@ -32,23 +35,31 @@ public class RepairCategoryService {
 
     private final RepairCategoryRepository repairCategoryRepository;
     private final CategoryNameNormalizer categoryNameNormalizer;
+    private final EffectiveLanguageResolver effectiveLanguageResolver;
+    private final LocalizedValueResolver localizedValueResolver;
 
     public RepairCategoryService(
             RepairCategoryRepository repairCategoryRepository,
-            CategoryNameNormalizer categoryNameNormalizer) {
+            CategoryNameNormalizer categoryNameNormalizer,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver) {
         this.repairCategoryRepository = repairCategoryRepository;
         this.categoryNameNormalizer = categoryNameNormalizer;
+        this.effectiveLanguageResolver = effectiveLanguageResolver;
+        this.localizedValueResolver = localizedValueResolver;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<CategorySummaryResponse> list(String search, Boolean active, Pageable pageable) {
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         return PageResponse.from(repairCategoryRepository.findAll(filters(blankToNull(search), active), pageable)
-                .map(CategoryMapper::summary));
+                .map(category -> CategoryMapper.summary(category, lang, localizedValueResolver)));
     }
 
     @Transactional(readOnly = true)
     public CategoryDetailResponse get(Long id) {
-        return CategoryMapper.details(find(id));
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+        return CategoryMapper.details(find(id), lang, localizedValueResolver);
     }
 
     @Transactional
@@ -70,7 +81,8 @@ public class RepairCategoryService {
         try {
             RepairCategory saved = repairCategoryRepository.saveAndFlush(category);
             LOGGER.info("Category event operation=category_created result=success categoryId={}", saved.getId());
-            return CategoryMapper.details(saved);
+            Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+            return CategoryMapper.details(saved, lang, localizedValueResolver);
         } catch (DataIntegrityViolationException exception) {
             throw categoryConflict(exception);
         }
@@ -93,7 +105,9 @@ public class RepairCategoryService {
                 request.displayOrder(),
                 now());
         try {
-            return CategoryMapper.details(repairCategoryRepository.saveAndFlush(category));
+            RepairCategory saved = repairCategoryRepository.saveAndFlush(category);
+            Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+            return CategoryMapper.details(saved, lang, localizedValueResolver);
         } catch (DataIntegrityViolationException exception) {
             throw categoryConflict(exception);
         }
@@ -108,7 +122,8 @@ public class RepairCategoryService {
                 id,
                 active,
                 reason == null ? "" : reason.trim());
-        return CategoryMapper.details(category);
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+        return CategoryMapper.details(category, lang, localizedValueResolver);
     }
 
     @Transactional

@@ -4,9 +4,14 @@ import java.time.OffsetDateTime;
 
 public record CategorySummaryResponse(
         Long id,
+        String name,
+        String description,
         String nameEn,
         String nameRu,
         String nameUz,
+        String descriptionEn,
+        String descriptionRu,
+        String descriptionUz,
         boolean active,
         int displayOrder,
         OffsetDateTime createdAt,

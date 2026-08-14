@@ -211,11 +211,12 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenTelegramWizardWithPhotoAndLocationThenRequestAndCustomerAttachmentAreCreated() throws Exception {
-        register(3003, 7003, "+998903334455", "Dilshod Bot");
+        register(3003, 7003, "+998903334455", "Dilshod Bot", LanguageCode.UZ);
         send(callback(35, 3003, 7003, "cb-create", "menu:create"));
         send(callback(36, 3003, 7003, "cb-cat", "cat:" + categoryId));
         send(update(37, 3003, 7003, "Kir yuvish mashinasi suv oqizmoqda"));
         send(photo(38, 3003, 7003, "photo-file-id", JPEG.length));
+        assertThat(telegramBotClient.lastText()).contains("1/3 foto qabul qilindi");
         send(callback(39, 3003, 7003, "cb-skip", "photo:skip"));
         send(location(40, 3003, 7003, "41.311081", "69.240562"));
         send(callback(41, 3003, 7003, "cb-confirm", "confirm:create"));
