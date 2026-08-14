@@ -1,4 +1,4 @@
-async function getModal(id: string) {
+﻿async function getModal(id: string) {
   const el = document.getElementById(id)
   if (!el) return null
   const { Modal } = await import('bootstrap')

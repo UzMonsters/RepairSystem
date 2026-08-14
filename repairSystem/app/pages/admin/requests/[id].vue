@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
 import type { AssignmentDetail, Attachment, RepairExecution, RepairRequest, StatusHistoryItem, Technician } from '~/types'
@@ -263,7 +263,7 @@ function can(action: string) {
 <template>
   <AppContent
     :title="`#${request?.requestNumber || id}`"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('requests'), to: '/requests' }, { label: `#${request?.requestNumber || id}` }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('requests'), to: '/admin/requests' }, { label: `#${request?.requestNumber || id}` }]"
   >
     <div
       v-if="error"
@@ -333,7 +333,7 @@ function can(action: string) {
                   <dd class="col-sm-8">
                     <NuxtLink
                       v-if="request.customer?.id"
-                      :to="`/customers/${request.customer.id}`"
+                      :to="`/admin/customers/${request.customer.id}`"
                     >{{ customerName }}</NuxtLink>
                     <template v-else>
                       {{ customerName }}
@@ -678,7 +678,7 @@ function can(action: string) {
                   {{ attachment.originalFileName }}
                 </div>
                 <div class="small text-muted">
-                  {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
+                  {{ t(`attachmentType.${attachment.type}`) }} В· {{ formatDate(attachment.uploadedAt) }}
                 </div>
               </div>
               <div class="btn-group btn-group-sm flex-shrink-0">
@@ -781,7 +781,7 @@ function can(action: string) {
                 <span class="badge text-bg-secondary">{{ assignment.status }}</span>
               </div>
               <div class="small text-muted">
-                {{ formatDate(assignment.assignedAt) }} · {{ assignment.rejectionReason || assignment.closureReason || '-' }}
+                {{ formatDate(assignment.assignedAt) }} В· {{ assignment.rejectionReason || assignment.closureReason || '-' }}
               </div>
               <div
                 v-if="assignment.scheduledVisitAt"

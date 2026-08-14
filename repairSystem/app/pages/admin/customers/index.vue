@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { Customer, Page } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
@@ -46,7 +46,7 @@ function changeSize(s: number) {
 <template>
   <AppContent
     :title="t('customers')"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('customers') }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('customers') }]"
   >
     <div class="card">
       <div class="card-header">
@@ -131,7 +131,7 @@ function changeSize(s: number) {
             >
               <td>
                 <NuxtLink
-                  :to="`/customers/${c.id}`"
+                  :to="`/admin/customers/${c.id}`"
                   class="fw-semibold link-primary"
                 >
                   {{ c.fullName }}
@@ -159,7 +159,7 @@ function changeSize(s: number) {
               </td>
               <td class="text-end text-nowrap">
                 <NuxtLink
-                  :to="`/customers/${c.id}`"
+                  :to="`/admin/customers/${c.id}`"
                   class="btn btn-sm btn-outline-secondary"
                   :title="t('view')"
                 >

@@ -756,6 +756,24 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   font-size: 0.95rem;
 }
 
+.table-empty-state {
+  height: 180px;
+}
+
+.requests-filters > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.requests-filters .search-box {
+  max-width: none;
+}
+
+@media (max-width: 1100px) {
+  .requests-filters { flex-wrap: wrap !important; }
+  .requests-filters > * { flex: 1 1 180px; }
+}
+
 /* ------------------------------------------------------------
    Status summary widget
    ------------------------------------------------------------ */
@@ -1074,6 +1092,9 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.request-row-link { cursor: pointer; }
+.request-row-link:hover { background-color: rgba(255, 255, 255, 0.04); }
 
 .category-language-tabs .nav-link {
   color: var(--rs-muted);

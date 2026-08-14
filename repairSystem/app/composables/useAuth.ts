@@ -1,4 +1,4 @@
-import type { AuthUser, LoginResponse } from '~/types'
+﻿import type { AuthUser, LoginResponse } from '~/types'
 
 type TokenResponse = {
   accessToken: string
@@ -77,7 +77,7 @@ export function useAuth() {
     accessToken.value = null
     refreshToken.value = null
     user.value = null
-    await navigateTo('/login')
+    await navigateTo('/admin/login')
   }
 
   return { user, isAuthenticated, login, init, refreshSession, logout }

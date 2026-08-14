@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { Customer, Page, RepairRequest } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
@@ -37,7 +37,7 @@ function formatDate(value?: string) {
 <template>
   <AppContent
     :title="customer?.fullName || `Customer #${id}`"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('customers'), to: '/customers' }, { label: customer?.fullName || `#${id}` }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('customers'), to: '/admin/customers' }, { label: customer?.fullName || `#${id}` }]"
   >
     <div
       v-if="error"
@@ -220,7 +220,7 @@ function formatDate(value?: string) {
                     :key="r.id"
                   >
                     <td>
-                      <NuxtLink :to="`/requests/${r.id}`">
+                      <NuxtLink :to="`/admin/requests/${r.id}`">
                         {{ r.requestNumber || `#${r.id}` }}
                       </NuxtLink>
                     </td>
@@ -229,7 +229,7 @@ function formatDate(value?: string) {
                     <td>{{ formatDate(r.createdAt) }}</td>
                     <td class="text-end">
                       <NuxtLink
-                        :to="`/requests/${r.id}`"
+                        :to="`/admin/requests/${r.id}`"
                         class="btn btn-sm btn-outline-secondary"
                         :title="t('view')"
                       >

@@ -8,6 +8,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   const incoming = getRequestHeaders(event)
 
   const forwardHeaders: Record<string, string> = { accept: incoming.accept || 'application/json' }
+  if (incoming['accept-language']) forwardHeaders['accept-language'] = incoming['accept-language']
   if (incoming.authorization) forwardHeaders.authorization = incoming.authorization
   if (incoming['content-type']) forwardHeaders['content-type'] = incoming['content-type']
   if (incoming.cookie) forwardHeaders.cookie = incoming.cookie

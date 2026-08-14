@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { Page, Review } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
@@ -50,7 +50,7 @@ function formatDate(value?: string) {
 <template>
   <AppContent
     :title="t('reviews')"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('reviews') }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('reviews') }]"
   >
     <div class="card">
       <div class="card-header">
@@ -157,7 +157,7 @@ function formatDate(value?: string) {
               <td>
                 <NuxtLink
                   v-if="r.repairRequestId"
-                  :to="`/requests/${r.repairRequestId}`"
+                  :to="`/admin/requests/${r.repairRequestId}`"
                 >
                   {{ r.requestNumber || `#${r.repairRequestId}` }}
                 </NuxtLink>

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, watch } from 'vue'
 
 const { t } = useLocale()
@@ -65,7 +65,7 @@ function changeSize() {
 <template>
   <div class="pagination-bar">
     <span class="pagination-info">
-      {{ t('showing') }} {{ startIndex }}–{{ endIndex }} {{ t('of') }} {{ total }}
+      {{ t('showing') }} {{ startIndex }}вЂ“{{ endIndex }} {{ t('of') }} {{ total }}
     </span>
 
     <div class="pagination-actions">
@@ -107,7 +107,7 @@ function changeSize() {
           <span
             v-if="typeof p === 'string'"
             class="page-ellipsis"
-          >…</span>
+          >вЂ¦</span>
           <button
             v-else
             type="button"

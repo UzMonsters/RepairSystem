@@ -1,4 +1,4 @@
-export type RequestStatus
+﻿export type RequestStatus
   = | 'NEW'
     | 'ASSIGNED'
     | 'SCHEDULED'
@@ -10,6 +10,9 @@ export type RequestStatus
 export type RequestPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 export type RequestSource = 'ADMIN' | 'TELEGRAM'
 export type LanguageCode = 'EN' | 'RU' | 'UZ'
+export type UserDateFormat = 'DD_MM_YYYY' | 'DD_SLASH_MM_SLASH_YYYY' | 'YYYY_MM_DD'
+export type UserTimeFormat = 'HOUR_24' | 'HOUR_12'
+export type UserTheme = 'LIGHT' | 'DARK' | 'SYSTEM'
 export type UserRole = 'ADMIN' | 'MANAGER'
 export type ReviewSource = 'TELEGRAM'
 
@@ -66,6 +69,8 @@ export interface Technician {
 
 export interface Category {
   id: number
+  name?: string
+  description?: string
   nameEn: string
   nameRu: string
   nameUz: string
@@ -73,9 +78,20 @@ export interface Category {
   descriptionRu?: string
   descriptionUz?: string
   active?: boolean
-  displayOrder?: number
   createdAt?: string
   updatedAt?: string
+}
+
+export interface UserSettings {
+  language: LanguageCode
+  dateFormat: UserDateFormat
+  timeFormat: UserTimeFormat
+  theme: UserTheme
+}
+
+export interface SystemSettings {
+  timezone: string
+  defaultLanguage: LanguageCode
 }
 
 export interface CrmUser {
@@ -95,11 +111,12 @@ export interface RepairRequestCustomerSummary {
 
 export interface RepairRequestCategorySummary {
   id: number
+  name?: string
+  description?: string
   nameEn: string
   nameRu: string
   nameUz: string
   active?: boolean
-  displayOrder?: number
 }
 
 export interface AssignmentTechnicianSummary {

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { requestPriorities, requestStatuses } from '~/lib/statuses'
 import type { Category, Page, RepairRequest, Technician } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
@@ -24,8 +24,8 @@ const query = computed(() => ({
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('requests-list', () =>
-  apiFetch<Page<RepairRequest>>('/requests', { query: query.value })
-)
+  apiFetch<Page<RepairRequest>>('/requests', { query: query.value }),
+{ watch: [query] })
 
 const { data: categories } = await useAsyncData('requests-categories', () =>
   apiFetch<Page<Category>>('/categories', { query: { size: 100 } })
@@ -40,6 +40,13 @@ const totalElements = computed(() => data.value?.totalElements ?? 0)
 const totalPages = computed(() => data.value?.totalPages ?? 1)
 const categoryOptions = computed(() => categories.value?.content ?? [])
 const technicianOptions = computed(() => technicians.value?.content ?? [])
+
+watch(() => route.query.search, (value) => {
+  const nextSearch = typeof value === 'string' ? value : ''
+  if (search.value === nextSearch) return
+  search.value = nextSearch
+  page.value = 1
+})
 
 function applyFilters() {
   page.value = 1
@@ -60,12 +67,14 @@ function changeSize(s: number) {
 function categoryName(r: RepairRequest) {
   const c = r.category
   if (!c) return '-'
+  if (c.name) return c.name
   if (locale.value === 'ru') return c.nameRu || c.nameEn || c.nameUz || '-'
   if (locale.value === 'en') return c.nameEn || c.nameRu || c.nameUz || '-'
   return c.nameUz || c.nameRu || c.nameEn || '-'
 }
 
 function categoryOptionName(c: Category) {
+  if (c.name) return c.name
   if (locale.value === 'ru') return c.nameRu || c.nameEn || c.nameUz
   if (locale.value === 'en') return c.nameEn || c.nameRu || c.nameUz
   return c.nameUz || c.nameRu || c.nameEn
@@ -73,6 +82,10 @@ function categoryOptionName(c: Category) {
 
 function customerName(r: RepairRequest) {
   return r.customer?.fullName ?? '-'
+}
+
+function openRequest(r: RepairRequest) {
+  navigateTo(`/admin/requests/${r.id}`)
 }
 
 const errorMessage = computed(() => {
@@ -173,7 +186,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
 <template>
   <AppContent
     :title="t('requests')"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('requests') }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('requests') }]"
   >
     <div class="card">
       <div class="card-header">
@@ -181,7 +194,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
           <h3 class="card-title mb-0">
             {{ t('allRequests') }}
           </h3>
-          <div class="d-flex flex-column flex-sm-row gap-2 flex-wrap">
+          <div class="requests-filters d-flex flex-column flex-sm-row gap-2 flex-nowrap">
             <div
               class="input-group input-group-sm search-box"
             >
@@ -306,9 +319,9 @@ const execRequired = computed(() => execAction.value !== 'resume')
             <tr v-else-if="!rows.length">
               <td
                 colspan="7"
-                class="text-center py-4"
+                class="text-center p-0"
               >
-                <div class="empty-state">
+                <div class="empty-state table-empty-state">
                   <i class="bi bi-wrench-adjustable" />
                   <p>{{ t('noRequestsFound') }}</p>
                 </div>
@@ -318,16 +331,14 @@ const execRequired = computed(() => execAction.value !== 'resume')
               v-for="r in rows"
               v-else
               :key="r.id"
+              class="request-row-link"
+              tabindex="0"
+              @click="openRequest(r)"
+              @keydown.enter="openRequest(r)"
             >
-              <td>
-                <NuxtLink :to="`/requests/${r.id}`">
-                  #{{ r.id }}
-                </NuxtLink>
-              </td>
+              <td>#{{ r.id }}</td>
               <td class="request-description-cell">
-                <NuxtLink :to="`/requests/${r.id}`">
-                  {{ r.description || categoryName(r) }}
-                </NuxtLink>
+                {{ r.description || categoryName(r) }}
               </td>
               <td>{{ customerName(r) }}</td>
               <td>{{ categoryName(r) }}</td>
@@ -344,14 +355,18 @@ const execRequired = computed(() => execAction.value !== 'resume')
                 {{ formatDate(r.createdAt, true) }}
               </td>
               <td class="text-end text-nowrap">
-                <div class="btn-group">
-                  <NuxtLink
-                    :to="`/requests/${r.id}`"
+                <div
+                  class="btn-group"
+                  @click.stop
+                >
+                  <button
+                    type="button"
                     class="btn btn-sm btn-outline-secondary"
                     :title="t('view')"
+                    @click="openRequest(r)"
                   >
                     <i class="bi bi-eye" />
-                  </NuxtLink>
+                  </button>
                   <button
                     type="button"
                     class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
@@ -364,7 +379,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
                     <li>
                       <NuxtLink
                         class="dropdown-item"
-                        :to="`/requests/${r.id}`"
+                        :to="`/admin/requests/${r.id}`"
                       >
                         <i class="bi bi-eye me-2" />{{ t('viewDetails') }}
                       </NuxtLink>

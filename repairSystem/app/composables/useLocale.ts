@@ -1,4 +1,4 @@
-import en from '~/locales/en'
+﻿import en from '~/locales/en'
 import ru from '~/locales/ru'
 import uz from '~/locales/uz'
 

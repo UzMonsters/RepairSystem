@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { NotificationSummary } from '~/types'
 
 withDefaults(defineProps<{
@@ -51,7 +51,7 @@ function timeAgo(value?: string) {
       >
         <div class="dropdown-divider" />
         <NuxtLink
-          :to="n.repairRequestId ? `/requests/${n.repairRequestId}` : '/notifications'"
+          :to="n.repairRequestId ? `/admin/requests/${n.repairRequestId}` : '/notifications'"
           class="dropdown-item"
         >
           <i class="bi bi-bell me-2" />

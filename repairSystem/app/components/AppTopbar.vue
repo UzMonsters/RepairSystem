@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { NotificationSummary, Page } from '~/types'
 
 const { user, logout } = useAuth()
@@ -12,10 +12,10 @@ const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value =
 const notifications = ref<NotificationSummary[]>([])
 const globalSearch = ref('')
 
-function submitGlobalSearch() {
+async function submitGlobalSearch() {
   const value = globalSearch.value.trim()
   if (!value) return
-  navigateTo({ path: '/requests', query: { search: value } })
+  await navigateTo({ path: '/admin/requests', query: { search: value } })
 }
 
 onMounted(async () => {
@@ -68,7 +68,7 @@ onMounted(async () => {
         </li>
         <NavNotifications
           :notifications="notifications"
-          see-all-url="/notifications"
+          see-all-url="/admin/notifications"
           :see-all-text="t('viewAllNotifications')"
         />
         <FullscreenToggle />

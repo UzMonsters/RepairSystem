@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 const props = defineProps({
   item: { type: Object, required: true },
   currentPath: { type: String, default: '/' }

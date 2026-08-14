@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 defineProps({
   messages: { type: Array, default: () => [] },
   seeAllUrl: { type: String, default: '#' },

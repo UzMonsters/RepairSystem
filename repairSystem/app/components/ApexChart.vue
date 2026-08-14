@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 const props = defineProps({
   type: { type: String, default: 'line' },
   series: { type: Array, required: true },

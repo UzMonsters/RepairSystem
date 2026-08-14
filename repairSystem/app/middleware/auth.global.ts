@@ -1,8 +1,8 @@
-export default defineNuxtRouteMiddleware(async (to) => {
+﻿export default defineNuxtRouteMiddleware(async (to) => {
   const { isAuthenticated, init } = useAuth()
 
-  if (to.path === '/login') return
+  if (to.path === '/' || to.path === '/contacts' || to.path === '/login' || to.path === '/admin/login') return
 
   await init()
-  if (!isAuthenticated.value) return navigateTo('/login')
+  if (!isAuthenticated.value) return navigateTo('/admin/login')
 })

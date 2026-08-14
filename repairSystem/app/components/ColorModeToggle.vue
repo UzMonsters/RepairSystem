@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 const modes = [
   { value: 'light', icon: 'bi-sun-fill', label: 'Light' },
   { value: 'dark', icon: 'bi-moon-fill', label: 'Dark' },

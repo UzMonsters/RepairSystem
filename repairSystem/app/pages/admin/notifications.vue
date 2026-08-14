@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { NotificationSummary, Page } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
@@ -70,7 +70,7 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
 <template>
   <AppContent
     :title="t('notifications')"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('notifications') }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('notifications') }]"
   >
     <Teleport to="body">
       <div
@@ -168,13 +168,13 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
               <td>{{ n.notificationType || '-' }}</td>
               <td>
                 {{ n.recipientType || '-' }}<template v-if="n.recipientId">
-                  · {{ n.recipientId }}
+                  В· {{ n.recipientId }}
                 </template>
               </td>
               <td>
                 <NuxtLink
                   v-if="n.repairRequestId"
-                  :to="`/requests/${n.repairRequestId}`"
+                  :to="`/admin/requests/${n.repairRequestId}`"
                 >
                   {{ n.repairRequestId ? `#${n.repairRequestId}` : '-' }}
                 </NuxtLink>

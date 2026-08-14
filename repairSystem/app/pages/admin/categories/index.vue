@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { Category, Page } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 
@@ -36,12 +36,14 @@ function changeSize(s: number) {
 }
 
 function localizedName(c: Category) {
+  if (c.name) return c.name
   if (locale.value === 'ru') return c.nameRu || c.nameEn
   if (locale.value === 'en') return c.nameEn || c.nameRu
   return c.nameUz || c.nameRu || c.nameEn
 }
 
 function localizedDescription(c: Category) {
+  if (c.description) return c.description
   if (locale.value === 'ru') return c.descriptionRu || c.descriptionEn || c.descriptionUz || '-'
   if (locale.value === 'en') return c.descriptionEn || c.descriptionRu || c.descriptionUz || '-'
   return c.descriptionUz || c.descriptionRu || c.descriptionEn || '-'
@@ -54,8 +56,7 @@ const form = ref({
   nameUz: '',
   descriptionEn: '',
   descriptionRu: '',
-  descriptionUz: '',
-  displayOrder: 0
+  descriptionUz: ''
 })
 const saving = ref(false)
 const saveError = ref('')
@@ -63,7 +64,7 @@ const saveError = ref('')
 function openCreate() {
   editingId.value = null
   activeLanguageTab.value = locale.value
-  form.value = { nameEn: '', nameRu: '', nameUz: '', descriptionEn: '', descriptionRu: '', descriptionUz: '', displayOrder: 0 }
+  form.value = { nameEn: '', nameRu: '', nameUz: '', descriptionEn: '', descriptionRu: '', descriptionUz: '' }
   saveError.value = ''
   showModal('category-modal')
 }
@@ -77,8 +78,7 @@ async function openEdit(c: Category) {
     nameUz: c.nameUz ?? '',
     descriptionEn: c.descriptionEn ?? '',
     descriptionRu: c.descriptionRu ?? '',
-    descriptionUz: c.descriptionUz ?? '',
-    displayOrder: c.displayOrder ?? 0
+    descriptionUz: c.descriptionUz ?? ''
   }
   saveError.value = ''
   try {
@@ -103,8 +103,7 @@ async function save() {
       nameUz: form.value.nameUz.trim(),
       descriptionEn: form.value.descriptionEn.trim() || undefined,
       descriptionRu: form.value.descriptionRu.trim() || undefined,
-      descriptionUz: form.value.descriptionUz.trim() || undefined,
-      displayOrder: form.value.displayOrder
+      descriptionUz: form.value.descriptionUz.trim() || undefined
     }
     if (editingId.value == null) {
       await apiFetch('/categories', { method: 'POST', body })
@@ -138,7 +137,7 @@ async function toggleActive(c: Category) {
 <template>
   <AppContent
     :title="t('categories')"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('categories') }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('categories') }]"
   >
     <div class="card">
       <div class="card-header">
@@ -180,7 +179,6 @@ async function toggleActive(c: Category) {
               <th>#</th>
               <th>{{ t('name') }}</th>
               <th>{{ t('description') }}</th>
-              <th>{{ t('displayOrder') }}</th>
               <th>{{ t('active') }}</th>
               <th class="text-end">
                 {{ t('actions') }}
@@ -190,7 +188,7 @@ async function toggleActive(c: Category) {
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="6"
+                colspan="5"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
@@ -198,7 +196,7 @@ async function toggleActive(c: Category) {
             </tr>
             <tr v-else-if="!rows.length">
               <td
-                colspan="6"
+                colspan="5"
                 class="text-center py-4"
               >
                 <div class="empty-state">
@@ -218,7 +216,6 @@ async function toggleActive(c: Category) {
               <td class="text-muted category-description-cell">
                 {{ localizedDescription(c) }}
               </td>
-              <td>{{ c.displayOrder ?? '-' }}</td>
               <td>
                 <span
                   class="badge"
@@ -234,6 +231,13 @@ async function toggleActive(c: Category) {
                 >
                   <i class="bi bi-pencil" />
                 </button>
+                <NuxtLink
+                  :to="`/admin/categories/${c.id}`"
+                  class="btn btn-sm btn-outline-secondary ms-1"
+                  :title="t('view')"
+                >
+                  <i class="bi bi-eye" />
+                </NuxtLink>
                 <button
                   type="button"
                   class="btn btn-sm btn-outline-secondary ms-1"
@@ -378,19 +382,6 @@ async function toggleActive(c: Category) {
             rows="3"
             maxlength="500"
           />
-        </div>
-        <div class="mb-3">
-          <label
-            for="category-order"
-            class="form-label"
-          >{{ t('displayOrder') }}</label>
-          <input
-            id="category-order"
-            v-model.number="form.displayOrder"
-            type="number"
-            min="0"
-            class="form-control"
-          >
         </div>
         <div
           v-if="saveError"

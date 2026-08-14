@@ -1,4 +1,4 @@
-import { Dropdown } from 'bootstrap'
+﻿import { Dropdown } from 'bootstrap'
 
 // Position every dropdown relative to the viewport instead of the nearest
 // positioned ancestor, so menus inside overflow-hidden/clipped containers

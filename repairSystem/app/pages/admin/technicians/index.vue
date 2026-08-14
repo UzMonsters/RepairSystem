@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { LanguageCode, Page, Technician } from '~/types'
 import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
@@ -206,7 +206,7 @@ function formatDate(value?: string) {
 <template>
   <AppContent
     :title="t('technicians')"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('technicians') }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('technicians') }]"
   >
     <div class="card">
       <div class="card-header">
@@ -504,7 +504,7 @@ function formatDate(value?: string) {
 
     <AppModal
       id="workload-modal"
-      :title="`${t('workload')} — ${rows.find(x => x.id === viewingId)?.fullName || ''}`"
+      :title="`${t('workload')} вЂ” ${rows.find(x => x.id === viewingId)?.fullName || ''}`"
     >
       <div
         v-if="loadingWorkload"
@@ -551,7 +551,7 @@ function formatDate(value?: string) {
 
     <AppModal
       id="telegram-link-modal"
-      :title="`${t('telegramLinkTitle')} — ${telegramTech?.fullName || ''}`"
+      :title="`${t('telegramLinkTitle')} вЂ” ${telegramTech?.fullName || ''}`"
     >
       <div
         v-if="generatingLink"

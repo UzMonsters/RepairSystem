@@ -45,6 +45,9 @@ export default defineNuxtConfig({
   ],
 
   runtimeConfig: {
+    public: {
+      telegramBotUsername: process.env.NUXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'repairauto_bot'
+    },
     backendUrl: process.env.NUXT_BACKEND_URL
       || (process.env.NUXT_BACKEND_HOSTPORT ? `http://${process.env.NUXT_BACKEND_HOSTPORT}` : undefined)
       || 'http://localhost:8080'

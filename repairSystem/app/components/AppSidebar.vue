@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { menu } from '~/lib/menu'
 
 const { user } = useAuth()
@@ -64,7 +64,7 @@ function closeSidebar() {
   >
     <div class="sidebar-brand">
       <NuxtLink
-        to="/"
+        to="/admin"
         class="brand-link"
       >
         <img

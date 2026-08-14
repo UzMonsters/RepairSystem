@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { CrmUser, Page, UserRole } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 
@@ -127,7 +127,7 @@ async function toggleActive(u: CrmUser) {
 <template>
   <AppContent
     :title="t('users')"
-    :breadcrumbs="[{ label: t('home'), to: '/' }, { label: t('users') }]"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('users') }]"
   >
     <div
       v-if="!isAdmin"
