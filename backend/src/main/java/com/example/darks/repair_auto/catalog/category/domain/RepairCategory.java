@@ -51,9 +51,6 @@ public class RepairCategory {
     @Column(nullable = false)
     private boolean active;
 
-    @Column(name = "display_order", nullable = false)
-    private int displayOrder;
-
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -78,7 +75,6 @@ public class RepairCategory {
             String descriptionEn,
             String descriptionRu,
             String descriptionUz,
-            int displayOrder,
             Boolean active,
             OffsetDateTime now) {
         this.nameEn = nameEn;
@@ -90,7 +86,6 @@ public class RepairCategory {
         this.descriptionEn = descriptionEn;
         this.descriptionUz = descriptionUz;
         this.descriptionRu = descriptionRu;
-        this.displayOrder = displayOrder;
         this.active = active == null || active;
         this.createdAt = now;
         this.updatedAt = now;
@@ -140,10 +135,6 @@ public class RepairCategory {
         return active;
     }
 
-    public int getDisplayOrder() {
-        return displayOrder;
-    }
-
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
@@ -162,7 +153,6 @@ public class RepairCategory {
             String descriptionEn,
             String descriptionRu,
             String descriptionUz,
-            int displayOrder,
             OffsetDateTime now) {
         this.nameEn = nameEn;
         this.nameUz = nameUz;
@@ -173,17 +163,11 @@ public class RepairCategory {
         this.descriptionEn = descriptionEn;
         this.descriptionUz = descriptionUz;
         this.descriptionRu = descriptionRu;
-        this.displayOrder = displayOrder;
         this.updatedAt = now;
     }
 
     public void setActive(boolean active, OffsetDateTime now) {
         this.active = active;
-        this.updatedAt = now;
-    }
-
-    public void setDisplayOrder(int displayOrder, OffsetDateTime now) {
-        this.displayOrder = displayOrder;
         this.updatedAt = now;
     }
 }

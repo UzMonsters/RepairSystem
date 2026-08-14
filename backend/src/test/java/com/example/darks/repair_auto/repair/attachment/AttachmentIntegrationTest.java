@@ -180,7 +180,7 @@ class AttachmentIntegrationTest extends PostgreSqlIntegrationTest {
         manager = createUser("Manager", "manager@example.com", "ManagerPass123!", UserRole.MANAGER);
         customerId = customerService.create(new CustomerCreateRequest("Vali Tester", "90 111 22 33", LanguageCode.UZ)).id();
         categoryId = repairCategoryService.create(new CategoryCreateRequest(
-                "Washer", "Стиральная машина", "Kir yuvish mashinasi", null, null, null, 10, true)).id();
+                "Washer", "Стиральная машина", "Kir yuvish mashinasi", null, null, null, true)).id();
         technicianId = technicianService.create(new TechnicianCreateRequest(
                 "Technician",
                 "+998902223344",

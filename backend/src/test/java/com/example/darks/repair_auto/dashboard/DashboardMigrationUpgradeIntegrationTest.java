@@ -68,9 +68,9 @@ class DashboardMigrationUpgradeIntegrationTest {
                 insert into repair_categories (
                     name_uz, name_ru, name_en,
                     name_uz_normalized, name_ru_normalized, name_en_normalized,
-                    active, display_order
+                    active
                 ) values ('Konditsioner', 'Кондиционер', 'Air Conditioner',
-                    'dashboard-konditsioner', 'dashboard-conditioner-ru', 'dashboard-conditioner', true, 10)
+                    'dashboard-konditsioner', 'dashboard-conditioner-ru', 'dashboard-conditioner', true)
                 returning id
                 """, Long.class);
         Long completedRequest = request(jdbcTemplate, userId, customerId, categoryId, "REP-DASH-UP-001", "COMPLETED");

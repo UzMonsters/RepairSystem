@@ -13,7 +13,6 @@ public record CategoryDetailResponse(
         String descriptionRu,
         String descriptionUz,
         boolean active,
-        int displayOrder,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {
 }

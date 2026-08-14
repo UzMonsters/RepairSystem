@@ -105,9 +105,9 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
         customerId = customerService.create(new CustomerCreateRequest("Ali Valiyev", "90 111 22 33", LanguageCode.UZ)).id();
         secondCustomerId = customerService.create(new CustomerCreateRequest("Ivan Petrov", "90 222 33 44", LanguageCode.RU)).id();
         categoryId = repairCategoryService.create(new CategoryCreateRequest(
-                "Air Conditioner", "Konditsioner RU", "Konditsioner", null, null, null, 10, true)).id();
+                "Air Conditioner", "Konditsioner RU", "Konditsioner", null, null, null, true)).id();
         secondCategoryId = repairCategoryService.create(
-                new CategoryCreateRequest("Phone", "Telefon RU", "Telefon", null, null, null, 20, true)).id();
+                new CategoryCreateRequest("Phone", "Telefon RU", "Telefon", null, null, null, true)).id();
     }
 
     @Test

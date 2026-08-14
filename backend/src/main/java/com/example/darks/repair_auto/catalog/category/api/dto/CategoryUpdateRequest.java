@@ -1,8 +1,6 @@
 package com.example.darks.repair_auto.catalog.category.api.dto;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record CategoryUpdateRequest(
@@ -11,6 +9,5 @@ public record CategoryUpdateRequest(
         @NotBlank @Size(max = 120) String nameUz,
         @Size(max = 500) String descriptionEn,
         @Size(max = 500) String descriptionRu,
-        @Size(max = 500) String descriptionUz,
-        @NotNull @Min(0) Integer displayOrder) {
+        @Size(max = 500) String descriptionUz) {
 }

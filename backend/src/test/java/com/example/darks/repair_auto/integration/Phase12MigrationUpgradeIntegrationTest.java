@@ -61,11 +61,11 @@ class Phase12MigrationUpgradeIntegrationTest {
                 insert into repair_categories (
                     name_uz, name_ru, name_en,
                     name_uz_normalized, name_ru_normalized, name_en_normalized,
-                    active, display_order
+                    active
                 ) values (
                     'Upgrade', 'Upgrade RU', 'Upgrade EN',
                     'phase12-upgrade-uz', 'phase12-upgrade-ru', 'phase12-upgrade-en',
-                    true, 1
+                    true
                 )
                 returning id
                 """, Long.class);

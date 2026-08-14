@@ -23,7 +23,6 @@ public final class CategoryMapper {
                 category.getDescriptionRu(),
                 category.getDescriptionUz(),
                 category.isActive(),
-                category.getDisplayOrder(),
                 category.getCreatedAt(),
                 category.getUpdatedAt());
     }
@@ -42,7 +41,6 @@ public final class CategoryMapper {
                 category.getDescriptionRu(),
                 category.getDescriptionUz(),
                 category.isActive(),
-                category.getDisplayOrder(),
                 category.getCreatedAt(),
                 category.getUpdatedAt());
     }

@@ -157,7 +157,7 @@ class RepairReviewIntegrationTest extends PostgreSqlIntegrationTest {
         telegramChatId = 81001L;
         linkTelegram(customerId, telegramUserId, telegramChatId);
         categoryId = categoryService.create(new CategoryCreateRequest(
-                "Washer", "Стиральная машина", "Kir yuvish mashinasi", null, null, null, 10, true)).id();
+                "Washer", "Стиральная машина", "Kir yuvish mashinasi", null, null, null, true)).id();
         technicianId = technicianService.create(new TechnicianCreateRequest(
                 "Usta Karim", "+998 90 222 33 44", "Appliances", null, 5, LanguageCode.UZ, true)).id();
     }

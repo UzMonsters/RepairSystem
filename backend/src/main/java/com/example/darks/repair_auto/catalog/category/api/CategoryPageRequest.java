@@ -13,18 +13,16 @@ public final class CategoryPageRequest {
             "nameUz",
             "nameRu",
             "active",
-            "displayOrder",
             "createdAt",
             "updatedAt");
 
-    private static final String DEFAULT_SORT = "displayOrder,asc";
+    private static final String DEFAULT_SORT = "id,asc";
     private static final Map<String, String> SORT_PROPERTIES = Map.of(
             "id", "id",
             "nameEn", "nameEn",
             "nameUz", "nameUz",
             "nameRu", "nameRu",
             "active", "active",
-            "displayOrder", "displayOrder",
             "createdAt", "createdAt",
             "updatedAt", "updatedAt");
 

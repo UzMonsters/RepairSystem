@@ -183,7 +183,6 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
                 null,
                 null,
                 null,
-                10,
                 true)).id();
         technicianId = technicianService.create(new TechnicianCreateRequest(
                 "Technician One",

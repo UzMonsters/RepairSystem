@@ -73,9 +73,9 @@ class ReviewMigrationUpgradeIntegrationTest {
                 insert into repair_categories (
                     name_uz, name_ru, name_en,
                     name_uz_normalized, name_ru_normalized, name_en_normalized,
-                    active, display_order
+                    active
                 ) values ('Konditsioner', 'Konditsioner RU', 'Air Conditioner',
-                    'konditsioner', 'konditsioner-ru', 'air-conditioner', true, 10)
+                    'konditsioner', 'konditsioner-ru', 'air-conditioner', true)
                 returning id
                 """, Long.class);
         Long requestId = jdbcTemplate.queryForObject("""
