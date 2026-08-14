@@ -72,7 +72,7 @@ class TelegramCustomerBotServiceTest {
         RepairCategoryRepository categories = mock(RepairCategoryRepository.class);
         RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
         when(sessions.findByTelegramUserIdForUpdate(19019L)).thenReturn(Optional.of(session));
-        when(categories.findByActiveTrueOrderByDisplayOrderAscIdAsc()).thenReturn(List.of(category));
+        when(categories.findByActiveTrueOrderByIdAsc()).thenReturn(List.of(category));
         TelegramCustomerBotService service = new TelegramCustomerBotService(
                 sessions,
                 categories,

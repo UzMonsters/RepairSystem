@@ -442,7 +442,7 @@ public class TelegramCustomerBotService {
         }
         session.clearDraft(now());
         session.state(TelegramCustomerSessionState.SELECTING_CATEGORY, now());
-        List<RepairCategory> categories = categoryRepository.findByActiveTrueOrderByDisplayOrderAscIdAsc();
+        List<RepairCategory> categories = categoryRepository.findByActiveTrueOrderByIdAsc();
         botClient.sendMessage(
                 session.getTelegramChatId(),
                 messages.get(session.getLanguage(), "choose_category"),

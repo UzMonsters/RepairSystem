@@ -24,7 +24,7 @@ public interface RepairCategoryRepository
             """)
     Optional<RepairCategory> findByIdForUpdate(@Param("id") Long id);
 
-    List<RepairCategory> findByActiveTrueOrderByDisplayOrderAscIdAsc();
+    List<RepairCategory> findByActiveTrueOrderByIdAsc();
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
