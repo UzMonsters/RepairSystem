@@ -146,11 +146,16 @@ function formatTime(value?: string) {
                   <tr
                     v-for="r in recentRequests?.content"
                     :key="r.id"
+                    class="dashboard-request-row"
+                    tabindex="0"
+                    @click="navigateTo(`/admin/requests/${r.id}`)"
+                    @keydown.enter="navigateTo(`/admin/requests/${r.id}`)"
                   >
-                    <td>
-                      <NuxtLink :to="`/admin/requests/${r.id}`">
-                        {{ r.description || categoryName(r.category) }}
-                      </NuxtLink>
+                    <td
+                      class="dashboard-description"
+                      :title="r.description || categoryName(r.category)"
+                    >
+                      {{ r.description || categoryName(r.category) }}
                     </td>
                     <td>{{ r.customer?.fullName || '-' }}</td>
                     <td>{{ categoryName(r.category) }}</td>
@@ -169,7 +174,7 @@ function formatTime(value?: string) {
           <div class="card dash-card h-100">
             <div class="card-header">
               <h3 class="card-title mb-0">
-                {{ t('requests') }} В· {{ t('status') }}
+                {{ t('requests') }} · {{ t('status') }}
               </h3>
             </div>
             <div class="card-body">

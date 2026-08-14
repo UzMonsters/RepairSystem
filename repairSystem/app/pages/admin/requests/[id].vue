@@ -24,12 +24,27 @@ const { data: attachments, refresh: refreshAttachments } = await useAsyncData(`r
   apiFetch<Attachment[]>(`/requests/${id}/attachments`)
 )
 
-const { data: execution, refresh: refreshExecution } = await useAsyncData(`request-${id}-execution`, () =>
-  apiFetch<RepairExecution>(`/requests/${id}/execution`).catch((e) => {
-    if (getApiErrorCode(e) === 'REPAIR_EXECUTION_NOT_FOUND') return null
+const execution = ref<RepairExecution | null>(null)
+const executionStatuses = new Set(['IN_PROGRESS', 'WAITING_FOR_PARTS', 'COMPLETED', 'CANCELLED'])
+
+async function refreshExecution() {
+  if (!executionStatuses.has(request.value?.status ?? '')) {
+    execution.value = null
+    return
+  }
+
+  try {
+    execution.value = await apiFetch<RepairExecution>(`/requests/${id}/execution`)
+  } catch (e) {
+    if (getApiErrorCode(e) === 'REPAIR_EXECUTION_NOT_FOUND') {
+      execution.value = null
+      return
+    }
     throw e
-  })
-)
+  }
+}
+
+await refreshExecution()
 
 const { data: statusHistory, refresh: refreshStatusHistory } = await useAsyncData(`request-${id}-status-history`, () =>
   apiFetch<StatusHistoryItem[]>(`/requests/${id}/status-history`)
@@ -43,13 +58,8 @@ const message = ref('')
 const actionError = ref('')
 
 async function refreshRequestData() {
-  await Promise.all([
-    refresh(),
-    refreshAssignments(),
-    refreshAttachments(),
-    refreshExecution(),
-    refreshStatusHistory()
-  ])
+  await Promise.all([refresh(), refreshAssignments(), refreshAttachments(), refreshStatusHistory()])
+  await refreshExecution()
 }
 
 const errorMessage = computed(() => {
@@ -611,7 +621,7 @@ function can(action: string) {
             </h3>
           </div>
           <div class="card-body">
-            <div class="row g-2 mb-3">
+            <div class="attachment-upload-grid mb-3">
               <div class="col-md-5">
                 <select
                   v-model="attachmentType"
@@ -631,7 +641,7 @@ function can(action: string) {
                   </option>
                 </select>
               </div>
-              <div class="col-md-7">
+              <div class="col-md-7 attachment-file-column">
                 <div class="file-input-control">
                   <input
                     id="request-attachment-file"
@@ -656,7 +666,7 @@ function can(action: string) {
             </div>
             <button
               type="button"
-              class="btn btn-primary btn-sm mb-3"
+              class="btn btn-primary btn-sm attachment-upload-button mb-3"
               :disabled="uploadingAttachment || !attachmentFile"
               @click="uploadAttachment"
             >
@@ -671,17 +681,17 @@ function can(action: string) {
             <div
               v-for="attachment in attachments"
               :key="attachment.id"
-              class="d-flex align-items-center justify-content-between border-top py-2 gap-2"
+              class="attachment-list-item"
             >
-              <div class="text-truncate">
-                <div class="fw-semibold text-truncate">
+              <div class="attachment-info">
+                <div class="fw-semibold attachment-file-name">
                   {{ attachment.originalFileName }}
                 </div>
-                <div class="small text-muted">
-                  {{ t(`attachmentType.${attachment.type}`) }} В· {{ formatDate(attachment.uploadedAt) }}
+                <div class="small text-muted attachment-meta">
+                  {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
                 </div>
               </div>
-              <div class="btn-group btn-group-sm flex-shrink-0">
+              <div class="btn-group btn-group-sm attachment-actions">
                 <button
                   type="button"
                   class="btn btn-outline-primary"

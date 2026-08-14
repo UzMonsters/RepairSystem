@@ -12,6 +12,20 @@ const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value =
 const notifications = ref<NotificationSummary[]>([])
 const globalSearch = ref('')
 
+function toggleSidebar() {
+  const mobile = window.innerWidth <= 992
+  const body = document.body
+
+  if (mobile) {
+    body.classList.toggle('sidebar-open')
+    body.classList.toggle('sidebar-collapse', !body.classList.contains('sidebar-open'))
+    return
+  }
+
+  body.classList.toggle('sidebar-collapse')
+  body.classList.remove('sidebar-open')
+}
+
 async function submitGlobalSearch() {
   const value = globalSearch.value.trim()
   if (!value) return
@@ -38,7 +52,7 @@ onMounted(async () => {
             class="nav-link"
             title="Toggle sidebar"
             aria-label="Toggle sidebar"
-            data-lte-toggle="sidebar"
+            @click="toggleSidebar"
           >
             <i class="bi bi-list" />
           </button>

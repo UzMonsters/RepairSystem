@@ -71,7 +71,19 @@ async function saveSettings() {
     >
       {{ t('savedSuccessfully') }}
     </div>
-    <div class="row g-4">
+    <div
+      v-if="loading"
+      class="settings-loading text-center py-5"
+    >
+      <div
+        class="spinner-border text-primary"
+        role="status"
+      />
+    </div>
+    <div
+      v-else
+      class="row g-4 settings-page"
+    >
       <div class="col-lg-6">
         <div class="card h-100">
           <div class="card-header">
@@ -105,13 +117,13 @@ async function saveSettings() {
                   :disabled="loading"
                 >
                   <option value="DD_SLASH_MM_SLASH_YYYY">
-                    dd/mm/yyyy
+                    dd/mm/yyyy (14/08/2026)
                   </option>
                   <option value="DD_MM_YYYY">
-                    dd_mm_yyyy
+                    dd_mm_yyyy (14.08.2026)
                   </option>
                   <option value="YYYY_MM_DD">
-                    yyyy_mm_dd
+                    yyyy_mm_dd (2026-08-14)
                   </option>
                 </select>
               </div>
@@ -153,6 +165,11 @@ async function saveSettings() {
                 type="submit"
                 :disabled="saving || loading"
               >
+                <span
+                  v-if="saving"
+                  class="spinner-border spinner-border-sm me-2"
+                  role="status"
+                />
                 {{ saving ? t('saving') : t('save') }}
               </button>
             </form>
@@ -200,3 +217,17 @@ async function saveSettings() {
     </div>
   </AppContent>
 </template>
+
+<style scoped>
+.settings-page :is(.form-control, .form-select) {
+  background-color: #172447 !important;
+  border-color: #2b3b68 !important;
+  color: #edf2ff !important;
+  color-scheme: dark;
+}
+
+.settings-page .form-select option {
+  background: #172447;
+  color: #edf2ff;
+}
+</style>

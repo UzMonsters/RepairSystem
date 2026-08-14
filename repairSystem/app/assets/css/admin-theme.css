@@ -816,16 +816,40 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   transition: width 0.4s ease;
 }
 
+.dashboard-request-row {
+  cursor: pointer;
+}
+
+.dashboard-request-row:focus-visible {
+  outline: 2px solid var(--rs-primary);
+  outline-offset: -2px;
+}
+
+.dashboard-description {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ------------------------------------------------------------
    Forms
    ------------------------------------------------------------ */
 .form-control,
 .form-select,
+.pagination-size,
+select,
 .form-floating > .form-control {
   background: rgba(255, 255, 255, 0.05);
-  border-color: var(--rs-border);
+  border: 1px solid var(--rs-border) !important;
   color: var(--rs-text);
   border-radius: 10px;
+}
+
+.form-select:hover,
+.pagination-size:hover,
+select:hover {
+  border-color: rgba(203, 60, 255, 0.7) !important;
 }
 
 .form-control::placeholder {
@@ -896,10 +920,72 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   color: var(--rs-muted);
 }
 
+.attachment-upload-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.85fr) minmax(0, 1.15fr);
+  gap: 0.5rem;
+}
+
+.attachment-upload-grid > [class*="col-"] {
+  width: auto;
+  padding: 0;
+}
+
+.attachment-file-column,
+.attachment-file-column .file-input-control {
+  min-width: 0;
+}
+
+.attachment-upload-button {
+  min-width: 96px;
+}
+
+.attachment-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--rs-border);
+}
+
+.attachment-info {
+  min-width: 0;
+}
+
+.attachment-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 575.98px) {
+  .attachment-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .attachment-list-item {
+    align-items: flex-start;
+  }
+}
+
 .form-control:focus,
-.form-select:focus {
+.form-select:focus,
+.pagination-size:focus,
+select:focus {
   background: rgba(255, 255, 255, 0.06);
-  border-color: var(--rs-primary);
+  border-color: var(--rs-primary) !important;
   box-shadow: 0 0 0 0.2rem rgba(203, 60, 255, 0.14);
   color: var(--rs-text);
 }
@@ -908,7 +994,9 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   color: var(--rs-text);
 }
 
-.form-select option {
+.form-select option,
+.pagination-size option,
+select option {
   background: var(--rs-panel);
   color: var(--rs-text);
 }
