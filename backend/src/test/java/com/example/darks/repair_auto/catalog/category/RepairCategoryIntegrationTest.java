@@ -90,12 +90,11 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nameEn":"Air Conditioner","nameRu":"Konditsioner RU","nameUz":"Konditsioner","descriptionEn":"AC repair","descriptionRu":"Remont","descriptionUz":"Ta'mirlash","displayOrder":10,"active":true}
+                                {"nameEn":"Air Conditioner","nameRu":"Konditsioner RU","nameUz":"Konditsioner","descriptionEn":"AC repair","descriptionRu":"Remont","descriptionUz":"Ta'mirlash","active":true}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nameEn").value("Air Conditioner"))
                 .andExpect(jsonPath("$.nameUz").value("Konditsioner"))
-                .andExpect(jsonPath("$.displayOrder").value(10))
                 .andExpect(jsonPath("$.nameUzNormalized").doesNotExist());
 
         assertThat(categoryNameNormalizer.normalize("  KONDITSIONER  ")).isEqualTo("konditsioner");
@@ -103,7 +102,7 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenManagerWhenReadingOrWritingCategoriesThenOnlyReadsAreAllowed() throws Exception {
-        Long id = createCategory("Phone", "Telefon", 20).id();
+        Long id = createCategory("Phone", "Telefon").id();
 
         mockMvc.perform(get("/api/v1/categories").with(user(new AuthenticatedUser(manager))))
                 .andExpect(status().isOk());
@@ -115,7 +114,7 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(manager)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nameEn":"New","nameRu":"New RU","nameUz":"New UZ","displayOrder":30}
+                                {"nameEn":"New","nameRu":"New RU","nameUz":"New UZ"}
                                 """))
                 .andExpect(status().isForbidden());
 
@@ -123,7 +122,7 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(manager)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nameEn":"Phone Updated","nameRu":"Telefon Updated","nameUz":"Telefon Yangilangan","displayOrder":30}
+                                {"nameEn":"Phone Updated","nameRu":"Telefon Updated","nameUz":"Telefon Yangilangan"}
                                 """))
                 .andExpect(status().isForbidden());
 
@@ -134,20 +133,12 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                                 {"active":false}
                                 """))
                 .andExpect(status().isForbidden());
-
-        mockMvc.perform(patch("/api/v1/categories/reorder")
-                        .with(user(new AuthenticatedUser(manager)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"items":[{"categoryId":%d,"displayOrder":1}]}
-                                """.formatted(id)))
-                .andExpect(status().isForbidden());
     }
 
     @Test
     void givenCategoriesWhenListingThenSearchActiveDefaultSortAndSortGuardsWork() throws Exception {
-        createCategory("B", "B RU", 20);
-        createCategory("A", "A RU", 10);
+        createCategory("B", "B RU");
+        createCategory("A", "A RU");
 
         mockMvc.perform(get("/api/v1/categories")
                         .with(user(new AuthenticatedUser(admin)))
@@ -179,13 +170,13 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenDuplicateOrInvalidCategoryRequestsThenStableErrorsReturn() throws Exception {
-        createCategory("Phone", "Telefon", 10);
+        createCategory("Phone", "Telefon");
 
         mockMvc.perform(post("/api/v1/categories")
                         .with(user(new AuthenticatedUser(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nameEn":"Other EN","nameRu":"Other","nameUz":" phone ","displayOrder":20}
+                                {"nameEn":"Other EN","nameRu":"Other","nameUz":" phone "}
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CATEGORY_NAME_UZ_ALREADY_EXISTS"));
@@ -194,7 +185,7 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nameEn":"Other EN","nameRu":"telefon","nameUz":"Other UZ","displayOrder":20}
+                                {"nameEn":"Other EN","nameRu":"telefon","nameUz":"Other UZ"}
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CATEGORY_NAME_RU_ALREADY_EXISTS"));
@@ -203,7 +194,7 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nameEn":"phone","nameRu":"Other RU","nameUz":"Other UZ","displayOrder":20}
+                                {"nameEn":"phone","nameRu":"Other RU","nameUz":"Other UZ"}
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CATEGORY_NAME_EN_ALREADY_EXISTS"));
@@ -212,18 +203,17 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
     @Test
     void givenCategoryWhenUpdatingArchivingReactivatingOrLookingUpMissingThenExpectedResponsesReturn()
             throws Exception {
-        Long id = createCategory("Phone", "Telefon", 10).id();
+        Long id = createCategory("Phone", "Telefon").id();
 
         mockMvc.perform(put("/api/v1/categories/{id}", id)
                         .with(user(new AuthenticatedUser(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"nameEn":"Computer","nameRu":"Kompyuter","nameUz":"Kompyuter UZ","descriptionEn":"PC EN","descriptionRu":"PC RU","descriptionUz":"PC","displayOrder":15}
+                                {"nameEn":"Computer","nameRu":"Kompyuter","nameUz":"Kompyuter UZ","descriptionEn":"PC EN","descriptionRu":"PC RU","descriptionUz":"PC"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nameEn").value("Computer"))
-                .andExpect(jsonPath("$.nameUz").value("Kompyuter UZ"))
-                .andExpect(jsonPath("$.displayOrder").value(15));
+                .andExpect(jsonPath("$.nameUz").value("Kompyuter UZ"));
 
         mockMvc.perform(patch("/api/v1/categories/{id}/activation", id)
                         .with(user(new AuthenticatedUser(admin)))
@@ -249,34 +239,8 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
-    void givenReorderWhenValidThenOrdersChangeAndWhenInvalidThenRollbackOccurs() throws Exception {
-        Long first = createCategory("First", "First RU", 10).id();
-        Long second = createCategory("Second", "Second RU", 20).id();
-
-        mockMvc.perform(patch("/api/v1/categories/reorder")
-                        .with(user(new AuthenticatedUser(admin)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"items":[{"categoryId":%d,"displayOrder":30},{"categoryId":%d,"displayOrder":40}]}
-                                """.formatted(first, second)))
-                .andExpect(status().isNoContent());
-
-        mockMvc.perform(patch("/api/v1/categories/reorder")
-                        .with(user(new AuthenticatedUser(admin)))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"items":[{"categoryId":%d,"displayOrder":50},{"categoryId":%d,"displayOrder":60}]}
-                                """.formatted(first, first)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_CATEGORY_ORDER"));
-
-        assertThat(repairCategoryRepository.findById(first).orElseThrow().getDisplayOrder()).isEqualTo(30);
-        assertThat(repairCategoryRepository.findById(second).orElseThrow().getDisplayOrder()).isEqualTo(40);
-    }
-
-    @Test
     void givenAnonymousDeleteOrConcurrentDuplicateCreateThenExpectedProtectionApplies() throws Exception {
-        Long id = createCategory("Phone", "Telefon", 10).id();
+        Long id = createCategory("Phone", "Telefon").id();
 
         mockMvc.perform(get("/api/v1/categories"))
                 .andExpect(status().isUnauthorized());
@@ -286,9 +250,9 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
 
         List<Object> results = runConcurrently(
                 () -> repairCategoryService.create(
-                        new CategoryCreateRequest("AC EN", "AC RU", "AC", null, null, null, 20, true)),
+                        new CategoryCreateRequest("AC EN", "AC RU", "AC", null, null, null, true)),
                 () -> repairCategoryService.create(
-                        new CategoryCreateRequest("Other EN", "Other RU", " ac ", null, null, null, 30, true)));
+                        new CategoryCreateRequest("Other EN", "Other RU", " ac ", null, null, null, true)));
 
         assertThat(results).anyMatch(result -> result instanceof BusinessRuleException
                 && ((BusinessRuleException) result).code().equals("CATEGORY_NAME_UZ_ALREADY_EXISTS"));
@@ -304,13 +268,11 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                 "remont holodilnikov ru",
                 "konditsioner tamirlash uz",
                 "English Description",
-                null, // Russian description missing!
+                null,
                 "Uzbek Description",
-                1,
                 true,
                 OffsetDateTime.now(ZoneOffset.UTC)));
 
-        // 1. Accept-Language: uz -> UZ name and UZ description
         mockMvc.perform(get("/api/v1/categories/{id}", category.getId())
                         .header("Accept-Language", "uz")
                         .with(user(new AuthenticatedUser(manager))))
@@ -318,7 +280,6 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath("$.name").value("Konditsioner Ta'mirlash UZ"))
                 .andExpect(jsonPath("$.description").value("Uzbek Description"));
 
-        // 2. Accept-Language: ru -> RU name, but RU description missing so fallback to UZ description
         mockMvc.perform(get("/api/v1/categories/{id}", category.getId())
                         .header("Accept-Language", "ru")
                         .with(user(new AuthenticatedUser(manager))))
@@ -326,7 +287,6 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath("$.name").value("Remont Holodilnikov RU"))
                 .andExpect(jsonPath("$.description").value("Uzbek Description"));
 
-        // 3. Accept-Language: en -> EN name and EN description
         mockMvc.perform(get("/api/v1/categories/{id}", category.getId())
                         .header("Accept-Language", "en")
                         .with(user(new AuthenticatedUser(manager))))
@@ -334,7 +294,6 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(jsonPath("$.name").value("Fridge Repair EN"))
                 .andExpect(jsonPath("$.description").value("English Description"));
 
-        // 4. List endpoint also includes localized name and description
         mockMvc.perform(get("/api/v1/categories")
                         .header("Accept-Language", "uz")
                         .with(user(new AuthenticatedUser(manager))))
@@ -345,10 +304,9 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
 
     private com.example.darks.repair_auto.catalog.category.api.dto.CategoryDetailResponse createCategory(
             String nameUz,
-            String nameRu,
-            int displayOrder) {
+            String nameRu) {
         return repairCategoryService.create(
-                new CategoryCreateRequest(nameUz, nameRu, nameUz, null, null, null, displayOrder, true));
+                new CategoryCreateRequest(nameUz, nameRu, nameUz, null, null, null, true));
     }
 
     private User createUser(String fullName, String email, String password, UserRole role) {

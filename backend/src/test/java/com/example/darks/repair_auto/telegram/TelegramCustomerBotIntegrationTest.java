@@ -122,7 +122,6 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
                 null,
                 null,
                 null,
-                10,
                 true)).id();
     }
 

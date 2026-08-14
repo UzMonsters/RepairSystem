@@ -33,11 +33,9 @@ class Phase2SchemaIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(constraintExists("repair_categories", "repair_categories_name_uz_normalized_unique")).isTrue();
         assertThat(constraintExists("repair_categories", "repair_categories_name_ru_normalized_unique")).isTrue();
         assertThat(constraintExists("technicians", "technicians_maximum_concurrent_requests_check")).isTrue();
-        assertThat(constraintExists("repair_categories", "repair_categories_display_order_check")).isTrue();
 
         assertThat(indexExists("customers_telegram_user_id_unique")).isTrue();
         assertThat(indexExists("technicians_telegram_user_id_unique")).isTrue();
-        assertThat(indexExists("idx_repair_categories_display_order")).isTrue();
     }
 
     @Test

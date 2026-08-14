@@ -268,9 +268,9 @@ class DashboardIntegrationTest extends PostgreSqlIntegrationTest {
         Long technicianA = technician("Technician A", "+998902222221", true, 4);
         Long technicianB = technician("Technician B", "+998902222222", true, 2);
         Long inactiveTechnician = technician("Inactive Technician", "+998902222223", false, 5);
-        Long categoryA = category("Air Conditioner", "Кондиционер", "Konditsioner", true, 10);
-        Long categoryB = category("Washer", "Стиральная машина", "Kir yuvish mashinasi", true, 20);
-        Long categoryC = category("Archived Printer", "Архивный принтер", "Arxiv printer", false, 30);
+        Long categoryA = category("Air Conditioner", "Кондиционер", "Konditsioner", true);
+        Long categoryB = category("Washer", "Стиральная машина", "Kir yuvish mashinasi", true);
+        Long categoryC = category("Archived Printer", "Архивный принтер", "Arxiv printer", false);
 
         Long beforeNew = request(customerId, categoryA, "NEW", BEFORE_TODAY, "REP-DASH-001");
         Long todayNew = request(customerId, categoryA, "NEW", BUSINESS_TODAY, "REP-DASH-002");
@@ -324,16 +324,16 @@ class DashboardIntegrationTest extends PostgreSqlIntegrationTest {
                 """, Long.class, fullName, phone, maximumConcurrentRequests, active);
     }
 
-    private Long category(String nameEn, String nameRu, String nameUz, boolean active, int displayOrder) {
+    private Long category(String nameEn, String nameRu, String nameUz, boolean active) {
         String suffix = nameEn.toLowerCase().replace(" ", "-");
         return jdbcTemplate.queryForObject("""
                 insert into repair_categories (
                     name_uz, name_ru, name_en,
                     name_uz_normalized, name_ru_normalized, name_en_normalized,
-                    active, display_order
-                ) values (?, ?, ?, ?, ?, ?, ?, ?)
+                    active
+                ) values (?, ?, ?, ?, ?, ?, ?)
                 returning id
-                """, Long.class, nameUz, nameRu, nameEn, suffix + "-uz", suffix + "-ru", suffix, active, displayOrder);
+                """, Long.class, nameUz, nameRu, nameEn, suffix + "-uz", suffix + "-ru", suffix, active);
     }
 
     private Long request(Long customerId, Long categoryId, String status, OffsetDateTime createdAt, String number) {

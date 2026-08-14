@@ -126,7 +126,7 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
         manager = createUser("Manager", "manager@example.com", "ManagerPass123!", UserRole.MANAGER);
         customerId = customerService.create(new CustomerCreateRequest("Ali Valiyev", "90 111 22 33", LanguageCode.UZ)).id();
         categoryId = repairCategoryService.create(new CategoryCreateRequest(
-                "Air Conditioner", "Konditsioner RU", "Konditsioner", null, null, null, 10, true)).id();
+                "Air Conditioner", "Konditsioner RU", "Konditsioner", null, null, null, true)).id();
         technicianId = createTechnician("Alex", "+998902223344", 2, true);
         secondTechnicianId = createTechnician("Botir", "+998903334455", 2, true);
         requestId = createRequest(customerId, categoryId, "The appliance starts but does not cool the room.");

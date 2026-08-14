@@ -98,11 +98,11 @@ class TechnicalDataCleanupServiceIntegrationTest extends PostgreSqlIntegrationTe
                 insert into repair_categories (
                     name_uz, name_ru, name_en,
                     name_uz_normalized, name_ru_normalized, name_en_normalized,
-                    active, display_order
+                    active
                 ) values (
                     'Tozalash', 'Ochistka', 'Cleanup',
                     'cleanup-uz', 'cleanup-ru', 'cleanup-en',
-                    true, 1
+                    true
                 )
                 returning id
                 """, Long.class);

@@ -433,7 +433,6 @@ class TelegramTechnicianBotServiceTest {
                 null,
                 null,
                 null,
-                10,
                 true,
                 now);
         RepairRequest request = new RepairRequest(

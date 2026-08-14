@@ -248,7 +248,6 @@ class TelegramCustomerBotServiceTest {
                 null,
                 null,
                 null,
-                10,
                 true,
                 OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         ReflectionTestUtils.setField(category, "id", 123L);
@@ -266,7 +265,7 @@ class TelegramCustomerBotServiceTest {
                 "Tashkent",
                 null,
                 new RepairRequestCustomerSummary(77L, "Reply Action", "+998902020202", LanguageCode.EN, true),
-                new RepairRequestCategorySummary(123L, "Washer", "Washer RU", "Washer UZ", true, 10),
+                new RepairRequestCategorySummary(123L, "Washer UZ", "Washer description", "Washer", "Washer RU", "Washer UZ", true),
                 OffsetDateTime.parse(createdAt),
                 OffsetDateTime.parse(createdAt));
     }

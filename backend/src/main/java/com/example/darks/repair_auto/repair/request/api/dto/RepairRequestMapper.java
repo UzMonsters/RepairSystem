@@ -83,13 +83,19 @@ public final class RepairRequestMapper {
     }
 
     private static RepairRequestCategorySummary category(RepairCategory category) {
+        if (category == null) {
+            return null;
+        }
+        String name = category.getNameUz() != null ? category.getNameUz() : (category.getNameRu() != null ? category.getNameRu() : category.getNameEn());
+        String description = category.getDescriptionUz() != null ? category.getDescriptionUz() : (category.getDescriptionRu() != null ? category.getDescriptionRu() : category.getDescriptionEn());
         return new RepairRequestCategorySummary(
                 category.getId(),
+                name,
+                description,
                 category.getNameEn(),
                 category.getNameRu(),
                 category.getNameUz(),
-                category.isActive(),
-                category.getDisplayOrder());
+                category.isActive());
     }
 
     private static RepairRequestUserSummary user(User user) {

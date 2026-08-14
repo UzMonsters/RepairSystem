@@ -205,7 +205,6 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 null,
                 null,
                 null,
-                10,
                 true)).id();
         linkCustomer(customerId, 10001L, 20001L, LanguageCode.RU);
         linkTechnician(technicianId, 10002L, 20002L);

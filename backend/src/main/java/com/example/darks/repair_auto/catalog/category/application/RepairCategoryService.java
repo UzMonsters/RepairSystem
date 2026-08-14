@@ -3,7 +3,6 @@ package com.example.darks.repair_auto.catalog.category.application;
 import com.example.darks.repair_auto.catalog.category.api.dto.CategoryCreateRequest;
 import com.example.darks.repair_auto.catalog.category.api.dto.CategoryDetailResponse;
 import com.example.darks.repair_auto.catalog.category.api.dto.CategoryMapper;
-import com.example.darks.repair_auto.catalog.category.api.dto.CategoryReorderRequest;
 import com.example.darks.repair_auto.catalog.category.api.dto.CategorySummaryResponse;
 import com.example.darks.repair_auto.catalog.category.api.dto.CategoryUpdateRequest;
 import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
@@ -15,11 +14,7 @@ import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.HashSet;
 import java.util.Locale;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -64,7 +59,6 @@ public class RepairCategoryService {
 
     @Transactional
     public CategoryDetailResponse create(CategoryCreateRequest request) {
-        validateDisplayOrder(request.displayOrder());
         RepairCategory category = new RepairCategory(
                 request.nameEn().trim(),
                 request.nameRu().trim(),
@@ -75,7 +69,6 @@ public class RepairCategoryService {
                 blankToNull(request.descriptionEn()),
                 blankToNull(request.descriptionRu()),
                 blankToNull(request.descriptionUz()),
-                request.displayOrder(),
                 request.active(),
                 now());
         try {
@@ -90,7 +83,6 @@ public class RepairCategoryService {
 
     @Transactional
     public CategoryDetailResponse update(Long id, CategoryUpdateRequest request) {
-        validateDisplayOrder(request.displayOrder());
         RepairCategory category = repairCategoryRepository.findByIdForUpdate(id).orElseThrow(this::notFound);
         category.update(
                 request.nameEn().trim(),
@@ -102,7 +94,6 @@ public class RepairCategoryService {
                 blankToNull(request.descriptionEn()),
                 blankToNull(request.descriptionRu()),
                 blankToNull(request.descriptionUz()),
-                request.displayOrder(),
                 now());
         try {
             RepairCategory saved = repairCategoryRepository.saveAndFlush(category);
@@ -126,44 +117,8 @@ public class RepairCategoryService {
         return CategoryMapper.details(category, lang, localizedValueResolver);
     }
 
-    @Transactional
-    public void reorder(CategoryReorderRequest request) {
-        var ids = new HashSet<Long>();
-        var orders = new HashSet<Integer>();
-        for (CategoryReorderRequest.Item item : request.items()) {
-            if (!ids.add(item.categoryId())) {
-                throw invalidOrder("Duplicate category IDs are not allowed.");
-            }
-            if (!orders.add(item.displayOrder())) {
-                throw invalidOrder("Duplicate display orders are not allowed.");
-            }
-            validateDisplayOrder(item.displayOrder());
-        }
-        var categories = repairCategoryRepository.findAllByIdInForUpdate(ids);
-        if (categories.size() != ids.size()) {
-            throw invalidOrder("Every category in a reorder request must exist.");
-        }
-        Map<Long, RepairCategory> byId = categories.stream()
-                .collect(Collectors.toMap(RepairCategory::getId, Function.identity()));
-        OffsetDateTime now = now();
-        for (CategoryReorderRequest.Item item : request.items()) {
-            byId.get(item.categoryId()).setDisplayOrder(item.displayOrder(), now);
-        }
-        repairCategoryRepository.saveAllAndFlush(categories);
-    }
-
     private RepairCategory find(Long id) {
         return repairCategoryRepository.findById(id).orElseThrow(this::notFound);
-    }
-
-    private void validateDisplayOrder(int displayOrder) {
-        if (displayOrder < 0) {
-            throw invalidOrder("Display order must be non-negative.");
-        }
-    }
-
-    private BusinessRuleException invalidOrder(String message) {
-        return new BusinessRuleException("INVALID_CATEGORY_ORDER", message, 400);
     }
 
     private BusinessRuleException notFound() {
