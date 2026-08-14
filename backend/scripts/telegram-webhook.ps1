@@ -8,9 +8,9 @@ param(
     [ValidateSet("customer", "technician")]
     [string] $Bot = "customer",
 
-    [string] $BotToken = $env:APP_TELEGRAM_BOT_TOKEN,
+    [string] $BotToken,
 
-    [string] $WebhookSecret = $env:APP_TELEGRAM_WEBHOOK_SECRET,
+    [string] $WebhookSecret,
 
     [string] $ApiBaseUrl = $env:APP_TELEGRAM_API_BASE_URL
 )
@@ -22,6 +22,9 @@ if ([string]::IsNullOrWhiteSpace($BotToken)) {
         $BotToken = $env:APP_TELEGRAM_TECHNICIAN_BOT_TOKEN
     } else {
         $BotToken = $env:APP_TELEGRAM_CUSTOMER_BOT_TOKEN
+        if ([string]::IsNullOrWhiteSpace($BotToken)) {
+            $BotToken = $env:APP_TELEGRAM_BOT_TOKEN
+        }
     }
 }
 
@@ -30,6 +33,9 @@ if ([string]::IsNullOrWhiteSpace($WebhookSecret)) {
         $WebhookSecret = $env:APP_TELEGRAM_TECHNICIAN_WEBHOOK_SECRET
     } else {
         $WebhookSecret = $env:APP_TELEGRAM_CUSTOMER_WEBHOOK_SECRET
+        if ([string]::IsNullOrWhiteSpace($WebhookSecret)) {
+            $WebhookSecret = $env:APP_TELEGRAM_WEBHOOK_SECRET
+        }
     }
 }
 
