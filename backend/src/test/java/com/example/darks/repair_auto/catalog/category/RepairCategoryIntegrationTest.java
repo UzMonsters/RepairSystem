@@ -14,6 +14,7 @@ import com.example.darks.repair_auto.PostgreSqlIntegrationTest;
 import com.example.darks.repair_auto.catalog.category.api.dto.CategoryCreateRequest;
 import com.example.darks.repair_auto.catalog.category.application.CategoryNameNormalizer;
 import com.example.darks.repair_auto.catalog.category.application.RepairCategoryService;
+import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
 import com.example.darks.repair_auto.catalog.category.infrastructure.RepairCategoryRepository;
 import com.example.darks.repair_auto.identity.application.EmailNormalizer;
 import com.example.darks.repair_auto.identity.application.PasswordService;
@@ -291,6 +292,55 @@ class RepairCategoryIntegrationTest extends PostgreSqlIntegrationTest {
 
         assertThat(results).anyMatch(result -> result instanceof BusinessRuleException
                 && ((BusinessRuleException) result).code().equals("CATEGORY_NAME_UZ_ALREADY_EXISTS"));
+    }
+
+    @Test
+    void givenAcceptLanguageHeaderWhenGettingCategoriesThenLocalizedNameAndDescriptionAreReturnedWithFallback() throws Exception {
+        RepairCategory category = repairCategoryRepository.saveAndFlush(new RepairCategory(
+                "Fridge Repair EN",
+                "Remont Holodilnikov RU",
+                "Konditsioner Ta'mirlash UZ",
+                "fridge repair en",
+                "remont holodilnikov ru",
+                "konditsioner tamirlash uz",
+                "English Description",
+                null, // Russian description missing!
+                "Uzbek Description",
+                1,
+                true,
+                OffsetDateTime.now(ZoneOffset.UTC)));
+
+        // 1. Accept-Language: uz -> UZ name and UZ description
+        mockMvc.perform(get("/api/v1/categories/{id}", category.getId())
+                        .header("Accept-Language", "uz")
+                        .with(user(new AuthenticatedUser(manager))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Konditsioner Ta'mirlash UZ"))
+                .andExpect(jsonPath("$.description").value("Uzbek Description"));
+
+        // 2. Accept-Language: ru -> RU name, but RU description missing so fallback to UZ description
+        mockMvc.perform(get("/api/v1/categories/{id}", category.getId())
+                        .header("Accept-Language", "ru")
+                        .with(user(new AuthenticatedUser(manager))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Remont Holodilnikov RU"))
+                .andExpect(jsonPath("$.description").value("Uzbek Description"));
+
+        // 3. Accept-Language: en -> EN name and EN description
+        mockMvc.perform(get("/api/v1/categories/{id}", category.getId())
+                        .header("Accept-Language", "en")
+                        .with(user(new AuthenticatedUser(manager))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Fridge Repair EN"))
+                .andExpect(jsonPath("$.description").value("English Description"));
+
+        // 4. List endpoint also includes localized name and description
+        mockMvc.perform(get("/api/v1/categories")
+                        .header("Accept-Language", "uz")
+                        .with(user(new AuthenticatedUser(manager))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].name").value("Konditsioner Ta'mirlash UZ"))
+                .andExpect(jsonPath("$.content[0].description").value("Uzbek Description"));
     }
 
     private com.example.darks.repair_auto.catalog.category.api.dto.CategoryDetailResponse createCategory(
