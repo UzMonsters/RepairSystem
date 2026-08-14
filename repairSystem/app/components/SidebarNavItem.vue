@@ -5,7 +5,7 @@ const props = defineProps({
 })
 
 function isActiveHref(href) {
-  if (href === '/') return props.currentPath === '/'
+  if (href === '/' || href === '/admin') return props.currentPath === href
   return props.currentPath === href || props.currentPath.startsWith(href + '/')
 }
 

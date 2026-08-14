@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
-import type { NotificationSummary, Page } from '~/types'
+import type { LanguageCode, NotificationSummary, Page, UserSettings } from '~/types'
+import { getApiErrorMessage } from '~/utils/api'
 
 const { user, logout } = useAuth()
 const { locale, setLocale, t } = useLocale()
@@ -11,6 +12,7 @@ const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join
 const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value === 'en' ? 'EN' : 'UZ')
 const notifications = ref<NotificationSummary[]>([])
 const globalSearch = ref('')
+const changingLanguage = ref(false)
 
 function toggleSidebar() {
   const mobile = window.innerWidth <= 992
@@ -30,6 +32,26 @@ async function submitGlobalSearch() {
   const value = globalSearch.value.trim()
   if (!value) return
   await navigateTo({ path: '/admin/requests', query: { search: value } })
+}
+
+async function changeLanguage(lang: LanguageCode) {
+  if (changingLanguage.value || locale.value === lang.toLowerCase()) return
+
+  changingLanguage.value = true
+  try {
+    const settings = await apiFetch<UserSettings>('/settings/me')
+    await apiFetch<UserSettings>('/settings/me', {
+      method: 'PUT',
+      body: { ...settings, language: lang }
+    })
+    setLocale(lang.toLowerCase())
+    await refreshNuxtData()
+    window.location.reload()
+  } catch (e) {
+    console.error(getApiErrorMessage(e, 'Failed to change language.'))
+  } finally {
+    changingLanguage.value = false
+  }
 }
 
 onMounted(async () => {
@@ -101,7 +123,8 @@ onMounted(async () => {
               <button
                 type="button"
                 class="dropdown-item d-flex align-items-center"
-                @click="setLocale('uz')"
+                :disabled="changingLanguage"
+                @click="changeLanguage('UZ')"
               >
                 <span class="me-2">UZ</span>
                 {{ t('uzbek') }}
@@ -115,7 +138,8 @@ onMounted(async () => {
               <button
                 type="button"
                 class="dropdown-item d-flex align-items-center"
-                @click="setLocale('en')"
+                :disabled="changingLanguage"
+                @click="changeLanguage('EN')"
               >
                 <span class="me-2">EN</span>
                 English
@@ -129,7 +153,8 @@ onMounted(async () => {
               <button
                 type="button"
                 class="dropdown-item d-flex align-items-center"
-                @click="setLocale('ru')"
+                :disabled="changingLanguage"
+                @click="changeLanguage('RU')"
               >
                 <span class="me-2">RU</span>
                 {{ t('russian') }}

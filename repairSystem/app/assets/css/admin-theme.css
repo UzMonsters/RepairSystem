@@ -258,9 +258,7 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
    Topbar
    ------------------------------------------------------------ */
 .app-header {
-  position: sticky;
-  top: 0;
-  z-index: 1030;
+  position: static;
   min-height: 56px;
   margin: 0 0 22px;
   background: transparent !important;
@@ -270,6 +268,13 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
 
 .app-header .container-fluid {
   padding: 0;
+  align-items: center;
+}
+
+.app-header .navbar-nav,
+.app-header .nav-item,
+.app-header-search {
+  align-items: center;
 }
 
 .app-header .nav-link {
@@ -825,6 +830,18 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   outline-offset: -2px;
 }
 
+.customer-summary .card-body {
+  text-align: center;
+}
+
+.customer-summary .customer-avatar {
+  flex-shrink: 0;
+}
+
+.customer-summary .card-title {
+  overflow-wrap: anywhere;
+}
+
 .dashboard-description {
   max-width: 280px;
   overflow: hidden;
@@ -1171,6 +1188,7 @@ select option {
 .app-header-search {
   width: min(24vw, 280px);
   margin-right: .5rem;
+  margin-top: 0;
 }
 
 .category-description-cell,

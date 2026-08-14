@@ -66,20 +66,17 @@ function formatDate(value?: string) {
         class="row"
       >
         <div class="col-lg-4">
-          <div class="card mb-4">
+          <div class="card customer-summary mb-4">
             <div class="card-body text-center">
               <span
-                class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary text-white shadow mb-3"
+                class="customer-avatar d-flex align-items-center justify-content-center rounded-circle bg-primary text-white shadow mx-auto mb-3"
                 style="width: 96px; height: 96px; font-size: 36px; font-weight: 600;"
               >
                 {{ initials }}
               </span>
-              <h5 class="card-title mb-1">
+              <h5 class="card-title mb-3">
                 {{ customer.fullName }}
               </h5>
-              <div class="text-muted small">
-                {{ customer.phone }}
-              </div>
               <hr>
               <div class="row text-center">
                 <div class="col-6">
