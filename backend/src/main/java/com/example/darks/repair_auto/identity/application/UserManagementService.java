@@ -86,6 +86,9 @@ public class UserManagementService {
         String email = emailNormalizer.normalize(request.email());
         user.setFullName(request.fullName().trim(), now());
         user.setEmail(email, now());
+        if (request.phone() != null) {
+            user.setPhone(request.phone().isBlank() ? null : request.phone().trim(), now());
+        }
         try {
             return UserMapper.details(userRepository.saveAndFlush(user));
         } catch (DataIntegrityViolationException exception) {
@@ -144,6 +147,26 @@ public class UserManagementService {
         userRepository.findByIdForUpdate(id).orElseThrow(() -> notFound());
         refreshSessionService.revokeAllForUser(id, "ADMIN_REVOKED");
         userRepository.incrementAuthVersion(id, now());
+    }
+
+    @Transactional
+    public void resetPassword(Long targetUserId, com.example.darks.repair_auto.identity.api.dto.ResetPasswordRequest request, Long actorUserId) {
+        if (request.newPassword() == null || !request.newPassword().equals(request.confirmPassword())) {
+            throw new BusinessRuleException(
+                    "PASSWORD_CONFIRMATION_MISMATCH",
+                    "New password and confirmation password do not match.",
+                    400);
+        }
+        User user = userRepository.findByIdForUpdate(targetUserId)
+                .orElseThrow(this::notFound);
+        if (passwordService.matches(request.newPassword(), user.getPasswordHash())) {
+            throw new BusinessRuleException("PASSWORD_REUSE_NOT_ALLOWED", "New password must differ.", 400);
+        }
+        passwordPolicy.validate(request.newPassword(), user.getEmail());
+        user.changePassword(passwordService.hash(request.newPassword()), now());
+        refreshSessionService.revokeAllForUser(targetUserId, "ADMIN_RESET");
+        userRepository.incrementAuthVersion(targetUserId, now());
+        LOGGER.info("User management event operation=admin_password_reset result=success actorUserId={} targetUserId={}", actorUserId, targetUserId);
     }
 
     private User find(Long id) {

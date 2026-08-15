@@ -41,7 +41,7 @@ class OpenApiIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
                         .jsonPath("$.components.schemas.UserCreateRequest.properties.password.writeOnly").value(true))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .jsonPath("$.components.schemas.PasswordChangeRequest.properties.currentPassword.writeOnly")
+                        .jsonPath("$.components.schemas.PasswordChangeRequest.properties.oldPassword.writeOnly")
                         .value(true))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
                         .jsonPath("$.components.schemas.PasswordChangeRequest.properties.newPassword.writeOnly")

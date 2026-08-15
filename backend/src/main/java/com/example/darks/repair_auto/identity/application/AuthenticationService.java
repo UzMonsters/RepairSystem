@@ -94,10 +94,16 @@ public class AuthenticationService {
     }
 
     @Transactional
-    public void changePassword(Long userId, String currentPassword, String newPassword) {
+    public void changePassword(Long userId, String oldPassword, String newPassword, String confirmPassword) {
+        if (newPassword == null || !newPassword.equals(confirmPassword)) {
+            throw new BusinessRuleException(
+                    "PASSWORD_CONFIRMATION_MISMATCH",
+                    "New password and confirmation password do not match.",
+                    400);
+        }
         User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new BusinessRuleException("USER_NOT_FOUND", "User was not found.", 404));
-        if (!passwordService.matches(currentPassword, user.getPasswordHash())) {
+        if (!passwordService.matches(oldPassword, user.getPasswordHash())) {
             throw new BusinessRuleException("INVALID_CURRENT_PASSWORD", "Current password is invalid.", 400);
         }
         if (passwordService.matches(newPassword, user.getPasswordHash())) {
