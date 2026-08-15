@@ -1326,6 +1326,65 @@ select option {
   height: 104px !important;
 }
 
+.profile-avatar-editor {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+}
+
+.profile-avatar-frame {
+  position: relative;
+  width: 128px;
+  height: 128px;
+}
+
+.profile-avatar-frame > img,
+.profile-avatar-frame > div {
+  width: 100%;
+  height: 100%;
+  border: 4px solid var(--rs-primary-soft);
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.profile-avatar-action {
+  position: absolute;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 2px solid var(--rs-panel);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: var(--rs-shadow);
+}
+
+.profile-avatar-upload {
+  right: 0;
+  bottom: 0;
+  background: var(--rs-primary);
+}
+
+.profile-avatar-delete {
+  top: 0;
+  right: 0;
+  background: var(--rs-danger);
+}
+
+.profile-avatar-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.profile-avatar-action.disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 /* ------------------------------------------------------------
    Responsive tweaks
    ------------------------------------------------------------ */

@@ -19,15 +19,26 @@ const passwordForm = ref({
   confirmPassword: ''
 })
 
-const avatarFile = ref<File | null>(null)
 const avatarPreviewUrl = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 
-function handleFileSelect(e: Event) {
+async function handleFileSelect(e: Event) {
   const target = e.target as HTMLInputElement
-  if (target.files && target.files.length > 0) {
-    avatarFile.value = target.files[0]
-    avatarPreviewUrl.value = URL.createObjectURL(avatarFile.value)
+  const file = target.files?.[0]
+  if (!file) return
+
+  avatarPreviewUrl.value = URL.createObjectURL(file)
+  loadingAvatar.value = true
+  try {
+    await uploadAvatar(file)
+    avatarPreviewUrl.value = null
+    if (fileInput.value) fileInput.value.value = ''
+    useToast().showSuccess(t('savedSuccessfully'))
+  } catch (error) {
+    avatarPreviewUrl.value = null
+    useToast().showError(getApiErrorMessage(error, 'Failed to upload avatar'))
+  } finally {
+    loadingAvatar.value = false
   }
 }
 
@@ -40,22 +51,6 @@ async function handleProfileSubmit() {
     useToast().showError(getApiErrorMessage(e, 'Failed to update profile'))
   } finally {
     loadingProfile.value = false
-  }
-}
-
-async function handleAvatarSubmit() {
-  if (!avatarFile.value) return
-  loadingAvatar.value = true
-  try {
-    await uploadAvatar(avatarFile.value)
-    avatarFile.value = null
-    avatarPreviewUrl.value = null
-    if (fileInput.value) fileInput.value.value = ''
-    useToast().showSuccess(t('savedSuccessfully'))
-  } catch (e) {
-    useToast().showError(getApiErrorMessage(e, 'Failed to upload avatar'))
-  } finally {
-    loadingAvatar.value = false
   }
 }
 
@@ -150,52 +145,55 @@ async function handlePasswordSubmit() {
             </h3>
           </div>
           <div class="card-body">
-            <div class="d-flex align-items-center gap-4 mb-4">
-              <img
-                v-if="avatarPreviewUrl || user?.avatar?.url"
-                :src="avatarPreviewUrl || user?.avatar?.url"
-                alt="Avatar"
-                class="rounded-circle shadow object-fit-cover"
-                style="width: 80px; height: 80px;"
-              >
-              <div
-                v-else
-                class="d-flex align-items-center justify-content-center rounded-circle bg-secondary text-white shadow"
-                style="width: 80px; height: 80px; font-size: 24px; font-weight: bold;"
-              >
-                {{ (user?.fullName || 'A').charAt(0) }}
-              </div>
-
-              <div class="flex-grow-1">
-                <input
-                  ref="fileInput"
-                  type="file"
-                  class="form-control mb-2"
-                  accept="image/jpeg,image/png,image/webp"
-                  @change="handleFileSelect"
+            <div class="profile-avatar-editor">
+              <div class="profile-avatar-frame">
+                <img
+                  v-if="avatarPreviewUrl || user?.avatar?.url"
+                  :src="avatarPreviewUrl || user?.avatar?.url"
+                  alt="Avatar"
+                  class="rounded-circle shadow object-fit-cover"
                 >
-                <div class="d-flex gap-2">
-                  <button
-                    class="btn btn-primary"
-                    :disabled="!avatarFile || loadingAvatar"
-                    @click="handleAvatarSubmit"
-                  >
-                    <span
-                      v-if="loadingAvatar"
-                      class="spinner-border spinner-border-sm me-2"
-                    />
-                    {{ t('upload') || 'Upload' }}
-                  </button>
-                  <button
-                    v-if="user?.avatar"
-                    class="btn btn-outline-danger"
-                    :disabled="loadingAvatar"
-                    @click="handleAvatarDelete"
-                  >
-                    {{ t('delete') }}
-                  </button>
+                <div
+                  v-else
+                  class="d-flex align-items-center justify-content-center rounded-circle bg-secondary text-white shadow"
+                >
+                  {{ (user?.fullName || 'A').charAt(0) }}
                 </div>
+                <label
+                  class="profile-avatar-action profile-avatar-upload"
+                  :class="{ disabled: loadingAvatar }"
+                  :title="t('chooseFile')"
+                >
+                  <i
+                    v-if="!loadingAvatar"
+                    class="bi bi-camera"
+                  />
+                  <span
+                    v-else
+                    class="spinner-border spinner-border-sm"
+                  />
+                  <input
+                    ref="fileInput"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    :disabled="loadingAvatar"
+                    @change="handleFileSelect"
+                  >
+                </label>
+                <button
+                  v-if="user?.avatar"
+                  type="button"
+                  class="profile-avatar-action profile-avatar-delete"
+                  :disabled="loadingAvatar"
+                  :title="t('delete')"
+                  @click="handleAvatarDelete"
+                >
+                  <i class="bi bi-trash" />
+                </button>
               </div>
+              <p class="text-muted small mb-0">
+                {{ t('avatarHint') }}
+              </p>
             </div>
           </div>
         </div>

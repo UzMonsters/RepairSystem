@@ -1,21 +1,21 @@
 [data-theme="light"] {
   /* Основной фон приложения */
-  --rs-bg: #e8eef7;
+  --rs-bg: #f4f7fb;
 
   /* Фон основного контента */
-  --rs-content-bg: #eef3f9;
+  --rs-content-bg: #eef3f8;
 
   /* Sidebar */
-  --rs-sidebar-bg: #dce6f2;
+  --rs-sidebar-bg: #bfd4eb;
 
   /* Header */
-  --rs-header-bg: #edf2f8;
+  --rs-header-bg: #ffffff;
 
   /* Карточки */
-  --rs-panel: #f5f8fc;
+  --rs-panel: #ffffff;
 
   /* Вложенные блоки и input */
-  --rs-panel-2: #e8eef6;
+  --rs-panel-2: #f4f7fb;
 
   /* Hover */
   --rs-hover: #dce8f7;
@@ -33,13 +33,13 @@
   --rs-primary-soft: #dbeafe;
 
   /* Основной текст */
-  --rs-text: #172554;
+  --rs-text: #10203d;
 
   /* Вторичный текст */
-  --rs-text-2: #334e75;
+  --rs-text-2: #1f3d68;
 
   /* Приглушённый текст */
-  --rs-muted: #7183a1;
+  --rs-muted: #526b89;
 
   /* Границы */
   --rs-border: #c5d2e3;
@@ -95,13 +95,13 @@
 }
 
 [data-theme="light"] .app-sidebar {
-  background: #cbd8e8 !important;
+  background: #b9d0e9 !important;
   border-right: 1px solid var(--rs-border);
   box-shadow: 4px 0 18px rgba(30, 64, 175, 0.06) !important;
 }
 
 [data-theme="light"] .sidebar-brand {
-  background: #b9c9dc;
+  background: #aac4df;
   border-bottom: 1px solid var(--rs-border);
 }
 
@@ -110,11 +110,13 @@
 }
 
 [data-theme="light"] .sidebar-menu .nav-link {
-  color: #263c5d !important;
+  color: #152238 !important;
+  opacity: 1 !important;
 }
 
 [data-theme="light"] .sidebar-menu .nav-link:hover {
-  color: #10203d !important;
+  color: #071326 !important;
+  background: #d9e8f8 !important;
 }
 
 [data-theme="light"] .sidebar-menu .nav-header {
@@ -151,7 +153,7 @@
 [data-theme="light"] .app-header {
   position: static;
   min-height: 58px;
-  background: #c4d2e3 !important;
+  background: #ffffff !important;
   border-bottom: 1px solid var(--rs-border-soft);
   color: #10203d;
 }

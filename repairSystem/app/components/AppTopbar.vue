@@ -9,6 +9,7 @@ const { isDark, toggleTheme } = useTheme()
 const displayName = computed(() => user.value?.fullName || 'Administrator')
 const role = computed(() => user.value?.role || '')
 const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
+const avatarUrl = computed(() => user.value?.avatar?.url || '')
 const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value === 'en' ? 'EN' : 'UZ')
 const notifications = ref<NotificationSummary[]>([])
 const globalSearch = ref('')
@@ -188,22 +189,21 @@ onMounted(async () => {
             data-bs-toggle="dropdown"
             @click.prevent
           >
+            <img
+              v-if="avatarUrl"
+              :src="avatarUrl"
+              alt=""
+              class="user-image rounded-circle shadow object-fit-cover"
+              style="width: 32px; height: 32px;"
+            >
             <span
+              v-else
               class="user-image d-inline-flex align-items-center justify-content-center rounded-circle bg-primary text-white shadow"
               style="width: 32px; height: 32px; font-size: 12px; font-weight: 600;"
             >{{ initials }}</span>
             <span class="d-none d-md-inline">{{ displayName }}</span>
           </a>
           <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-            <li class="user-header text-bg-primary">
-              <span
-                class="d-inline-flex align-items-center justify-content-center rounded-circle shadow"
-                style="width: 48px; height: 48px; font-size: 18px; font-weight: 600; background: rgba(255, 255, 255, 0.25);"
-              >{{ initials }}</span>
-              <p>
-                {{ role === 'ADMIN' ? t('admin') : role === 'MANAGER' ? t('manager') : role }}
-              </p>
-            </li>
             <li>
               <NuxtLink
                 to="/admin/profile"
