@@ -81,7 +81,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/settings/me").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers(HttpMethod.GET, "/api/v1/settings/system").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/settings/system").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/auth/me", "/api/v1/auth/password", "/api/v1/auth/logout-all")
+                        .requestMatchers("/api/v1/auth/me", "/api/v1/auth/password", "/api/v1/auth/change-password", "/api/v1/auth/logout-all", "/api/v1/me/**")
                         .authenticated()
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

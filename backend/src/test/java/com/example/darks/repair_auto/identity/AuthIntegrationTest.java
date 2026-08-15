@@ -168,7 +168,7 @@ class AuthIntegrationTest extends PostgreSqlIntegrationTest {
     void givenPasswordChangeWhenSuccessfulThenSessionsAreRevokedAndOldAccessTokenIsRejected() {
         LoginResponse login = authenticationService.login("admin@example.com", "AdminPass123!", null, null);
 
-        authenticationService.changePassword(admin.getId(), "AdminPass123!", "NewAdminPass123!");
+        authenticationService.changePassword(admin.getId(), "AdminPass123!", "NewAdminPass123!", "NewAdminPass123!");
 
         assertThat(refreshSessionRepository.findByTokenHash(tokenHashService.hash(login.refreshToken())).orElseThrow()
                 .isRevoked()).isTrue();
@@ -179,10 +179,10 @@ class AuthIntegrationTest extends PostgreSqlIntegrationTest {
     @Test
     void givenInvalidPasswordChangeWhenCurrentWrongOrReusedThenStableErrorsAreReturned() {
         BusinessRuleException wrong = org.assertj.core.api.Assertions.catchThrowableOfType(
-                () -> authenticationService.changePassword(admin.getId(), "WrongPass123!", "NewAdminPass123!"),
+                () -> authenticationService.changePassword(admin.getId(), "WrongPass123!", "NewAdminPass123!", "NewAdminPass123!"),
                 BusinessRuleException.class);
         BusinessRuleException reused = org.assertj.core.api.Assertions.catchThrowableOfType(
-                () -> authenticationService.changePassword(admin.getId(), "AdminPass123!", "AdminPass123!"),
+                () -> authenticationService.changePassword(admin.getId(), "AdminPass123!", "AdminPass123!", "AdminPass123!"),
                 BusinessRuleException.class);
 
         assertThat(wrong.code()).isEqualTo("INVALID_CURRENT_PASSWORD");

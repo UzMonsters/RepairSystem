@@ -112,17 +112,18 @@ public class AuthController {
         return UserMapper.details(userRepository.findById(user.id()).orElseThrow());
     }
 
-    @PatchMapping("/password")
+    @PostMapping("/change-password")
     @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Change own password")
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Password changed"),
+            @ApiResponse(responseCode = "204", description = "Password changed successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid password change request"),
             @ApiResponse(responseCode = "401", description = "Authentication required")
     })
     public ResponseEntity<Void> changePassword(
             @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody PasswordChangeRequest request) {
-        authenticationService.changePassword(user.id(), request.currentPassword(), request.newPassword());
+        authenticationService.changePassword(user.id(), request.oldPassword(), request.newPassword(), request.confirmPassword());
         return ResponseEntity.noContent().build();
     }
 

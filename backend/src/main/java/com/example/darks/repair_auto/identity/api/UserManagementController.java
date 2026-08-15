@@ -93,4 +93,21 @@ public class UserManagementController {
         userManagementService.revokeSessions(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/reset-password")
+    @Operation(summary = "Reset target user's password (ADMIN only)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Password reset successfully"),
+            @ApiResponse(responseCode = "400", description = "Password confirmation mismatch or policy violation"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Administrator role required"),
+            @ApiResponse(responseCode = "404", description = "Target user not found")
+    })
+    public ResponseEntity<Void> resetPassword(
+            @PathVariable Long id,
+            @Valid @RequestBody com.example.darks.repair_auto.identity.api.dto.ResetPasswordRequest request,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        userManagementService.resetPassword(id, request, currentUser.id());
+        return ResponseEntity.noContent().build();
+    }
 }

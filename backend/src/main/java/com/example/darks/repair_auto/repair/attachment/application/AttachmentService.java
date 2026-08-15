@@ -446,6 +446,7 @@ public class AttachmentService {
             case DIAGNOSIS_PHOTO -> status == RepairRequestStatus.IN_PROGRESS
                     || status == RepairRequestStatus.WAITING_FOR_PARTS;
             case COMPLETION_PHOTO -> status == RepairRequestStatus.IN_PROGRESS;
+            case AVATAR -> false;
         };
         if (!allowed) {
             throw new BusinessRuleException(
