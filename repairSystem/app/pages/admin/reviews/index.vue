@@ -114,9 +114,9 @@ function openReview(r: Review) {
               <th>{{ t('client') }}</th>
               <th>{{ t('rating') }}</th>
               <th>{{ t('comment') }}</th>
-              <th>{{ t('relatedRequest') }}</th>
               <th>{{ t('source') }}</th>
               <th>{{ t('date') }}</th>
+              <th class="text-end">{{ t('actions') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -164,16 +164,6 @@ function openReview(r: Review) {
               </td>
               <td>{{ r.comment || '-' }}</td>
               <td>
-                <NuxtLink
-                  v-if="r.repairRequestId"
-                  :to="`/admin/requests/${r.repairRequestId}`"
-                  @click.stop
-                >
-                  {{ r.requestNumber || `#${r.repairRequestId}` }}
-                </NuxtLink>
-                <span v-else>-</span>
-              </td>
-              <td>
                 <span
                   v-if="r.source"
                   class="status-chip status-assigned"
@@ -184,6 +174,18 @@ function openReview(r: Review) {
               </td>
               <td class="text-nowrap">
                 {{ formatDate(r.submittedAt) }}
+              </td>
+              <td class="text-end">
+                <button
+                  v-if="r.repairRequestId"
+                  type="button"
+                  class="btn btn-sm btn-outline-secondary"
+                  :title="t('view')"
+                  @click.stop="openReview(r)"
+                >
+                  <i class="bi bi-eye" />
+                </button>
+                <span v-else>-</span>
               </td>
             </tr>
           </tbody>

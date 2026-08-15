@@ -260,6 +260,29 @@
   background: var(--rs-danger-bg);
 }
 
+[data-theme="light"] .form-switch .form-check-input {
+  width: 2.4em;
+  height: 1.4em;
+  margin-top: 0;
+  border: 1px solid #aebed1;
+  background-color: #d5deea;
+  background-image: radial-gradient(circle at 25% 50%, #ffffff 0 4px, transparent 5px) !important;
+  background-position: center;
+  background-size: 100% 100%;
+  box-shadow: none;
+}
+
+[data-theme="light"] .form-switch .form-check-input:checked {
+  border-color: #15803d;
+  background-color: #16a05a;
+  background-image: radial-gradient(circle at 75% 50%, #ffffff 0 4px, transparent 5px) !important;
+}
+
+[data-theme="light"] .form-switch .form-check-input:focus {
+  border-color: var(--rs-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
 [data-theme="light"] button:disabled,
 [data-theme="light"] .btn:disabled {
   opacity: 0.55;

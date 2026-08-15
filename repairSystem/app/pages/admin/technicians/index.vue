@@ -202,6 +202,10 @@ async function copyTelegramLink() {
 function formatDate(value?: string) {
   return formatApiDate(value)
 }
+
+function openTechnician(id: number) {
+  navigateTo(`/admin/technicians/${id}`)
+}
 </script>
 
 <template>
@@ -299,14 +303,15 @@ function formatDate(value?: string) {
             <tr
               v-for="tech in rows"
               :key="tech.id"
+              class="table-row-link"
+              tabindex="0"
+              @click="openTechnician(tech.id)"
+              @keydown.enter="openTechnician(tech.id)"
             >
               <td class="fw-semibold">
-                <NuxtLink
-                  :to="`/admin/technicians/${tech.id}`"
-                  @click.stop
-                >
+                <span class="link-primary">
                   {{ tech.fullName }}
-                </NuxtLink>
+                </span>
               </td>
               <td>{{ tech.phone }}</td>
               <td>{{ tech.specialization || '-' }}</td>
@@ -321,6 +326,7 @@ function formatDate(value?: string) {
                     :checked="!!tech.active"
                     :disabled="togglingId === tech.id"
                     :aria-label="`Toggle ${tech.fullName}`"
+                    @click.stop
                     @change="toggleActive(tech)"
                   >
                 </span>
@@ -333,7 +339,7 @@ function formatDate(value?: string) {
                   type="button"
                   class="btn btn-sm btn-outline-secondary"
                   :title="t('telegramLink')"
-                  @click="openTelegramLink(tech)"
+                  @click.stop="openTelegramLink(tech)"
                 >
                   <i class="bi bi-telegram" />
                 </button>
@@ -341,7 +347,7 @@ function formatDate(value?: string) {
                   type="button"
                   class="btn btn-sm btn-outline-secondary ms-1"
                   :title="t('workload')"
-                  @click="openWorkload(tech)"
+                  @click.stop="openWorkload(tech)"
                 >
                   <i class="bi bi-clipboard-check" />
                 </button>
@@ -349,7 +355,7 @@ function formatDate(value?: string) {
                   type="button"
                   class="btn btn-sm btn-outline-secondary ms-1"
                   :title="t('edit')"
-                  @click="openEdit(tech)"
+                  @click.stop="openEdit(tech)"
                 >
                   <i class="bi bi-pencil" />
                 </button>
