@@ -1,4 +1,4 @@
-﻿import type { AuthUser, LoginResponse } from '~/types'
+import type { AuthUser, LoginResponse } from '~/types'
 
 type TokenResponse = {
   accessToken: string
@@ -48,16 +48,31 @@ export function useAuth() {
     user.value = data.user
   }
 
+  async function fetchProfile() {
+    if (accessToken.value) {
+      try {
+        const profile = await apiFetch<AuthUser>('/me')
+        user.value = profile
+        if (import.meta.client) {
+          if (profile.language) {
+            const { setLocale } = useLocale()
+            setLocale(profile.language.toLowerCase())
+          }
+          if (profile.dateFormat) localStorage.setItem('repair_date_format', profile.dateFormat)
+          if (profile.timeFormat) localStorage.setItem('repair_time_format', profile.timeFormat)
+        }
+      } catch (e) {
+        void e
+      }
+    }
+  }
+
   async function init() {
     if (!accessToken.value && refreshToken.value) {
       await refreshSession()
     }
     if (accessToken.value && !user.value) {
-      try {
-        user.value = await apiFetch<AuthUser>('/auth/me')
-      } catch (e) {
-        void e
-      }
+      await fetchProfile()
     }
   }
 
@@ -80,5 +95,49 @@ export function useAuth() {
     await navigateTo('/admin/login')
   }
 
-  return { user, isAuthenticated, login, init, refreshSession, logout }
+  async function updateProfile(data: Record<string, unknown>) {
+    const updated = await apiFetch<AuthUser>('/me', {
+      method: 'PATCH',
+      body: data
+    })
+    user.value = updated
+    return updated
+  }
+
+  async function uploadAvatar(file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    const result = await apiFetch<NonNullable<AuthUser['avatar']>>('/me/avatar', {
+      method: 'PUT',
+      body: formData
+    })
+    if (user.value) user.value.avatar = result
+    return result
+  }
+
+  async function deleteAvatar() {
+    await apiFetch('/me/avatar', { method: 'DELETE' })
+    if (user.value) user.value.avatar = null
+  }
+
+  async function changePassword(payload: Record<string, string>) {
+    await apiFetch('/auth/change-password', {
+      method: 'POST',
+      body: payload
+    })
+  }
+
+  return {
+    user,
+    isAuthenticated,
+    login,
+    init,
+    fetchProfile,
+    refreshSession,
+    logout,
+    updateProfile,
+    uploadAvatar,
+    deleteAvatar,
+    changePassword
+  }
 }

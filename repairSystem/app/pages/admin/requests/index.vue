@@ -1,10 +1,10 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { requestPriorities, requestStatuses } from '~/lib/statuses'
 import type { Category, Page, RepairRequest, Technician } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
 
-const { t, locale } = useLocale()
+const { t } = useLocale()
 const route = useRoute()
 const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
 const status = ref('')
@@ -65,19 +65,11 @@ function changeSize(s: number) {
 }
 
 function categoryName(r: RepairRequest) {
-  const c = r.category
-  if (!c) return '-'
-  if (c.name) return c.name
-  if (locale.value === 'ru') return c.nameRu || c.nameEn || c.nameUz || '-'
-  if (locale.value === 'en') return c.nameEn || c.nameRu || c.nameUz || '-'
-  return c.nameUz || c.nameRu || c.nameEn || '-'
+  return r.category?.name || '-'
 }
 
 function categoryOptionName(c: Category) {
-  if (c.name) return c.name
-  if (locale.value === 'ru') return c.nameRu || c.nameEn || c.nameUz
-  if (locale.value === 'en') return c.nameEn || c.nameRu || c.nameUz
-  return c.nameUz || c.nameRu || c.nameEn
+  return c.name || '-'
 }
 
 function customerName(r: RepairRequest) {
@@ -295,7 +287,6 @@ const execRequired = computed(() => execAction.value !== 'resume')
         >
           <thead>
             <tr>
-              <th>#</th>
               <th>{{ t('description') }}</th>
               <th>{{ t('client') }}</th>
               <th>{{ t('categories') }}</th>
@@ -310,7 +301,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="7"
+                colspan="6"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
@@ -318,7 +309,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
             </tr>
             <tr v-else-if="!rows.length">
               <td
-                colspan="7"
+                colspan="6"
                 class="text-center p-0"
               >
                 <div class="empty-state table-empty-state">
@@ -336,7 +327,6 @@ const execRequired = computed(() => execAction.value !== 'resume')
               @click="openRequest(r)"
               @keydown.enter="openRequest(r)"
             >
-              <td>#{{ r.id }}</td>
               <td class="request-description-cell">
                 {{ r.description || categoryName(r) }}
               </td>

@@ -53,6 +53,7 @@ const form = ref({
 })
 const saving = ref(false)
 const saveError = ref('')
+
 const phoneInvalid = ref(false)
 const maxInvalid = ref(false)
 
@@ -476,12 +477,6 @@ function formatDate(value?: string) {
             rows="2"
           />
         </div>
-        <div
-          v-if="saveError"
-          class="alert alert-danger py-2"
-        >
-          {{ saveError }}
-        </div>
       </form>
       <template #footer>
         <button
@@ -504,7 +499,7 @@ function formatDate(value?: string) {
 
     <AppModal
       id="workload-modal"
-      :title="`${t('workload')} вЂ” ${rows.find(x => x.id === viewingId)?.fullName || ''}`"
+      :title="`${t('workload')} — ${rows.find(x => x.id === viewingId)?.fullName || ''}`"
     >
       <div
         v-if="loadingWorkload"
@@ -551,7 +546,7 @@ function formatDate(value?: string) {
 
     <AppModal
       id="telegram-link-modal"
-      :title="`${t('telegramLinkTitle')} вЂ” ${telegramTech?.fullName || ''}`"
+      :title="`${t('telegramLinkTitle')} — ${telegramTech?.fullName || ''}`"
     >
       <div
         v-if="generatingLink"

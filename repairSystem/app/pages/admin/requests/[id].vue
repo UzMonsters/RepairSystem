@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
 import type { AssignmentDetail, Attachment, RepairExecution, RepairRequest, StatusHistoryItem, Technician } from '~/types'
@@ -57,6 +57,10 @@ const savingAssign = ref(false)
 const message = ref('')
 const actionError = ref('')
 
+const scheduleForm = ref('')
+const savingSchedule = ref(false)
+const scheduleInput = ref<HTMLInputElement | null>(null)
+
 async function refreshRequestData() {
   await Promise.all([refresh(), refreshAssignments(), refreshAttachments(), refreshStatusHistory()])
   await refreshExecution()
@@ -69,7 +73,7 @@ const errorMessage = computed(() => {
 const categoryName = computed(() => {
   const c = request.value?.category
   if (!c) return '-'
-  return c.nameRu || c.nameEn || '-'
+  return c.name || '-'
 })
 
 const customerName = computed(() => request.value?.customer?.fullName || '-')
@@ -142,9 +146,6 @@ async function runAssignmentAction() {
     savingAssignmentAction.value = false
   }
 }
-
-const scheduleForm = ref('')
-const savingSchedule = ref(false)
 
 async function saveSchedule(clearSchedule = false) {
   if (!clearSchedule && !scheduleForm.value) return
@@ -505,10 +506,12 @@ function can(action: string) {
                   <label class="form-label">{{ t('scheduledVisitAt') }}</label>
                   <div class="input-group">
                     <input
+                      ref="scheduleInput"
                       v-model="scheduleForm"
                       type="datetime-local"
                       class="form-control"
                       :disabled="savingSchedule"
+                      @click="scheduleInput?.showPicker?.()"
                     >
                     <button
                       type="button"
@@ -788,7 +791,10 @@ function can(action: string) {
             >
               <div class="d-flex justify-content-between gap-2">
                 <strong>{{ assignment.technician.fullName }}</strong>
-                <span class="badge text-bg-secondary">{{ assignment.status }}</span>
+                <span
+                  class="badge"
+                  :class="assignment.status === 'COMPLETED' ? 'text-bg-success' : 'text-bg-secondary'"
+                >{{ assignment.status }}</span>
               </div>
               <div class="small text-muted">
                 {{ formatDate(assignment.assignedAt) }} В· {{ assignment.rejectionReason || assignment.closureReason || '-' }}

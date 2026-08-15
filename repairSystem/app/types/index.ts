@@ -1,4 +1,4 @@
-﻿export type RequestStatus
+export type RequestStatus
   = | 'NEW'
     | 'ASSIGNED'
     | 'SCHEDULED'
@@ -28,9 +28,24 @@ export interface Page<T> {
 
 export interface AuthUser {
   id: number
+  username: string
   fullName: string
+  phone: string | null
   email: string
   role: UserRole
+  active: boolean
+  avatar: {
+    attachmentId: number
+    fileName: string
+    contentType: string
+    url: string
+  } | null
+  language: LanguageCode
+  dateFormat: UserDateFormat
+  timeFormat: UserTimeFormat
+  theme: UserTheme
+  createdAt: string
+  updatedAt: string
 }
 
 export interface LoginResponse {

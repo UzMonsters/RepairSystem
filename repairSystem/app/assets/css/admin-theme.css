@@ -1316,3 +1316,5 @@ select option {
 .card-body.d-flex::after {
   display: none;
 }
+
+@import url('./light-theme.css');

@@ -276,6 +276,14 @@ async function toggleActive(u: CrmUser) {
                 >
                   <i class="bi bi-toggle-on" />
                 </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-warning ms-1"
+                  :title="t('changePassword') || 'Reset Password'"
+                  @click="openResetPassword(u)"
+                >
+                  <i class="bi bi-key" />
+                </button>
               </td>
             </tr>
           </tbody>
@@ -383,6 +391,64 @@ async function toggleActive(u: CrmUser) {
           @click="save"
         >
           {{ saving ? t('saving') : t('save') }}
+        </button>
+      </template>
+    </AppModal>
+
+    <AppModal
+      id="reset-password-modal"
+      :title="t('changePassword') || 'Reset Password'"
+    >
+      <form @submit.prevent="submitResetPassword">
+        <div class="mb-3">
+          <label class="form-label">{{ t('newPassword') || 'New Password' }}</label>
+          <input
+            v-model="resetPasswordForm.newPassword"
+            type="password"
+            class="form-control"
+            required
+            minlength="8"
+          >
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">{{ t('confirmPassword') || 'Confirm Password' }}</label>
+          <input
+            v-model="resetPasswordForm.confirmPassword"
+            type="password"
+            class="form-control"
+            required
+            minlength="8"
+          >
+        </div>
+
+        <div
+          v-if="resettingError"
+          class="alert alert-danger py-2"
+        >
+          {{ resettingError }}
+        </div>
+      </form>
+
+      <template #footer>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') || 'Cancel' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-warning"
+          :disabled="resettingSaving"
+          @click="submitResetPassword"
+        >
+          <span
+            v-if="resettingSaving"
+            class="spinner-border spinner-border-sm me-2"
+          />
+          {{ t('changePassword') || 'Reset Password' }}
         </button>
       </template>
     </AppModal>

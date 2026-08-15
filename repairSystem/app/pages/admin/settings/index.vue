@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type { LanguageCode, SystemSettings, UserSettings } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 
@@ -36,6 +36,15 @@ async function saveSettings() {
   try {
     const updated = await apiFetch<UserSettings>('/settings/me', { method: 'PUT', body: personal.value as unknown as Record<string, unknown> })
     personal.value = updated
+    
+    // Sync with global user profile
+    if (user.value) {
+      user.value.language = updated.language
+      user.value.dateFormat = updated.dateFormat
+      user.value.timeFormat = updated.timeFormat
+      user.value.theme = updated.theme
+    }
+
     setLocale(updated.language.toLowerCase())
     if (import.meta.client) {
       localStorage.setItem('repair_date_format', updated.dateFormat)
@@ -192,7 +201,7 @@ async function saveSettings() {
               <input
                 v-model="system.timezone"
                 class="form-control"
-                :disabled="!isAdmin || loading || saving"
+                disabled
               >
             </div>
             <div>

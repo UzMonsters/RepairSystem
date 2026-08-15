@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type { Customer, Page, RepairRequest } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
@@ -26,7 +26,7 @@ const completedRequests = computed(() => historyRows.value.filter(r => r.status 
 const initials = computed(() => (customer.value?.fullName || '?').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
 
 function categoryName(r: RepairRequest) {
-  return r.category?.nameRu || r.category?.nameEn || '-'
+  return r.category?.name || '-'
 }
 
 function formatDate(value?: string) {
@@ -74,10 +74,7 @@ function formatDate(value?: string) {
               >
                 {{ initials }}
               </span>
-              <h5 class="card-title mb-3">
-                {{ customer.fullName }}
-              </h5>
-              <hr>
+              <hr class="mt-3">
               <div class="row text-center">
                 <div class="col-6">
                   <div class="h4 mb-0">
@@ -215,9 +212,14 @@ function formatDate(value?: string) {
                   <tr
                     v-for="r in historyRows"
                     :key="r.id"
+                    class="cursor-pointer"
+                    @click="navigateTo(`/admin/requests/${r.id}`)"
                   >
                     <td>
-                      <NuxtLink :to="`/admin/requests/${r.id}`">
+                      <NuxtLink
+                        :to="`/admin/requests/${r.id}`"
+                        @click.stop
+                      >
                         {{ r.requestNumber || `#${r.id}` }}
                       </NuxtLink>
                     </td>
@@ -229,6 +231,7 @@ function formatDate(value?: string) {
                         :to="`/admin/requests/${r.id}`"
                         class="btn btn-sm btn-outline-secondary"
                         :title="t('view')"
+                        @click.stop
                       >
                         <i class="bi bi-eye" />
                       </NuxtLink>

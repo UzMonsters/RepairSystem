@@ -150,7 +150,7 @@ function formatDate(value?: string) {
                     class="bi"
                     :class="s <= r.rating ? 'bi-star-fill filled' : 'bi-star'"
                   />
-                  <span class="ms-1">{{ r.rating }}</span>
+
                 </span>
               </td>
               <td>{{ r.comment || '-' }}</td>

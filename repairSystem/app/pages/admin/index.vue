@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type { DashboardOverview, Page, RepairRequest } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
@@ -31,7 +31,7 @@ const averageRating = computed(() => {
 
 const stats = computed(() => [
   { icon: 'bi-clipboard-check', title: t('totalRequests'), value: data.value?.totalRequests ?? 0, sub: t('all') },
-  { icon: 'bi-plus-circle', title: t('newToday'), value: data.value?.newToday ?? 0, sub: data.value?.businessDate ?? '-' },
+  { icon: 'bi-plus-circle', title: t('newToday'), value: data.value?.newToday ?? 0, sub: data.value?.businessDate ? formatDate(data.value.businessDate) : '-' },
   { icon: 'bi-folder2-open', title: t('openRequests'), value: data.value?.openRequests ?? 0, sub: t('all') },
   { icon: 'bi-gear', title: t('inProgress'), value: data.value?.inProgress ?? 0, sub: t('all') },
   { icon: 'bi-hourglass-split', title: t('waitingForParts'), value: data.value?.waitingForParts ?? 0, sub: t('all') },
@@ -58,7 +58,7 @@ const errorMessage = computed(() => {
 
 function categoryName(c?: RepairRequest['category']) {
   if (!c) return '-'
-  return c.nameRu || c.nameEn || c.nameUz
+  return c.name || '-'
 }
 
 function formatTime(value?: string) {

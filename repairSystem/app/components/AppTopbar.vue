@@ -1,9 +1,10 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type { LanguageCode, NotificationSummary, Page, UserSettings } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 
 const { user, logout } = useAuth()
 const { locale, setLocale, t } = useLocale()
+const { isDark, toggleTheme } = useTheme()
 
 const displayName = computed(() => user.value?.fullName || 'Administrator')
 const role = computed(() => user.value?.role || '')
@@ -107,6 +108,20 @@ onMounted(async () => {
           see-all-url="/admin/notifications"
           :see-all-text="t('viewAllNotifications')"
         />
+        <li class="nav-item">
+          <button
+            type="button"
+            class="nav-link"
+            title="Toggle theme"
+            aria-label="Toggle theme"
+            @click="toggleTheme"
+          >
+            <i
+              class="bi"
+              :class="isDark ? 'bi-moon-stars' : 'bi-sun'"
+            />
+          </button>
+        </li>
         <FullscreenToggle />
 
         <li class="nav-item dropdown">
