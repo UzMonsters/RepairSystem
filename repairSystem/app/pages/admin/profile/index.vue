@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '~/utils/api'
-import type { LanguageCode, UserDateFormat, UserTimeFormat, UserTheme } from '~/types'
 
 const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword, logout } = useAuth()
 const { t } = useLocale()
@@ -11,11 +10,7 @@ const loadingPassword = ref(false)
 
 const profileForm = ref({
   fullName: user.value?.fullName || '',
-  phone: user.value?.phone || '',
-  language: user.value?.language || 'UZ' as LanguageCode,
-  dateFormat: user.value?.dateFormat || 'DD_SLASH_MM_SLASH_YYYY' as UserDateFormat,
-  timeFormat: user.value?.timeFormat || 'HOUR_24' as UserTimeFormat,
-  theme: user.value?.theme || 'SYSTEM' as UserTheme
+  phone: user.value?.phone || ''
 })
 
 const passwordForm = ref({
@@ -131,81 +126,6 @@ async function handlePasswordSubmit() {
                 >
               </div>
 
-              <hr class="my-4">
-              <h5 class="mb-3">
-                {{ t('personalSettings') || 'Preferences' }}
-              </h5>
-
-              <div class="mb-3">
-                <label class="form-label">{{ t('language') }}</label>
-                <select
-                  v-model="profileForm.language"
-                  class="form-select"
-                  required
-                >
-                  <option value="UZ">
-                    {{ t('uzbek') }}
-                  </option>
-                  <option value="RU">
-                    {{ t('russian') }}
-                  </option>
-                  <option value="EN">
-                    English
-                  </option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">{{ t('dateFormat') }}</label>
-                <select
-                  v-model="profileForm.dateFormat"
-                  class="form-select"
-                  required
-                >
-                  <option value="DD_SLASH_MM_SLASH_YYYY">
-                    DD/MM/YYYY
-                  </option>
-                  <option value="DD_MM_YYYY">
-                    DD.MM.YYYY
-                  </option>
-                  <option value="YYYY_MM_DD">
-                    YYYY-MM-DD
-                  </option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label class="form-label">{{ t('timeFormat') }}</label>
-                <select
-                  v-model="profileForm.timeFormat"
-                  class="form-select"
-                  required
-                >
-                  <option value="HOUR_24">
-                    24 {{ t('hourFormat') || 'Hour' }}
-                  </option>
-                  <option value="HOUR_12">
-                    12 {{ t('hourFormat') || 'Hour' }}
-                  </option>
-                </select>
-              </div>
-              <div class="mb-4">
-                <label class="form-label">{{ t('theme') }}</label>
-                <select
-                  v-model="profileForm.theme"
-                  class="form-select"
-                  required
-                >
-                  <option value="SYSTEM">
-                    {{ t('system') || 'System' }}
-                  </option>
-                  <option value="LIGHT">
-                    {{ t('light') || 'Light' }}
-                  </option>
-                  <option value="DARK">
-                    {{ t('dark') || 'Dark' }}
-                  </option>
-                </select>
-              </div>
-
               <button
                 type="submit"
                 class="btn btn-primary w-100"
@@ -223,10 +143,10 @@ async function handlePasswordSubmit() {
       </div>
 
       <div class="col-lg-6 d-flex flex-column gap-4">
-        <div class="card">
+        <div class="card profile-avatar-card">
           <div class="card-header">
             <h3 class="card-title">
-              {{ t('avatar') || 'Avatar' }}
+              <i class="bi bi-person-circle me-2" />{{ t('avatar') }}
             </h3>
           </div>
           <div class="card-body">
@@ -280,16 +200,16 @@ async function handlePasswordSubmit() {
           </div>
         </div>
 
-        <div class="card flex-grow-1">
+        <div class="card flex-grow-1 profile-password-card">
           <div class="card-header">
             <h3 class="card-title">
-              {{ t('changePassword') || 'Change Password' }}
+              <i class="bi bi-shield-lock me-2" />{{ t('changePassword') }}
             </h3>
           </div>
           <div class="card-body">
             <form @submit.prevent="handlePasswordSubmit">
               <div class="mb-3">
-                <label class="form-label">{{ t('currentPassword') || 'Current Password' }}</label>
+                <label class="form-label">{{ t('currentPassword') }}</label>
                 <input
                   v-model="passwordForm.oldPassword"
                   type="password"
@@ -298,7 +218,7 @@ async function handlePasswordSubmit() {
                 >
               </div>
               <div class="mb-3">
-                <label class="form-label">{{ t('newPassword') || 'New Password' }}</label>
+                <label class="form-label">{{ t('newPassword') }}</label>
                 <input
                   v-model="passwordForm.newPassword"
                   type="password"
@@ -308,7 +228,7 @@ async function handlePasswordSubmit() {
                 >
               </div>
               <div class="mb-4">
-                <label class="form-label">{{ t('confirmPassword') || 'Confirm Password' }}</label>
+                <label class="form-label">{{ t('confirmPassword') }}</label>
                 <input
                   v-model="passwordForm.confirmPassword"
                   type="password"
@@ -320,14 +240,14 @@ async function handlePasswordSubmit() {
 
               <button
                 type="submit"
-                class="btn btn-warning w-100"
+                class="btn btn-primary w-100"
                 :disabled="loadingPassword"
               >
                 <span
                   v-if="loadingPassword"
                   class="spinner-border spinner-border-sm me-2"
                 />
-                {{ t('changePassword') || 'Change Password' }}
+                <i class="bi bi-key me-2" />{{ t('changePassword') }}
               </button>
             </form>
           </div>

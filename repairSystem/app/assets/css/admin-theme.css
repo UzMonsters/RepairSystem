@@ -1311,6 +1311,21 @@ select option {
   color: var(--rs-warning);
 }
 
+.profile-avatar-card .card-body > .d-flex {
+  flex-direction: column;
+  align-items: center !important;
+}
+
+.profile-avatar-card .card-body > .d-flex > .flex-grow-1 {
+  width: 100%;
+}
+
+.profile-avatar-card img,
+.profile-avatar-card .card-body > .d-flex > div:first-child {
+  width: 104px !important;
+  height: 104px !important;
+}
+
 /* ------------------------------------------------------------
    Responsive tweaks
    ------------------------------------------------------------ */

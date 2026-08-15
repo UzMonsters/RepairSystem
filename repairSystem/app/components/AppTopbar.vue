@@ -8,7 +8,6 @@ const { isDark, toggleTheme } = useTheme()
 
 const displayName = computed(() => user.value?.fullName || 'Administrator')
 const role = computed(() => user.value?.role || '')
-const email = computed(() => user.value?.email || '')
 const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
 const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value === 'en' ? 'EN' : 'UZ')
 const notifications = ref<NotificationSummary[]>([])
@@ -202,9 +201,7 @@ onMounted(async () => {
                 style="width: 48px; height: 48px; font-size: 18px; font-weight: 600; background: rgba(255, 255, 255, 0.25);"
               >{{ initials }}</span>
               <p>
-                {{ displayName }}
-                <small>{{ role }}</small>
-                <small class="d-block">{{ email }}</small>
+                {{ role === 'ADMIN' ? t('admin') : role === 'MANAGER' ? t('manager') : role }}
               </p>
             </li>
             <li>
@@ -213,6 +210,14 @@ onMounted(async () => {
                 class="dropdown-item"
               >
                 <i class="bi bi-person me-2" />{{ t('profile') || 'Profile' }}
+              </NuxtLink>
+            </li>
+            <li>
+              <NuxtLink
+                to="/admin/settings"
+                class="dropdown-item"
+              >
+                <i class="bi bi-gear me-2" />{{ t('settings') }}
               </NuxtLink>
             </li>
             <li class="user-footer">
