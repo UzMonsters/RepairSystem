@@ -93,8 +93,8 @@ async function handlePasswordSubmit() {
     :title="t('profile') || 'Profile'"
     :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('profile') || 'Profile' }]"
   >
-    <div class="row g-4">
-      <div class="col-lg-6">
+    <div class="row g-4 profile-page-grid">
+      <div class="col-lg-6 profile-main-column">
         <div class="card h-100">
           <div class="card-header">
             <h3 class="card-title">
@@ -137,7 +137,7 @@ async function handlePasswordSubmit() {
         </div>
       </div>
 
-      <div class="col-lg-6 d-flex flex-column gap-4">
+      <div class="col-lg-6 d-flex flex-column gap-4 profile-side-column">
         <div class="card profile-avatar-card">
           <div class="card-header">
             <h3 class="card-title">
@@ -166,8 +166,8 @@ async function handlePasswordSubmit() {
                 >
                   <i
                     v-if="!loadingAvatar"
-                    class="bi bi-camera"
-                  />
+                    class="profile-avatar-plus"
+                  >+</i>
                   <span
                     v-else
                     class="spinner-border spinner-border-sm"
@@ -188,7 +188,7 @@ async function handlePasswordSubmit() {
                   :title="t('delete')"
                   @click="handleAvatarDelete"
                 >
-                  <i class="bi bi-trash" />
+                  <i class="profile-avatar-x">×</i>
                 </button>
               </div>
               <p class="text-muted small mb-0">

@@ -40,7 +40,7 @@ async function onSubmit() {
           alt="Repair System"
           class="auth-logo mb-3"
         >
-        <h2 class="h4 fw-bold mb-2 text-white">
+        <h2 class="h4 fw-bold mb-2 auth-title">
           {{ t('loginTitle') }}
         </h2>
         <p class="text-muted mb-0">

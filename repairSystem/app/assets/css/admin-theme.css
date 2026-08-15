@@ -1385,6 +1385,64 @@ select option {
   opacity: 0.65;
 }
 
+.profile-page-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.profile-page-grid > .profile-main-column {
+  grid-column: 1;
+  grid-row: 2;
+  width: 100%;
+}
+
+.profile-page-grid > .profile-side-column {
+  display: contents !important;
+}
+
+.profile-page-grid .profile-avatar-card {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+}
+
+.profile-page-grid .profile-password-card {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 100%;
+}
+
+.profile-avatar-plus,
+.profile-avatar-x {
+  font-size: 24px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.page-header-with-action {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+@media (max-width: 991.98px) {
+  .profile-page-grid {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .profile-page-grid > .profile-side-column {
+    display: flex !important;
+  }
+
+  .profile-page-grid > .profile-main-column,
+  .profile-page-grid .profile-avatar-card,
+  .profile-page-grid .profile-password-card {
+    width: 100%;
+  }
+}
+
 /* ------------------------------------------------------------
    Responsive tweaks
    ------------------------------------------------------------ */

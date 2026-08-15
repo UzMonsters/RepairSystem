@@ -129,6 +129,18 @@ async function toggleActive(u: CrmUser) {
     :title="t('users')"
     :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('users') }]"
   >
+    <template #header>
+      <div class="page-header-with-action">
+        <h3 class="mb-0">{{ t('users') }}</h3>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          @click="openCreate"
+        >
+          <i class="bi bi-plus-lg me-1" />{{ t('newUser') }}
+        </button>
+      </div>
+    </template>
     <div
       v-if="!isAdmin"
       class="alert alert-warning"
@@ -170,14 +182,6 @@ async function toggleActive(u: CrmUser) {
               @click="setRoleFilter('MANAGER')"
             >
               <i class="bi bi-person-gear me-1" /><span class="users-filter-text">{{ t('managers') }}</span>
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary"
-              :aria-label="t('newUser')"
-              @click="openCreate"
-            >
-              <i class="bi bi-plus-lg me-1" /><span class="users-create-text">{{ t('newUser') }}</span>
             </button>
           </div>
         </div>

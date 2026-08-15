@@ -1,10 +1,17 @@
-import { watchEffect } from 'vue'
+import { watch, watchEffect } from 'vue'
+import type { UserTheme } from '~/types'
 
 export function useTheme() {
   const { user, updateProfile } = useAuth()
+
+  function storedTheme(): UserTheme | null {
+    if (!import.meta.client) return null
+    const value = localStorage.getItem('repair_theme')
+    return value === 'LIGHT' || value === 'DARK' || value === 'SYSTEM' ? value : null
+  }
   
   const currentTheme = computed(() => {
-    return user.value?.theme || 'SYSTEM'
+    return user.value?.theme || storedTheme() || 'SYSTEM'
   })
   
   const isDark = computed(() => {
@@ -18,6 +25,10 @@ export function useTheme() {
 
   // Watch for changes and apply to body
   if (import.meta.client) {
+    watch(() => user.value?.theme, (theme) => {
+      if (theme) localStorage.setItem('repair_theme', theme)
+    }, { immediate: true })
+
     watchEffect(() => {
       if (isDark.value) {
         document.documentElement.removeAttribute('data-theme')
@@ -46,7 +57,11 @@ export function useTheme() {
     // Immediately apply to local state
     if (user.value) {
       user.value.theme = newTheme
-    } else {
+    }
+    if (import.meta.client) {
+      localStorage.setItem('repair_theme', newTheme)
+    }
+    if (!user.value) {
       // Temporary fallback if no user
       if (newTheme === 'LIGHT') {
         document.documentElement.dataset.theme = 'light'

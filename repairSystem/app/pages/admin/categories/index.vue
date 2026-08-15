@@ -139,22 +139,19 @@ async function toggleActive(c: Category) {
     :title="t('categories')"
     :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('categories') }]"
   >
-    <div class="card">
-      <div class="card-header">
-        <div class="d-flex align-items-center justify-content-between">
-          <h3 class="card-title mb-0">
-            {{ t('categories') }}
-          </h3>
-          <button
-            type="button"
-            class="btn btn-sm btn-primary"
-            @click="openCreate"
-          >
-            <i class="bi bi-plus-lg me-1" />{{ t('newCategory') }}
-          </button>
-        </div>
+    <template #header>
+      <div class="page-header-with-action">
+        <h3 class="mb-0">{{ t('categories') }}</h3>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          @click="openCreate"
+        >
+          <i class="bi bi-plus-lg me-1" />{{ t('newCategory') }}
+        </button>
       </div>
-
+    </template>
+    <div class="card">
       <div class="card-body table-responsive p-0">
         <div
           v-if="error"
