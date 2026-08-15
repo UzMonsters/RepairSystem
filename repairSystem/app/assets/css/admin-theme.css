@@ -1201,6 +1201,34 @@ select option {
 
 .request-row-link { cursor: pointer; }
 .request-row-link:hover { background-color: rgba(255, 255, 255, 0.04); }
+.table-row-link { cursor: pointer; }
+.table-row-link:hover { background-color: rgba(203, 60, 255, 0.06); }
+.table-row-link.is-disabled { cursor: default; }
+.list-group-item-action.category-request-link,
+.list-group-item-action.category-request-link:hover,
+.list-group-item-action.category-request-link:focus {
+  background-color: transparent !important;
+  color: var(--rs-text-2) !important;
+  border-color: var(--rs-border-soft) !important;
+}
+.list-group-item-action.category-request-link:hover,
+.list-group-item-action.category-request-link:focus {
+  background-color: var(--rs-panel-2) !important;
+  color: var(--rs-text) !important;
+}
+.priority-normal {
+  background-color: #ffe083 !important;
+  color: #4a3400 !important;
+  border: 1px solid #d5a900;
+  font-weight: 700;
+}
+
+@media (max-width: 991.98px) {
+  .users-filter-text,
+  .users-create-text { display: none; }
+  .users-create-text + * { margin-left: 0 !important; }
+  .users-create-text { margin: 0; }
+}
 
 .category-language-tabs .nav-link {
   color: var(--rs-muted);

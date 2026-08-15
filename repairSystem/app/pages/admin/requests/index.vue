@@ -301,7 +301,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="6"
+                colspan="7"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
@@ -309,7 +309,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
             </tr>
             <tr v-else-if="!rows.length">
               <td
-                colspan="6"
+                colspan="7"
                 class="text-center p-0"
               >
                 <div class="empty-state table-empty-state">
@@ -335,7 +335,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
               <td>
                 <span
                   class="badge"
-                  :class="r.priority === 'URGENT' || r.priority === 'HIGH' ? 'text-bg-danger' : r.priority === 'LOW' ? 'text-bg-secondary' : 'text-bg-warning'"
+                  :class="r.priority === 'URGENT' || r.priority === 'HIGH' ? 'text-bg-danger' : r.priority === 'LOW' ? 'text-bg-secondary' : r.priority === 'NORMAL' ? 'priority-normal' : 'text-bg-warning'"
                 >
                   {{ t(`priority.${r.priority}`) }}
                 </span>

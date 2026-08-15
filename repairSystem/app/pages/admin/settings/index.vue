@@ -8,9 +8,9 @@ const isAdmin = computed(() => user.value?.role === 'ADMIN')
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
-const saved = ref(false)
 const personal = ref<UserSettings>({ language: 'UZ', dateFormat: 'DD_SLASH_MM_SLASH_YYYY', timeFormat: 'HOUR_24', theme: 'SYSTEM' })
 const system = ref<SystemSettings>({ timezone: 'Asia/Tashkent', defaultLanguage: 'UZ' })
+const toast = useToast()
 
 const languages: LanguageCode[] = ['UZ', 'RU', 'EN']
 
@@ -31,7 +31,6 @@ async function loadSettings() {
 
 async function saveSettings() {
   saving.value = true
-  saved.value = false
   error.value = ''
   try {
     const updated = await apiFetch<UserSettings>('/settings/me', { method: 'PUT', body: personal.value as unknown as Record<string, unknown> })
@@ -54,9 +53,9 @@ async function saveSettings() {
       system.value = await apiFetch<SystemSettings>('/settings/system', { method: 'PUT', body: system.value as unknown as Record<string, unknown> })
     }
     await refreshNuxtData()
-    saved.value = true
+    toast.showSuccess(t('savedSuccessfully'))
   } catch (e) {
-    error.value = getApiErrorMessage(e, 'Failed to save settings.')
+    toast.showError(getApiErrorMessage(e, 'Failed to save settings.'))
   } finally {
     saving.value = false
   }
@@ -73,12 +72,6 @@ async function saveSettings() {
       class="alert alert-danger"
     >
       {{ error }}
-    </div>
-    <div
-      v-if="saved"
-      class="alert alert-success"
-    >
-      {{ t('savedSuccessfully') }}
     </div>
     <div
       v-if="loading"
@@ -226,17 +219,3 @@ async function saveSettings() {
     </div>
   </AppContent>
 </template>
-
-<style scoped>
-.settings-page :is(.form-control, .form-select) {
-  background-color: #172447 !important;
-  border-color: #2b3b68 !important;
-  color: #edf2ff !important;
-  color-scheme: dark;
-}
-
-.settings-page .form-select option {
-  background: #172447;
-  color: #edf2ff;
-}
-</style>

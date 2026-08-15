@@ -45,6 +45,10 @@ function changeSize(s: number) {
 function formatDate(value?: string) {
   return formatApiDate(value)
 }
+
+function openReview(r: Review) {
+  if (r.repairRequestId) navigateTo(`/admin/requests/${r.repairRequestId}`)
+}
 </script>
 
 <template>
@@ -138,6 +142,11 @@ function formatDate(value?: string) {
             <tr
               v-for="r in rows"
               :key="r.reviewId ?? `${r.repairRequestId}-${r.rating}-${r.customerName}`"
+              class="table-row-link"
+              :class="{ 'is-disabled': !r.repairRequestId }"
+              tabindex="0"
+              @click="openReview(r)"
+              @keydown.enter="openReview(r)"
             >
               <td class="fw-semibold">
                 {{ r.customerName || '-' }}
@@ -158,6 +167,7 @@ function formatDate(value?: string) {
                 <NuxtLink
                   v-if="r.repairRequestId"
                   :to="`/admin/requests/${r.repairRequestId}`"
+                  @click.stop
                 >
                   {{ r.requestNumber || `#${r.repairRequestId}` }}
                 </NuxtLink>

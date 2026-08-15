@@ -9,7 +9,7 @@ let nextId = 1
 export function useToast() {
   const toasts = useState<ToastMessage[]>('app:toasts', () => [])
 
-  function addToast(message: string, type: 'success' | 'error' | 'info' = 'info', duration = 8000) {
+  function addToast(message: string, type: 'success' | 'error' | 'info' = 'info', duration = 5000) {
     const id = nextId++
     toasts.value.push({ id, type, message })
     setTimeout(() => {

@@ -153,7 +153,7 @@ async function toggleActive(u: CrmUser) {
               :class="roleFilter === 'all' ? 'btn-primary' : 'btn-outline-secondary'"
               @click="setRoleFilter('all')"
             >
-              {{ t('all') }}
+              <i class="bi bi-people me-1" /><span class="users-filter-text">{{ t('all') }}</span>
             </button>
             <button
               type="button"
@@ -161,7 +161,7 @@ async function toggleActive(u: CrmUser) {
               :class="roleFilter === 'ADMIN' ? 'btn-primary' : 'btn-outline-secondary'"
               @click="setRoleFilter('ADMIN')"
             >
-              {{ t('admins') }}
+              <i class="bi bi-shield-person me-1" /><span class="users-filter-text">{{ t('admins') }}</span>
             </button>
             <button
               type="button"
@@ -169,7 +169,7 @@ async function toggleActive(u: CrmUser) {
               :class="roleFilter === 'MANAGER' ? 'btn-primary' : 'btn-outline-secondary'"
               @click="setRoleFilter('MANAGER')"
             >
-              {{ t('managers') }}
+              <i class="bi bi-person-gear me-1" /><span class="users-filter-text">{{ t('managers') }}</span>
             </button>
           </div>
 
@@ -178,7 +178,7 @@ async function toggleActive(u: CrmUser) {
             class="btn btn-sm btn-primary"
             @click="openCreate"
           >
-            <i class="bi bi-plus-lg me-1" />{{ t('newUser') }}
+            <i class="bi bi-plus-lg me-1" /><span class="users-create-text">{{ t('newUser') }}</span>
           </button>
         </div>
       </div>

@@ -13,8 +13,8 @@ const { toasts, removeToast } = useToast()
       <div
         v-for="t in toasts"
         :key="t.id"
-        class="toast show align-items-center text-bg-light border-0 mb-2 shadow"
-        :class="t.type === 'success' ? 'text-bg-success text-white' : t.type === 'error' ? 'text-bg-danger text-white' : ''"
+        class="toast show align-items-center border-0 mb-2 shadow"
+        :class="t.type === 'success' ? 'text-bg-success text-white' : t.type === 'error' ? 'text-bg-danger text-white' : 'text-bg-primary text-white'"
         role="alert"
         aria-live="assertive"
         aria-atomic="true"

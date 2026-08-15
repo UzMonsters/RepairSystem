@@ -301,7 +301,12 @@ function formatDate(value?: string) {
               :key="tech.id"
             >
               <td class="fw-semibold">
-                {{ tech.fullName }}
+                <NuxtLink
+                  :to="`/admin/technicians/${tech.id}`"
+                  @click.stop
+                >
+                  {{ tech.fullName }}
+                </NuxtLink>
               </td>
               <td>{{ tech.phone }}</td>
               <td>{{ tech.specialization || '-' }}</td>
@@ -319,10 +324,6 @@ function formatDate(value?: string) {
                     @change="toggleActive(tech)"
                   >
                 </span>
-                <span
-                  class="badge ms-1"
-                  :class="tech.active ? 'text-bg-success' : 'text-bg-secondary'"
-                >{{ t(tech.active ? 'active' : 'inactive') }}</span>
               </td>
               <td class="text-nowrap">
                 {{ formatDate(tech.createdAt) }}

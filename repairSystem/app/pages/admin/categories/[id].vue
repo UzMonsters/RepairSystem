@@ -69,7 +69,7 @@ function requestLabel(request: RepairRequest) {
             v-for="request in requests.content"
             :key="request.id"
             :to="`/admin/requests/${request.id}`"
-            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+            class="list-group-item list-group-item-action category-request-link d-flex justify-content-between align-items-center"
           >
             <span>{{ requestLabel(request) }}</span>
             <span class="small text-muted">{{ formatDate(request.createdAt, true) }}</span>

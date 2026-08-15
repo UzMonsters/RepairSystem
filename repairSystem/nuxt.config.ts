@@ -41,7 +41,8 @@ export default defineNuxtConfig({
     'overlayscrollbars/overlayscrollbars.css',
     'jsvectormap/dist/jsvectormap.css',
     'admin-lte/dist/css/adminlte.css',
-    '~/assets/css/admin-theme.css'
+    '~/assets/css/admin-theme.css',
+    '~/assets/css/light-theme.css'
   ],
 
   runtimeConfig: {

@@ -41,6 +41,10 @@ function changeSize(s: number) {
   page.value = 1
   refresh()
 }
+
+function openCustomer(id: number) {
+  navigateTo(`/admin/customers/${id}`)
+}
 </script>
 
 <template>
@@ -128,14 +132,15 @@ function changeSize(s: number) {
             <tr
               v-for="c in rows"
               :key="c.id"
+              class="table-row-link"
+              tabindex="0"
+              @click="openCustomer(c.id)"
+              @keydown.enter="openCustomer(c.id)"
             >
               <td>
-                <NuxtLink
-                  :to="`/admin/customers/${c.id}`"
-                  class="fw-semibold link-primary"
-                >
+                <span class="fw-semibold link-primary">
                   {{ c.fullName }}
-                </NuxtLink>
+                </span>
               </td>
               <td>{{ c.phone }}</td>
               <td>{{ c.preferredLanguage ? t(`language.${c.preferredLanguage}`) : '-' }}</td>
@@ -162,6 +167,7 @@ function changeSize(s: number) {
                   :to="`/admin/customers/${c.id}`"
                   class="btn btn-sm btn-outline-secondary"
                   :title="t('view')"
+                  @click.stop
                 >
                   <i class="bi bi-person" />
                 </NuxtLink>

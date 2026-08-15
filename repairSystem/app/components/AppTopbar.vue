@@ -207,6 +207,14 @@ onMounted(async () => {
                 <small class="d-block">{{ email }}</small>
               </p>
             </li>
+            <li>
+              <NuxtLink
+                to="/admin/profile"
+                class="dropdown-item"
+              >
+                <i class="bi bi-person me-2" />{{ t('profile') || 'Profile' }}
+              </NuxtLink>
+            </li>
             <li class="user-footer">
               <a
                 href="#"

@@ -217,10 +217,17 @@ async function toggleActive(c: Category) {
                 {{ localizedDescription(c) }}
               </td>
               <td>
-                <span
-                  class="badge"
-                  :class="c.active ? 'text-bg-success' : 'text-bg-secondary'"
-                >{{ t(c.active ? 'active' : 'inactive') }}</span>
+                <span class="form-check form-switch d-inline-block align-middle mb-0">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    :checked="!!c.active"
+                    :disabled="togglingId === c.id"
+                    :aria-label="`Toggle ${localizedName(c)}`"
+                    @change="toggleActive(c)"
+                  >
+                </span>
               </td>
               <td class="text-end text-nowrap">
                 <button
@@ -238,15 +245,6 @@ async function toggleActive(c: Category) {
                 >
                   <i class="bi bi-eye" />
                 </NuxtLink>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary ms-1"
-                  :title="t('active')"
-                  :disabled="togglingId === c.id"
-                  @click="toggleActive(c)"
-                >
-                  <i class="bi bi-toggle-on" />
-                </button>
               </td>
             </tr>
           </tbody>
