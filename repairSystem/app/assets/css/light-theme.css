@@ -1,12 +1,12 @@
 [data-theme="light"] {
   /* Основной фон приложения */
-  --rs-bg: #f4f7fb;
+  --rs-bg: #f5f7fb;
 
   /* Фон основного контента */
-  --rs-content-bg: #eef3f8;
+  --rs-content-bg: #f5f7fb;
 
   /* Sidebar */
-  --rs-sidebar-bg: #bfd4eb;
+  --rs-sidebar-bg: #192533;
 
   /* Header */
   --rs-header-bg: #ffffff;
@@ -24,13 +24,13 @@
   --rs-active-bg: #d5e5fb;
 
   /* Главный синий */
-  --rs-primary: #2563eb;
+  --rs-primary: #18b7a0;
 
   /* Более тёмный синий */
-  --rs-primary-dark: #1d4ed8;
+  --rs-primary-dark: #0f8f82;
 
   /* Светлый синий */
-  --rs-primary-soft: #dbeafe;
+  --rs-primary-soft: #d9f5f0;
 
   /* Основной текст */
   --rs-text: #10203d;
@@ -95,32 +95,32 @@
 }
 
 [data-theme="light"] .app-sidebar {
-  background: #b9d0e9 !important;
-  border-right: 1px solid var(--rs-border);
-  box-shadow: 4px 0 18px rgba(30, 64, 175, 0.06) !important;
+  background: #192533 !important;
+  border-right: 1px solid #263849;
+  box-shadow: 8px 0 24px rgba(15, 28, 43, 0.12) !important;
 }
 
 [data-theme="light"] .sidebar-brand {
-  background: #aac4df;
-  border-bottom: 1px solid var(--rs-border);
+  background: #192533;
+  border-bottom: 1px solid #263849;
 }
 
 [data-theme="light"] .brand-link .brand-text {
-  color: #10203d !important;
+  color: #ffffff !important;
 }
 
 [data-theme="light"] .sidebar-menu .nav-link {
-  color: #152238 !important;
+  color: #aebdca !important;
   opacity: 1 !important;
 }
 
 [data-theme="light"] .sidebar-menu .nav-link:hover {
-  color: #071326 !important;
-  background: #d9e8f8 !important;
+  color: #ffffff !important;
+  background: #203845 !important;
 }
 
 [data-theme="light"] .sidebar-menu .nav-header {
-  color: #425a7d !important;
+  color: #718294 !important;
 }
 
 [data-theme="light"] .sidebar-menu .nav-link {
@@ -133,13 +133,26 @@
 }
 
 [data-theme="light"] .sidebar-menu .nav-link.active {
-  background: var(--rs-active-bg);
-  color: var(--rs-primary-dark);
+  background: #173943 !important;
+  color: #ffffff !important;
   font-weight: 600;
 }
 
 [data-theme="light"] .sidebar-menu .nav-link.active .nav-icon {
   color: var(--rs-primary);
+}
+
+[data-theme="light"] .app-sidebar .sidebar-search .input-group {
+  background: #202f3e;
+  border-color: #33475a;
+}
+
+[data-theme="light"] .app-sidebar .sidebar-search .form-control {
+  color: #ffffff;
+}
+
+[data-theme="light"] .app-sidebar .sidebar-search .form-control::placeholder {
+  color: #8fa1b2;
 }
 
 [data-theme="light"] .sidebar-menu .nav-header {

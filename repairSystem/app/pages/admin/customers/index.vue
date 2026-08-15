@@ -138,7 +138,7 @@ function openCustomer(id: number) {
               @keydown.enter="openCustomer(c.id)"
             >
               <td>
-                <span class="fw-semibold link-primary">
+                <span class="fw-semibold">
                   {{ c.fullName }}
                 </span>
               </td>

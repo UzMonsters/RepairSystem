@@ -161,7 +161,7 @@ async function toggleActive(u: CrmUser) {
               :class="roleFilter === 'ADMIN' ? 'btn-primary' : 'btn-outline-secondary'"
               @click="setRoleFilter('ADMIN')"
             >
-              <i class="bi bi-shield-person me-1" /><span class="users-filter-text">{{ t('admins') }}</span>
+              <i class="bi bi-person-badge me-1" /><span class="users-filter-text">{{ t('admins') }}</span>
             </button>
             <button
               type="button"
@@ -171,15 +171,15 @@ async function toggleActive(u: CrmUser) {
             >
               <i class="bi bi-person-gear me-1" /><span class="users-filter-text">{{ t('managers') }}</span>
             </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              :aria-label="t('newUser')"
+              @click="openCreate"
+            >
+              <i class="bi bi-plus-lg me-1" /><span class="users-create-text">{{ t('newUser') }}</span>
+            </button>
           </div>
-
-          <button
-            type="button"
-            class="btn btn-sm btn-primary"
-            @click="openCreate"
-          >
-            <i class="bi bi-plus-lg me-1" /><span class="users-create-text">{{ t('newUser') }}</span>
-          </button>
         </div>
       </div>
 

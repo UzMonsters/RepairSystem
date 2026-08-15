@@ -309,7 +309,7 @@ function openTechnician(id: number) {
               @keydown.enter="openTechnician(tech.id)"
             >
               <td class="fw-semibold">
-                <span class="link-primary">
+                <span>
                   {{ tech.fullName }}
                 </span>
               </td>
@@ -335,9 +335,17 @@ function openTechnician(id: number) {
                 {{ formatDate(tech.createdAt) }}
               </td>
               <td class="text-end text-nowrap">
+                <NuxtLink
+                  :to="`/admin/technicians/${tech.id}`"
+                  class="btn btn-sm btn-outline-secondary"
+                  :title="t('view')"
+                  @click.stop
+                >
+                  <i class="bi bi-eye" />
+                </NuxtLink>
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-secondary"
+                  class="btn btn-sm btn-outline-secondary ms-1"
                   :title="t('telegramLink')"
                   @click.stop="openTelegramLink(tech)"
                 >
