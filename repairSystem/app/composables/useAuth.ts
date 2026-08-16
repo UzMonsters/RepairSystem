@@ -102,7 +102,10 @@ export function useAuth() {
         const profile = await apiFetch<AuthUser>('/me')
         user.value = profile
         if (import.meta.client) {
-          if (profile.language) {
+          // Keep an explicitly selected browser language across reloads. The
+          // profile response can be stale while settings are being persisted.
+          const storedLocale = localStorage.getItem('repair_lang')
+          if (profile.language && !storedLocale) {
             const { setLocale } = useLocale()
             setLocale(profile.language.toLowerCase())
           }

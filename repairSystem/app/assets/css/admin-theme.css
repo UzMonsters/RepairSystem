@@ -1018,6 +1018,17 @@ select option {
   color: var(--rs-text);
 }
 
+/* Bootstrap's disabled form-control background is light by default. Keep
+   read-only settings fields consistent with the active dark palette. */
+.settings-page .form-control:disabled,
+.settings-page .form-control[disabled] {
+  background: var(--rs-panel-2) !important;
+  border-color: var(--rs-border) !important;
+  color: var(--rs-text-2) !important;
+  color-scheme: dark;
+  opacity: 1;
+}
+
 .form-label {
   color: var(--rs-text-2);
   font-size: 0.85rem;

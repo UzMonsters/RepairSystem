@@ -47,7 +47,6 @@ async function changeLanguage(lang: LanguageCode) {
     })
     setLocale(lang.toLowerCase())
     await refreshNuxtData()
-    window.location.reload()
   } catch (e) {
     console.error(getApiErrorMessage(e, 'Failed to change language.'))
   } finally {

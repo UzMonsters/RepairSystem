@@ -5,6 +5,17 @@ import uz from '~/locales/uz'
 type Locale = 'uz' | 'ru' | 'en'
 type TranslationMap = Record<string, string>
 
+function getStoredLocale(): Locale | null {
+  if (!import.meta.client) return null
+
+  try {
+    const stored = localStorage.getItem('repair_lang')
+    return stored === 'ru' || stored === 'en' || stored === 'uz' ? stored : null
+  } catch {
+    return null
+  }
+}
+
 const translations: Record<Locale, TranslationMap> = {
   uz: uz as TranslationMap,
   ru: ru as TranslationMap,
@@ -12,7 +23,7 @@ const translations: Record<Locale, TranslationMap> = {
 }
 
 export function useLocale() {
-  const locale = useState<Locale>('app:locale', () => 'uz')
+  const locale = useState<Locale>('app:locale', () => getStoredLocale() || 'uz')
 
   function setLocale(lang: string) {
     locale.value = lang === 'ru' || lang === 'en' ? lang : 'uz'
@@ -33,8 +44,7 @@ export function useLocale() {
   onMounted(() => {
     if (!import.meta.client) return
     try {
-      const stored = localStorage.getItem('repair_lang')
-      setLocale(stored || 'uz')
+      setLocale(getStoredLocale() || 'uz')
     } catch {
       setLocale('uz')
     }

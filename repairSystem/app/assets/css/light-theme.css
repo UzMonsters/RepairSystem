@@ -359,6 +359,15 @@
   border-color: #cbd6e4 !important;
 }
 
+[data-theme="light"] .settings-page .form-control:disabled,
+[data-theme="light"] .settings-page .form-control[disabled] {
+  background: #eef3f8 !important;
+  border-color: #cbd6e4 !important;
+  color: #6f829d !important;
+  color-scheme: light;
+  opacity: 1;
+}
+
 [data-theme="light"] .form-select {
   min-height: 42px;
   padding: 0.55rem 0.85rem;
