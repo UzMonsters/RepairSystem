@@ -20,6 +20,8 @@ import com.example.darks.repair_auto.settings.application.SettingsService;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.error.ResourceNotFoundException;
 import com.example.darks.repair_auto.shared.phone.PhoneNumberNormalizer;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObjectDownload;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -225,6 +227,24 @@ public class ProfileService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public AttachmentDownload downloadAvatar(Long userId) {
+        User user = findUser(userId);
+        RepairAttachment avatar = user.getAvatarAttachment();
+        if (avatar == null || !avatar.isAvailable()) {
+            throw new ResourceNotFoundException("Avatar was not found.");
+        }
+        StoredObjectDownload object = objectStorageService.download(avatar.getStorageKey());
+        String contentType = object.contentType() == null || object.contentType().isBlank()
+                ? "application/octet-stream"
+                : object.contentType();
+        return new AttachmentDownload(
+                safeDownloadFileName(avatar),
+                contentType,
+                object.sizeBytes(),
+                object.inputStream());
+    }
+
     private User findUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User was not found."));
@@ -234,17 +254,21 @@ public class ProfileService {
         if (attachment == null || !attachment.isAvailable()) {
             return null;
         }
-        URI url = objectStorageService.createDownloadUrl(
-                attachment.getStorageKey(),
-                attachment.getOriginalFileName(),
-                storageProperties.downloadUrlTtl()
-        );
         return new AvatarResponse(
                 attachment.getId(),
                 attachment.getOriginalFileName(),
-                attachment.getContentType(),
-                url.toString()
+                attachment.getContentType()
         );
+    }
+
+    private String safeDownloadFileName(RepairAttachment attachment) {
+        String extension = validator.extensionFor(attachment.getContentType());
+        String fallback = "avatar-" + attachment.getId() + (extension == null ? "" : extension);
+        String original = attachment.getOriginalFileName();
+        if (original == null || original.isBlank() || original.indexOf('"') >= 0 || original.indexOf('\\') >= 0) {
+            return fallback;
+        }
+        return original;
     }
 
     private String sha256Hex(byte[] bytes) {

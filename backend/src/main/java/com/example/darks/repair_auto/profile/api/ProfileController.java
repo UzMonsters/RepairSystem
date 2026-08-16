@@ -13,6 +13,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -58,6 +62,26 @@ public class ProfileController {
             @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody UpdateProfileRequest request) {
         return profileService.updateCurrentProfile(user.id(), request);
+    }
+
+    @GetMapping("/avatar")
+    @Operation(summary = "Get current authenticated user avatar image stream")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Current user avatar image stream returned"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "404", description = "Avatar not found")
+    })
+    public ResponseEntity<InputStreamResource> getAvatar(@AuthenticationPrincipal AuthenticatedUser user) {
+        AttachmentDownload download = profileService.downloadAvatar(user.id());
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(download.contentType()))
+                .contentLength(download.sizeBytes())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename(download.fileName())
+                        .build()
+                        .toString())
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .body(new InputStreamResource(download.inputStream()));
     }
 
     @PutMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

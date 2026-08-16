@@ -5,6 +5,15 @@ public record TokenResponse(
         String refreshToken,
         String tokenType,
         long accessTokenExpiresIn,
-        long refreshTokenExpiresIn
+        long refreshTokenExpiresIn,
+        boolean rememberMe
 ) {
+    public TokenResponse(
+            String accessToken,
+            String refreshToken,
+            String tokenType,
+            long accessTokenExpiresIn,
+            long refreshTokenExpiresIn) {
+        this(accessToken, refreshToken, tokenType, accessTokenExpiresIn, refreshTokenExpiresIn, false);
+    }
 }

@@ -10,8 +10,18 @@ public record AppProperties(
         Trace trace,
         Jwt jwt,
         Duration refreshTokenTtl,
+        Duration rememberMeRefreshTokenTtl,
         BootstrapAdmin bootstrapAdmin
 ) {
+
+    public AppProperties(
+            Cors cors,
+            Trace trace,
+            Jwt jwt,
+            Duration refreshTokenTtl,
+            BootstrapAdmin bootstrapAdmin) {
+        this(cors, trace, jwt, refreshTokenTtl, Duration.ofDays(30), bootstrapAdmin);
+    }
 
     public record Cors(
             List<String> allowedOrigins,

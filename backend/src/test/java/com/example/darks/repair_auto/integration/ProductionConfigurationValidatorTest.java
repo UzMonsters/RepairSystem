@@ -110,6 +110,7 @@ class ProductionConfigurationValidatorTest {
                         "strong-production-secret-value-123456",
                         "repair-auto",
                         Duration.ofMinutes(15)),
+                Duration.ofDays(1),
                 Duration.ofDays(30),
                 new AppProperties.BootstrapAdmin(false, "", "", "System Administrator"));
     }

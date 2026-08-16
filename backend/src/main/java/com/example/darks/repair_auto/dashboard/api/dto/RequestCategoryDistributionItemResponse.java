@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public record RequestCategoryDistributionItemResponse(
         Long categoryId,
+        String name,
         String nameEn,
         String nameRu,
         String nameUz,

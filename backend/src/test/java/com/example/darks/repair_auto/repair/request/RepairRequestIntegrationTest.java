@@ -261,7 +261,7 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenCustomerHistoryWhenQueriedThenOnlyThatCustomersRequestsReturn() throws Exception {
-        repairRequestService.create(createRequest(customerId, categoryId, "AC does not cool the room", "Chilanzar", "NORMAL"), new AuthenticatedUser(admin));
+        var first = repairRequestService.create(createRequest(customerId, categoryId, "AC does not cool the room", "Chilanzar", "NORMAL"), new AuthenticatedUser(admin));
         repairRequestService.create(createRequest(secondCustomerId, secondCategoryId, "Phone screen is cracked badly", "Yunusabad", "URGENT"), new AuthenticatedUser(admin));
         customerService.changeActivation(customerId, false, "history stays available");
 
@@ -273,7 +273,8 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
                         .param("sort", "createdAt,desc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
-                .andExpect(jsonPath("$.content[0].customer.id").value(customerId));
+                .andExpect(jsonPath("$.content[0].id").value(first.id()))
+                .andExpect(jsonPath("$.content[0].customer").doesNotExist());
 
         mockMvc.perform(get("/api/v1/customers/999999/requests").with(user(new AuthenticatedUser(admin))))
                 .andExpect(status().isNotFound())

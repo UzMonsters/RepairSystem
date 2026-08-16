@@ -36,6 +36,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
+import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
+import com.example.darks.repair_auto.settings.domain.Language;
+
 @Service
 public class RepairAssignmentService {
 
@@ -48,6 +52,8 @@ public class RepairAssignmentService {
     private final RepairStatusHistoryService statusHistoryService;
     private final NotificationEventFactory notificationEventFactory;
     private final NotificationOutboxService notificationOutboxService;
+    private final EffectiveLanguageResolver effectiveLanguageResolver;
+    private final LocalizedValueResolver localizedValueResolver;
     private final Clock clock;
 
     @Autowired
@@ -58,7 +64,9 @@ public class RepairAssignmentService {
             UserRepository userRepository,
             RepairStatusHistoryService statusHistoryService,
             NotificationEventFactory notificationEventFactory,
-            NotificationOutboxService notificationOutboxService) {
+            NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver) {
         this(
                 repairAssignmentRepository,
                 repairRequestRepository,
@@ -67,6 +75,8 @@ public class RepairAssignmentService {
                 statusHistoryService,
                 notificationEventFactory,
                 notificationOutboxService,
+                effectiveLanguageResolver,
+                localizedValueResolver,
                 Clock.systemUTC());
     }
 
@@ -78,6 +88,8 @@ public class RepairAssignmentService {
             RepairStatusHistoryService statusHistoryService,
             NotificationEventFactory notificationEventFactory,
             NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver,
             Clock clock) {
         this.repairAssignmentRepository = repairAssignmentRepository;
         this.repairRequestRepository = repairRequestRepository;
@@ -86,6 +98,8 @@ public class RepairAssignmentService {
         this.statusHistoryService = statusHistoryService;
         this.notificationEventFactory = notificationEventFactory;
         this.notificationOutboxService = notificationOutboxService;
+        this.effectiveLanguageResolver = effectiveLanguageResolver;
+        this.localizedValueResolver = localizedValueResolver;
         this.clock = clock;
     }
 
@@ -317,7 +331,8 @@ public class RepairAssignmentService {
         RepairAssignment current = repairAssignmentRepository
                 .findActiveByRequestId(repairRequest.getId(), RepairAssignmentRepository.ACTIVE_STATUSES)
                 .orElse(null);
-        return RepairRequestMapper.details(repairRequest, current);
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+        return RepairRequestMapper.details(repairRequest, current, null, lang, localizedValueResolver);
     }
 
     private RepairRequest assignableRequestForUpdate(Long requestId) {

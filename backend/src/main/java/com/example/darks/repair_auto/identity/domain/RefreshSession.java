@@ -62,6 +62,9 @@ public class RefreshSession {
     @Column(name = "last_used_user_agent", length = 512)
     private String lastUsedUserAgent;
 
+    @Column(name = "remember_me", nullable = false)
+    private boolean rememberMe = false;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -76,6 +79,7 @@ public class RefreshSession {
             User user,
             String tokenHash,
             UUID tokenFamilyId,
+            boolean rememberMe,
             OffsetDateTime issuedAt,
             OffsetDateTime expiresAt,
             String createdIp,
@@ -83,11 +87,23 @@ public class RefreshSession {
         this.user = user;
         this.tokenHash = tokenHash;
         this.tokenFamilyId = tokenFamilyId;
+        this.rememberMe = rememberMe;
         this.issuedAt = issuedAt;
         this.expiresAt = expiresAt;
         this.createdAt = issuedAt;
         this.createdIp = createdIp;
         this.createdUserAgent = createdUserAgent;
+    }
+
+    public RefreshSession(
+            User user,
+            String tokenHash,
+            UUID tokenFamilyId,
+            OffsetDateTime issuedAt,
+            OffsetDateTime expiresAt,
+            String createdIp,
+            String createdUserAgent) {
+        this(user, tokenHash, tokenFamilyId, false, issuedAt, expiresAt, createdIp, createdUserAgent);
     }
 
     public Long getId() {
@@ -96,6 +112,10 @@ public class RefreshSession {
 
     public User getUser() {
         return user;
+    }
+
+    public boolean isRememberMe() {
+        return rememberMe;
     }
 
     public String getTokenHash() {
