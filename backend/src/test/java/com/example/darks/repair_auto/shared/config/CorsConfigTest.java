@@ -16,6 +16,7 @@ class CorsConfigTest {
                         List.of("X-Trace-Id"), true),
                 new AppProperties.Trace("X-Trace-Id"),
                 new AppProperties.Jwt("test-secret-that-is-at-least-32-characters", "repair-auto", Duration.ofMinutes(15)),
+                Duration.ofDays(1),
                 Duration.ofDays(30),
                 new AppProperties.BootstrapAdmin(false, "", "", ""));
 
@@ -31,6 +32,7 @@ class CorsConfigTest {
                         List.of("Content-Type"), List.of("X-Trace-Id"), false),
                 new AppProperties.Trace("X-Trace-Id"),
                 new AppProperties.Jwt("test-secret-that-is-at-least-32-characters", "repair-auto", Duration.ofMinutes(15)),
+                Duration.ofDays(1),
                 Duration.ofDays(30),
                 new AppProperties.BootstrapAdmin(false, "", "", ""));
 

@@ -78,6 +78,7 @@ class BootstrapAdminRunnerTest {
                         "test-local-only-jwt-secret-that-is-long-enough",
                         "repair-auto",
                         Duration.ofMinutes(15)),
+                Duration.ofDays(1),
                 Duration.ofDays(30),
                 new AppProperties.BootstrapAdmin(enabled, email, password, fullName));
     }

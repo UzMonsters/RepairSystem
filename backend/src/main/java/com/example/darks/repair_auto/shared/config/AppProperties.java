@@ -14,15 +14,6 @@ public record AppProperties(
         BootstrapAdmin bootstrapAdmin
 ) {
 
-    public AppProperties(
-            Cors cors,
-            Trace trace,
-            Jwt jwt,
-            Duration refreshTokenTtl,
-            BootstrapAdmin bootstrapAdmin) {
-        this(cors, trace, jwt, refreshTokenTtl, Duration.ofDays(30), bootstrapAdmin);
-    }
-
     public record Cors(
             List<String> allowedOrigins,
             List<String> allowedMethods,
