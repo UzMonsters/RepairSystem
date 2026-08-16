@@ -188,7 +188,7 @@ function formatDate(value?: string) {
               >
                 <thead>
                   <tr>
-                    <th>#</th>
+                    <th>{{ t('description') }}</th>
                     <th>{{ t('categories') }}</th>
                     <th>{{ t('status') }}</th>
                     <th>{{ t('date') }}</th>
@@ -215,14 +215,7 @@ function formatDate(value?: string) {
                     class="cursor-pointer"
                     @click="navigateTo(`/admin/requests/${r.id}`)"
                   >
-                    <td>
-                      <NuxtLink
-                        :to="`/admin/requests/${r.id}`"
-                        @click.stop
-                      >
-                        {{ r.requestNumber || `#${r.id}` }}
-                      </NuxtLink>
-                    </td>
+                    <td>{{ r.description || '-' }}</td>
                     <td>{{ categoryName(r) }}</td>
                     <td><StatusBadge :status="r.status" /></td>
                     <td>{{ formatDate(r.createdAt) }}</td>
