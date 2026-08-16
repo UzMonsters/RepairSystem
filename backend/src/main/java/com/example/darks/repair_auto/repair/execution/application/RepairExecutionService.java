@@ -39,6 +39,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
+import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
+import com.example.darks.repair_auto.settings.domain.Language;
+
 @Service
 public class RepairExecutionService {
 
@@ -57,6 +61,8 @@ public class RepairExecutionService {
     private final AttachmentRequirementService attachmentRequirementService;
     private final NotificationEventFactory notificationEventFactory;
     private final NotificationOutboxService notificationOutboxService;
+    private final EffectiveLanguageResolver effectiveLanguageResolver;
+    private final LocalizedValueResolver localizedValueResolver;
     private final Clock clock;
 
     @Autowired
@@ -70,7 +76,9 @@ public class RepairExecutionService {
             RepairStatusHistoryService statusHistoryService,
             AttachmentRequirementService attachmentRequirementService,
             NotificationEventFactory notificationEventFactory,
-            NotificationOutboxService notificationOutboxService) {
+            NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver) {
         this(
                 repairRequestRepository,
                 repairAssignmentRepository,
@@ -82,6 +90,8 @@ public class RepairExecutionService {
                 attachmentRequirementService,
                 notificationEventFactory,
                 notificationOutboxService,
+                effectiveLanguageResolver,
+                localizedValueResolver,
                 Clock.systemUTC());
     }
 
@@ -96,6 +106,8 @@ public class RepairExecutionService {
             AttachmentRequirementService attachmentRequirementService,
             NotificationEventFactory notificationEventFactory,
             NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver,
             Clock clock) {
         this.repairRequestRepository = repairRequestRepository;
         this.repairAssignmentRepository = repairAssignmentRepository;
@@ -107,6 +119,8 @@ public class RepairExecutionService {
         this.attachmentRequirementService = attachmentRequirementService;
         this.notificationEventFactory = notificationEventFactory;
         this.notificationOutboxService = notificationOutboxService;
+        this.effectiveLanguageResolver = effectiveLanguageResolver;
+        this.localizedValueResolver = localizedValueResolver;
         this.clock = clock;
     }
 
@@ -467,7 +481,8 @@ public class RepairExecutionService {
             RepairRequest request,
             RepairAssignment assignment,
             RepairExecution execution) {
-        return RepairRequestMapper.details(request, assignment, execution);
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+        return RepairRequestMapper.details(request, assignment, execution, lang, localizedValueResolver);
     }
 
     private RepairRequest requestForUpdate(Long requestId) {

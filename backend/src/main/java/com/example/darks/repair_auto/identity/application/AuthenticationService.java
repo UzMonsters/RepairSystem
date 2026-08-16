@@ -44,7 +44,7 @@ public class AuthenticationService {
     }
 
     @Transactional
-    public LoginResponse login(String email, String password, String ip, String userAgent) {
+    public LoginResponse login(String email, String password, boolean rememberMe, String ip, String userAgent) {
         String normalizedEmail = emailNormalizer.normalize(email);
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElse(null);
@@ -59,15 +59,21 @@ public class AuthenticationService {
             throw invalidCredentials();
         }
         user.markLoggedIn(now());
-        RefreshSessionService.IssuedRefreshToken refresh = refreshSessionService.create(user, ip, userAgent);
-        LOGGER.info("Authentication event operation=login result=success userId={}", user.getId());
+        RefreshSessionService.IssuedRefreshToken refresh = refreshSessionService.create(user, rememberMe, ip, userAgent);
+        LOGGER.info("Authentication event operation=login result=success userId={} rememberMe={}", user.getId(), rememberMe);
         return new LoginResponse(
                 jwtTokenService.issue(user),
                 refresh.rawToken(),
                 "Bearer",
                 jwtTokenService.accessTokenTtlSeconds(),
-                refreshSessionService.refreshTokenTtlSeconds(),
+                refreshSessionService.remainingTtlSeconds(refresh.session()),
+                refresh.session().isRememberMe(),
                 UserMapper.summary(user));
+    }
+
+    @Transactional
+    public LoginResponse login(String email, String password, String ip, String userAgent) {
+        return login(email, password, false, ip, userAgent);
     }
 
     @Transactional(noRollbackFor = BusinessRuleException.class)
@@ -79,7 +85,8 @@ public class AuthenticationService {
                 rotation.rawToken(),
                 "Bearer",
                 jwtTokenService.accessTokenTtlSeconds(),
-                refreshSessionService.refreshTokenTtlSeconds());
+                refreshSessionService.remainingTtlSeconds(rotation.session()),
+                rotation.session().isRememberMe());
     }
 
     @Transactional

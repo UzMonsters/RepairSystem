@@ -28,6 +28,11 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
+import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
+import com.example.darks.repair_auto.settings.domain.Language;
+import org.springframework.beans.factory.annotation.Autowired;
+
 @Service
 public class DashboardService {
 
@@ -38,11 +43,29 @@ public class DashboardService {
 
     private final DashboardQueryRepository repository;
     private final DashboardTimeService timeService;
+    private final EffectiveLanguageResolver effectiveLanguageResolver;
+    private final LocalizedValueResolver localizedValueResolver;
     private final Clock clock;
 
-    public DashboardService(DashboardQueryRepository repository, DashboardTimeService timeService, Clock clock) {
+    @Autowired
+    public DashboardService(
+            DashboardQueryRepository repository,
+            DashboardTimeService timeService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver) {
+        this(repository, timeService, effectiveLanguageResolver, localizedValueResolver, Clock.systemUTC());
+    }
+
+    public DashboardService(
+            DashboardQueryRepository repository,
+            DashboardTimeService timeService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver,
+            Clock clock) {
         this.repository = repository;
         this.timeService = timeService;
+        this.effectiveLanguageResolver = effectiveLanguageResolver;
+        this.localizedValueResolver = localizedValueResolver;
         this.clock = clock;
     }
 
@@ -93,11 +116,12 @@ public class DashboardService {
         Map<RepairRequestStatus, Long> counts = repository.requestStatusCounts();
         long total = counts.values().stream().mapToLong(Long::longValue).sum();
         List<RequestStatusDistributionItemResponse> items = new ArrayList<>();
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         for (RepairRequestStatus status : RepairRequestStatus.values()) {
             long count = counts.getOrDefault(status, 0L);
             items.add(new RequestStatusDistributionItemResponse(
                     status,
-                    label(status),
+                    label(status, lang),
                     count,
                     percentage(count, total)));
         }
@@ -111,15 +135,20 @@ public class DashboardService {
         DashboardTimeRange range = timeService.periodRange(period, generatedAt());
         List<DashboardQueryRepository.CategoryCount> rows = repository.requestCategoryCounts(range);
         long total = rows.stream().mapToLong(DashboardQueryRepository.CategoryCount::count).sum();
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         List<RequestCategoryDistributionItemResponse> items = rows.stream()
                 .limit(limit)
-                .map(row -> new RequestCategoryDistributionItemResponse(
-                        row.categoryId(),
-                        row.nameEn(),
-                        row.nameRu(),
-                        row.nameUz(),
-                        row.count(),
-                        percentage(row.count(), total)))
+                .map(row -> {
+                    String resolvedName = localizedValueResolver.resolve(lang, row.nameUz(), row.nameRu(), row.nameEn());
+                    return new RequestCategoryDistributionItemResponse(
+                            row.categoryId(),
+                            resolvedName,
+                            row.nameEn(),
+                            row.nameRu(),
+                            row.nameUz(),
+                            row.count(),
+                            percentage(row.count(), total));
+                })
                 .toList();
         long visible = items.stream().mapToLong(RequestCategoryDistributionItemResponse::count).sum();
         long otherCount = Math.max(0, total - visible);
@@ -194,18 +223,21 @@ public class DashboardService {
                 .divide(BigDecimal.valueOf(total), SCALE, RoundingMode.HALF_UP);
     }
 
-    private DashboardStatusLabelResponse label(RepairRequestStatus status) {
-        return switch (status) {
-            case NEW -> new DashboardStatusLabelResponse("New", "Новая", "Yangi");
-            case ASSIGNED -> new DashboardStatusLabelResponse("Assigned", "Назначена", "Biriktirilgan");
-            case SCHEDULED -> new DashboardStatusLabelResponse("Scheduled", "Запланирована", "Rejalashtirilgan");
-            case IN_PROGRESS -> new DashboardStatusLabelResponse("In progress", "В работе", "Jarayonda");
-            case WAITING_FOR_PARTS -> new DashboardStatusLabelResponse(
-                    "Waiting for parts",
-                    "Ожидает запчасти",
-                    "Ehtiyot qismlar kutilmoqda");
-            case COMPLETED -> new DashboardStatusLabelResponse("Completed", "Завершена", "Yakunlangan");
-            case CANCELLED -> new DashboardStatusLabelResponse("Cancelled", "Отменена", "Bekor qilingan");
-        };
+    private DashboardStatusLabelResponse label(RepairRequestStatus status, Language language) {
+        String en;
+        String ru;
+        String uz;
+        switch (status) {
+            case NEW -> { en = "New"; ru = "Новая"; uz = "Yangi"; }
+            case ASSIGNED -> { en = "Assigned"; ru = "Назначена"; uz = "Biriktirilgan"; }
+            case SCHEDULED -> { en = "Scheduled"; ru = "Запланирована"; uz = "Rejalashtirilgan"; }
+            case IN_PROGRESS -> { en = "In progress"; ru = "В работе"; uz = "Jarayonda"; }
+            case WAITING_FOR_PARTS -> { en = "Waiting for parts"; ru = "Ожидает запчасти"; uz = "Ehtiyot qismlar kutilmoqda"; }
+            case COMPLETED -> { en = "Completed"; ru = "Завершена"; uz = "Yakunlangan"; }
+            case CANCELLED -> { en = "Cancelled"; ru = "Отменена"; uz = "Bekor qilingan"; }
+            default -> { en = status.name(); ru = status.name(); uz = status.name(); }
+        }
+        String resolvedLabel = localizedValueResolver.resolve(language, uz, ru, en);
+        return new DashboardStatusLabelResponse(resolvedLabel, en, ru, uz);
     }
 }

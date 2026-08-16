@@ -137,6 +137,10 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
 
     private void validateDurations() {
         validatePositive(appProperties.refreshTokenTtl(), "APP_REFRESH_TOKEN_TTL");
+        validatePositive(appProperties.rememberMeRefreshTokenTtl(), "APP_REMEMBER_ME_REFRESH_TOKEN_TTL");
+        if (appProperties.rememberMeRefreshTokenTtl().compareTo(appProperties.refreshTokenTtl()) <= 0) {
+            fail("APP_REMEMBER_ME_REFRESH_TOKEN_TTL must be greater than APP_REFRESH_TOKEN_TTL.");
+        }
         validatePositive(authThrottleProperties.window(), "APP_AUTH_THROTTLE_WINDOW");
         validatePositive(authThrottleProperties.blockDuration(), "APP_AUTH_THROTTLE_BLOCK_DURATION");
         validatePositive(notificationProperties.getPollInterval(), "APP_NOTIFICATION_POLL_INTERVAL");

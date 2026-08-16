@@ -34,8 +34,13 @@ public class RefreshSessionService {
     }
 
     @Transactional
+    public IssuedRefreshToken create(User user, boolean rememberMe, String ip, String userAgent) {
+        return createInFamily(user, UUID.randomUUID(), rememberMe, null, ip, userAgent);
+    }
+
+    @Transactional
     public IssuedRefreshToken create(User user, String ip, String userAgent) {
-        return createInFamily(user, UUID.randomUUID(), ip, userAgent);
+        return create(user, false, ip, userAgent);
     }
 
     @Transactional(noRollbackFor = BusinessRuleException.class)
@@ -60,7 +65,13 @@ public class RefreshSessionService {
             throw new BusinessRuleException("USER_DISABLED", "User account is disabled.", 401);
         }
         session.markUsed(now, ip, userAgent);
-        IssuedRefreshToken replacement = createInFamily(session.getUser(), session.getTokenFamilyId(), ip, userAgent);
+        IssuedRefreshToken replacement = createInFamily(
+                session.getUser(),
+                session.getTokenFamilyId(),
+                session.isRememberMe(),
+                session.getExpiresAt(),
+                ip,
+                userAgent);
         session.replaceWith(replacement.session().getId());
         return new RotationResult(session.getUser(), replacement.rawToken(), replacement.session());
     }
@@ -80,15 +91,34 @@ public class RefreshSessionService {
         return properties.refreshTokenTtl().toSeconds();
     }
 
-    private IssuedRefreshToken createInFamily(User user, UUID familyId, String ip, String userAgent) {
+    public long remainingTtlSeconds(RefreshSession session) {
+        long seconds = java.time.Duration.between(now(), session.getExpiresAt()).toSeconds();
+        return Math.max(0, seconds);
+    }
+
+    private IssuedRefreshToken createInFamily(
+            User user,
+            UUID familyId,
+            boolean rememberMe,
+            OffsetDateTime absoluteSessionExpiresAt,
+            String ip,
+            String userAgent) {
         OffsetDateTime now = now();
         String rawToken = tokenGenerator.generate();
+        java.time.Duration ttl = rememberMe
+                ? properties.rememberMeRefreshTokenTtl()
+                : properties.refreshTokenTtl();
+        OffsetDateTime calculatedExpiresAt = now.plus(ttl);
+        OffsetDateTime expiresAt = (absoluteSessionExpiresAt != null && calculatedExpiresAt.isAfter(absoluteSessionExpiresAt))
+                ? absoluteSessionExpiresAt
+                : calculatedExpiresAt;
         RefreshSession session = new RefreshSession(
                 user,
                 tokenHashService.hash(rawToken),
                 familyId,
+                rememberMe,
                 now,
-                now.plus(properties.refreshTokenTtl()),
+                expiresAt,
                 ip,
                 userAgent);
         RefreshSession saved = repository.saveAndFlush(session);

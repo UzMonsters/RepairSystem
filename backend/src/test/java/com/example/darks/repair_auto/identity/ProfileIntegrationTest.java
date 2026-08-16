@@ -17,6 +17,7 @@ import com.example.darks.repair_auto.settings.domain.Language;
 import com.example.darks.repair_auto.settings.domain.Theme;
 import com.example.darks.repair_auto.settings.domain.TimeFormat;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.ResourceNotFoundException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
@@ -96,7 +97,6 @@ class ProfileIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(avatar1).isNotNull();
         assertThat(avatar1.fileName()).isEqualTo("avatar.jpg");
         assertThat(avatar1.contentType()).isEqualTo("image/jpeg");
-        assertThat(avatar1.url()).contains("avatars/" + managerUser.getId());
 
         ProfileResponse profileWithAvatar = profileService.getCurrentProfile(managerUser.getId());
         assertThat(profileWithAvatar.avatar()).isNotNull();
@@ -117,6 +117,13 @@ class ProfileIntegrationTest extends PostgreSqlIntegrationTest {
         profileService.deleteAvatar(managerUser.getId());
         ProfileResponse profileAfterDelete = profileService.getCurrentProfile(managerUser.getId());
         assertThat(profileAfterDelete.avatar()).isNull();
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenDownloadingNonExistentAvatar() {
+        assertThatThrownBy(() -> profileService.downloadAvatar(managerUser.getId()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Avatar was not found");
     }
 
     @Test

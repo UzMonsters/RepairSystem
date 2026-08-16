@@ -53,6 +53,7 @@ public class AuthController {
             LoginResponse response = authenticationService.login(
                     request.email(),
                     request.password(),
+                    request.rememberMe(),
                     clientIp,
                     userAgent(servletRequest));
             authThrottleService.recordLoginSuccess(request.email(), clientIp);

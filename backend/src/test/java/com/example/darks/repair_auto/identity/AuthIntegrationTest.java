@@ -88,6 +88,38 @@ class AuthIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void givenRememberMeFalseWhenLoginThenNormalTtlIsUsedAndSessionNotRemembered() {
+        LoginResponse response = authenticationService.login("admin@example.com", "AdminPass123!", false, "127.0.0.1", "test");
+
+        assertThat(response.rememberMe()).isFalse();
+        var session = refreshSessionRepository.findByTokenHash(tokenHashService.hash(response.refreshToken())).orElseThrow();
+        assertThat(session.isRememberMe()).isFalse();
+    }
+
+    @Test
+    void givenRememberMeTrueWhenLoginThenExtendedTtlIsUsedAndSessionIsRemembered() {
+        LoginResponse response = authenticationService.login("admin@example.com", "AdminPass123!", true, "127.0.0.1", "test");
+
+        assertThat(response.rememberMe()).isTrue();
+        var session = refreshSessionRepository.findByTokenHash(tokenHashService.hash(response.refreshToken())).orElseThrow();
+        assertThat(session.isRememberMe()).isTrue();
+        assertThat(response.refreshTokenExpiresIn()).isGreaterThan(TimeUnit.DAYS.toSeconds(20));
+    }
+
+    @Test
+    void givenRememberedSessionWhenRotatedThenNewSessionInheritsRememberMeAndPreservesExpirationCap() {
+        LoginResponse login = authenticationService.login("admin@example.com", "AdminPass123!", true, "127.0.0.1", "test");
+        var initialSession = refreshSessionRepository.findByTokenHash(tokenHashService.hash(login.refreshToken())).orElseThrow();
+
+        TokenResponse rotated = authenticationService.refresh(login.refreshToken(), "127.0.0.1", "test");
+
+        assertThat(rotated.rememberMe()).isTrue();
+        var rotatedSession = refreshSessionRepository.findByTokenHash(tokenHashService.hash(rotated.refreshToken())).orElseThrow();
+        assertThat(rotatedSession.isRememberMe()).isTrue();
+        assertThat(rotatedSession.getExpiresAt()).isEqualTo(initialSession.getExpiresAt());
+    }
+
+    @Test
     void givenActiveManagerWhenLoginThenManagerTokenIsIssued() {
         LoginResponse response = authenticationService.login("manager@example.com", "ManagerPass123!", "127.0.0.1", "test");
 

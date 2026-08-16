@@ -32,6 +32,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
+import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
+import com.example.darks.repair_auto.settings.domain.Language;
+
 @Service
 public class RepairReviewService {
 
@@ -42,6 +46,8 @@ public class RepairReviewService {
     private final RepairRequestRepository requestRepository;
     private final RepairAssignmentRepository assignmentRepository;
     private final CustomerRepository customerRepository;
+    private final EffectiveLanguageResolver effectiveLanguageResolver;
+    private final LocalizedValueResolver localizedValueResolver;
     private final Clock clock;
 
     @Autowired
@@ -49,8 +55,10 @@ public class RepairReviewService {
             RepairReviewRepository reviewRepository,
             RepairRequestRepository requestRepository,
             RepairAssignmentRepository assignmentRepository,
-            CustomerRepository customerRepository) {
-        this(reviewRepository, requestRepository, assignmentRepository, customerRepository, Clock.systemUTC());
+            CustomerRepository customerRepository,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver) {
+        this(reviewRepository, requestRepository, assignmentRepository, customerRepository, effectiveLanguageResolver, localizedValueResolver, Clock.systemUTC());
     }
 
     RepairReviewService(
@@ -58,11 +66,15 @@ public class RepairReviewService {
             RepairRequestRepository requestRepository,
             RepairAssignmentRepository assignmentRepository,
             CustomerRepository customerRepository,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver,
             Clock clock) {
         this.reviewRepository = reviewRepository;
         this.requestRepository = requestRepository;
         this.assignmentRepository = assignmentRepository;
         this.customerRepository = customerRepository;
+        this.effectiveLanguageResolver = effectiveLanguageResolver;
+        this.localizedValueResolver = localizedValueResolver;
         this.clock = clock;
     }
 
@@ -120,7 +132,8 @@ public class RepairReviewService {
                     ReviewSource.TELEGRAM,
                     submittedLanguage == null ? LanguageCode.UZ : submittedLanguage,
                     now()));
-            return ReviewMapper.response(review);
+            Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+            return ReviewMapper.response(review, lang, localizedValueResolver);
         } catch (DataIntegrityViolationException exception) {
             throw alreadyExists();
         }
@@ -128,13 +141,19 @@ public class RepairReviewService {
 
     @Transactional(readOnly = true)
     public List<EligibleReviewRequest> eligibleRequests(Long customerId, Pageable pageable) {
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         return requestRepository.findCompletedUnreviewedForCustomer(customerId, pageable).stream()
-                .map(request -> new EligibleReviewRequest(
-                        request.getId(),
-                        request.getRequestNumber(),
-                        request.getCategory().getNameEn(),
-                        request.getCategory().getNameRu(),
-                        request.getCategory().getNameUz()))
+                .map(request -> {
+                    var cat = request.getCategory();
+                    String name = localizedValueResolver.resolve(lang, cat.getNameUz(), cat.getNameRu(), cat.getNameEn());
+                    return new EligibleReviewRequest(
+                            request.getId(),
+                            request.getRequestNumber(),
+                            name,
+                            cat.getNameEn(),
+                            cat.getNameRu(),
+                            cat.getNameUz());
+                })
                 .toList();
     }
 
@@ -160,13 +179,16 @@ public class RepairReviewService {
     @Transactional(readOnly = true)
     public PageResponse<ReviewResponse> list(ReviewQuery query, Pageable pageable) {
         validateQuery(query);
-        return PageResponse.from(reviewRepository.findAll(filters(query), pageable).map(ReviewMapper::response));
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+        return PageResponse.from(reviewRepository.findAll(filters(query), pageable)
+                .map(review -> ReviewMapper.response(review, lang, localizedValueResolver)));
     }
 
     @Transactional(readOnly = true)
     public ReviewResponse get(Long id) {
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         return reviewRepository.findDetailsById(id)
-                .map(ReviewMapper::response)
+                .map(review -> ReviewMapper.response(review, lang, localizedValueResolver))
                 .orElseThrow(() -> new BusinessRuleException("REVIEW_NOT_FOUND", "Review was not found.", 404));
     }
 

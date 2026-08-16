@@ -8,6 +8,7 @@ public record LoginRequest(
         @NotBlank @Email String email,
         @NotBlank
         @Schema(format = "password", accessMode = Schema.AccessMode.WRITE_ONLY)
-        String password
+        String password,
+        boolean rememberMe
 ) {
 }

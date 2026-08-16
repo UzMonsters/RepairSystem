@@ -41,6 +41,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
+import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
+import com.example.darks.repair_auto.settings.domain.Language;
+
 @Service
 public class RepairRequestService {
 
@@ -61,6 +65,8 @@ public class RepairRequestService {
     private final PhoneNumberNormalizer phoneNumberNormalizer;
     private final NotificationEventFactory notificationEventFactory;
     private final NotificationOutboxService notificationOutboxService;
+    private final EffectiveLanguageResolver effectiveLanguageResolver;
+    private final LocalizedValueResolver localizedValueResolver;
     private final Clock clock;
 
     @Autowired
@@ -75,7 +81,9 @@ public class RepairRequestService {
             RepairRequestNumberGenerator requestNumberGenerator,
             PhoneNumberNormalizer phoneNumberNormalizer,
             NotificationEventFactory notificationEventFactory,
-            NotificationOutboxService notificationOutboxService) {
+            NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver) {
         this(
                 repairRequestRepository,
                 customerRepository,
@@ -88,6 +96,8 @@ public class RepairRequestService {
                 phoneNumberNormalizer,
                 notificationEventFactory,
                 notificationOutboxService,
+                effectiveLanguageResolver,
+                localizedValueResolver,
                 Clock.systemUTC());
     }
 
@@ -103,6 +113,8 @@ public class RepairRequestService {
             PhoneNumberNormalizer phoneNumberNormalizer,
             NotificationEventFactory notificationEventFactory,
             NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver,
             Clock clock) {
         this.repairRequestRepository = repairRequestRepository;
         this.customerRepository = customerRepository;
@@ -115,6 +127,8 @@ public class RepairRequestService {
         this.phoneNumberNormalizer = phoneNumberNormalizer;
         this.notificationEventFactory = notificationEventFactory;
         this.notificationOutboxService = notificationOutboxService;
+        this.effectiveLanguageResolver = effectiveLanguageResolver;
+        this.localizedValueResolver = localizedValueResolver;
         this.clock = clock;
     }
 
@@ -199,8 +213,9 @@ public class RepairRequestService {
             Pageable pageable) {
         validateDateRange(query.createdFrom(), query.createdTo(), "created");
         validateDateRange(query.preferredVisitFrom(), query.preferredVisitTo(), "preferredVisit");
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         return PageResponse.from(repairRequestRepository.findAll(filters(query, null), pageable)
-                .map(RepairRequestMapper::summary));
+                .map(request -> RepairRequestMapper.summary(request, lang, localizedValueResolver)));
     }
 
     @Transactional(readOnly = true)
@@ -210,7 +225,8 @@ public class RepairRequestService {
                 .findActiveByRequestId(id, RepairAssignmentRepository.ACTIVE_STATUSES)
                 .orElse(null);
         var execution = repairExecutionRepository.findByRepairRequestId(id).orElse(null);
-        return RepairRequestMapper.details(repairRequest, currentAssignment, execution);
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+        return RepairRequestMapper.details(repairRequest, currentAssignment, execution, lang, localizedValueResolver);
     }
 
     @Transactional
@@ -241,7 +257,8 @@ public class RepairRequestService {
                 validateInternalNote(request.internalNote()),
                 now);
         var execution = repairExecutionRepository.findByRepairRequestId(id).orElse(null);
-        return RepairRequestMapper.details(repairRequestRepository.saveAndFlush(repairRequest), null, execution);
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+        return RepairRequestMapper.details(repairRequestRepository.saveAndFlush(repairRequest), null, execution, lang, localizedValueResolver);
     }
 
     @Transactional(readOnly = true)
@@ -253,8 +270,9 @@ public class RepairRequestService {
             throw customerNotFound();
         }
         validateDateRange(query.createdFrom(), query.createdTo(), "created");
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         return PageResponse.from(repairRequestRepository.findAll(filters(query, customerId), pageable)
-                .map(RepairRequestMapper::summary));
+                .map(request -> RepairRequestMapper.summary(request, lang, localizedValueResolver)));
     }
 
     private Specification<RepairRequest> filters(RepairRequestQuery query, Long forcedCustomerId) {
