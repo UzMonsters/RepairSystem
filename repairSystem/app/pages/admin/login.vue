@@ -150,7 +150,8 @@ async function onSubmit() {
 
 .password-toggle {
   position: absolute;
-  top: 50%;
+  /* Align with the input itself, below the field label. */
+  top: 53px;
   right: 10px;
   z-index: 3;
   width: 36px;

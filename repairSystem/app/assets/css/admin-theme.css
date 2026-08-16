@@ -1167,8 +1167,9 @@ select option {
 .login-card {
   border: 1px solid var(--rs-border);
   border-radius: 20px;
-  background: var(--rs-panel);
-  box-shadow: var(--rs-shadow);
+  background: #172442;
+  border-color: #2b3a63;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
 }
 
 .login-card .card-body {
@@ -1177,6 +1178,28 @@ select option {
 
 .login-card .form-floating > label {
   color: var(--rs-muted);
+}
+
+.login-card .form-control {
+  background: #ffffff;
+  border-color: #d7deea;
+  color: #17213b;
+}
+
+.login-card .form-control::placeholder {
+  color: #71809a;
+}
+
+.login-card .password-toggle {
+  color: #5a6d88;
+}
+
+.login-card input:-webkit-autofill,
+.login-card input:-webkit-autofill:hover,
+.login-card input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #17213b !important;
+  caret-color: #17213b;
 }
 
 /* ------------------------------------------------------------
