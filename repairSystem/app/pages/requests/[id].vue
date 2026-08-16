@@ -624,11 +624,26 @@ function can(action: string) {
                 </select>
               </div>
               <div class="col-md-7">
-                <input
-                  type="file"
-                  class="form-control"
-                  @change="selectAttachment"
-                >
+                <div class="file-input-control">
+                  <input
+                    id="request-attachment-file"
+                    type="file"
+                    class="visually-hidden"
+                    @change="selectAttachment"
+                  >
+                  <label
+                    for="request-attachment-file"
+                    class="file-input-button"
+                  >
+                    <i class="bi bi-folder2-open me-1" />{{ t('chooseFile') }}
+                  </label>
+                  <span
+                    class="file-input-name"
+                    :class="{ 'is-empty': !attachmentFile }"
+                  >
+                    {{ attachmentFile?.name || t('noFileChosen') }}
+                  </span>
+                </div>
               </div>
             </div>
             <button

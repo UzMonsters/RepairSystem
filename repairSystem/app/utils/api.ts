@@ -8,29 +8,56 @@ type ApiRequest = {
   params?: Record<string, unknown>
 }
 
-type ApiErrorLike = {
-  message?: string
-  statusMessage?: string
-  data?: {
-    message?: string
-    code?: string
-    data?: {
-      message?: string
-      code?: string
+type ErrorPayload = {
+  message?: unknown
+  code?: unknown
+  fieldErrors?: Array<{ field?: unknown, message?: unknown }>
+}
+
+function findApiPayload(error: unknown): ErrorPayload | undefined {
+  const visited = new Set<object>()
+
+  function visit(current: unknown): ErrorPayload | undefined {
+    if (!current || typeof current !== 'object') return undefined
+    if (visited.has(current)) return undefined
+    visited.add(current)
+
+    const record = current as Record<string, unknown>
+    for (const key of ['data', 'response', '_data']) {
+      const nested = visit(record[key])
+      if (nested) return nested
     }
+
+    if (typeof record.message === 'string' || typeof record.code === 'string' || Array.isArray(record.fieldErrors)) {
+      return record as ErrorPayload
+    }
+    return undefined
   }
+
+  return visit(error)
 }
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
-  const err = error as ApiErrorLike | null | undefined
-  return err?.data?.data?.message
-    || err?.data?.message
-    || fallback
+  const payload = findApiPayload(error)
+  const message = typeof payload?.message === 'string' ? payload.message.trim() : ''
+  const fieldMessages = (payload?.fieldErrors ?? [])
+    .map((field) => {
+      const name = typeof field.field === 'string' ? field.field.trim() : ''
+      const detail = typeof field.message === 'string' ? field.message.trim() : ''
+      return name && detail ? `${name}: ${detail}` : detail
+    })
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
+
+  if (message && fieldMessages.length) return `${message}\n${fieldMessages.join('\n')}`
+  if (message) return message
+  if (fieldMessages.length) return fieldMessages.join('\n')
+  return fallback
 }
 
 export function getApiErrorCode(error: unknown): string | undefined {
-  const err = error as ApiErrorLike | null | undefined
-  return err?.data?.data?.code || err?.data?.code
+  const code = findApiPayload(error)?.code
+  return typeof code === 'string' ? code : undefined
 }
 
 export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> {
@@ -59,13 +86,8 @@ export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> 
       }
       if (status === 401 && !isRefreshRequest) await logout()
 
-      // Nuxt wraps the backend error as error.data.data. Promote that payload
-      // so existing callers can consistently read error.data.message.
-      const err = error as { data?: { data?: unknown } }
-      if (err.data?.data && typeof err.data.data === 'object') {
-        err.data = err.data.data as { data?: unknown }
-      }
-      throw err
+      // Keep FetchError immutable. Error text is normalized by getApiErrorMessage.
+      throw error
     }
   }
 

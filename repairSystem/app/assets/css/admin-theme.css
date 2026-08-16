@@ -835,6 +835,49 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   color: #fff;
 }
 
+.file-input-control {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  overflow: hidden;
+  background: var(--rs-panel-2);
+  border: 1px solid var(--rs-border);
+  border-radius: 10px;
+  color: var(--rs-text-2);
+}
+
+.file-input-button {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--rs-panel-2);
+  border-right: 1px solid var(--rs-border);
+  color: var(--rs-text);
+  cursor: pointer;
+  font-size: 0.875rem;
+  user-select: none;
+}
+
+.file-input-button:hover,
+.file-input-button:focus-visible {
+  background: var(--rs-primary);
+  color: #fff;
+}
+
+.file-input-name {
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  overflow: hidden;
+  color: var(--rs-text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.file-input-name.is-empty {
+  color: var(--rs-muted);
+}
+
 .form-control:focus,
 .form-select:focus {
   background: rgba(255, 255, 255, 0.06);
@@ -865,6 +908,7 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   color: var(--rs-text);
   border-color: var(--rs-border);
   border-radius: 12px;
+  white-space: pre-line;
 }
 
 .alert-danger {
