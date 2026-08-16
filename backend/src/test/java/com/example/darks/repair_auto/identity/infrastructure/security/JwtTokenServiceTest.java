@@ -101,6 +101,7 @@ class JwtTokenServiceTest {
                         false),
                 new AppProperties.Trace("X-Trace-Id"),
                 new AppProperties.Jwt(SECRET, issuer, Duration.ofMinutes(15)),
+                Duration.ofDays(1),
                 Duration.ofDays(30),
                 new AppProperties.BootstrapAdmin(false, "", "", ""));
     }
