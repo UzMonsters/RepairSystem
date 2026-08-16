@@ -55,6 +55,7 @@ const ru = {
   'russian': 'Русский',
   'english': 'Английский',
   'signIn': 'Войти',
+  'rememberMe': 'Запомнить меня',
   'loginTitle': 'Добро пожаловать в систему ремонта',
   'loginSubtitle': 'Войдите в свою учетную запись, чтобы открыть панель',
   'loginFieldsRequired': 'Заполните email и пароль.',

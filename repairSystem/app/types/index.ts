@@ -38,7 +38,6 @@ export interface AuthUser {
     attachmentId: number
     fileName: string
     contentType: string
-    url: string
   } | null
   language: LanguageCode
   dateFormat: UserDateFormat
@@ -54,6 +53,7 @@ export interface LoginResponse {
   tokenType?: string
   accessTokenExpiresIn?: number
   refreshTokenExpiresIn?: number
+  rememberMe?: boolean
   user: AuthUser
 }
 
@@ -272,6 +272,30 @@ export interface DashboardOverview {
   pendingAssignments: number
   averageRating: number | null
   totalReviews: number
+}
+
+export interface DashboardStatusLabel {
+  label: string
+  labelEn: string
+  labelRu: string
+  labelUz: string
+}
+
+export interface DashboardStatusDistributionItem {
+  status: RequestStatus
+  label: DashboardStatusLabel
+  count: number
+  percentage: number
+}
+
+export interface RequestCategoryDistributionItem {
+  categoryId: number
+  name: string
+  nameEn: string
+  nameRu: string
+  nameUz: string
+  count: number
+  percentage: number
 }
 
 export type NotificationStatus = 'PENDING' | 'PROCESSING' | 'RETRY_SCHEDULED' | 'DELIVERED' | 'SKIPPED' | 'DEAD'

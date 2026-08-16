@@ -1,4 +1,4 @@
-﻿type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 type ApiRequest = {
   method?: ApiMethod
@@ -65,11 +65,14 @@ export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> 
   const { refreshSession, logout } = useAuth()
   const token = useCookie<string | null>('access_token', { default: () => null })
   const headers = new Headers(options.headers as HeadersInit | undefined)
+  
+  // Attach default accept and language headers
   headers.set('accept', 'application/json')
-  if (!headers.has('accept-language') && import.meta.client) {
-    const language = localStorage.getItem('repair_lang') || 'uz'
-    headers.set('accept-language', language)
+  if (!headers.has('accept-language')) {
+    const { locale } = useLocale()
+    headers.set('accept-language', locale.value || 'uz')
   }
+  
   if (token.value) headers.set('authorization', `Bearer ${token.value}`)
 
   const url = `/api${path.startsWith('/') ? path : `/${path}`}`

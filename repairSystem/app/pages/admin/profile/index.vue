@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '~/utils/api'
 
-const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword, logout } = useAuth()
+const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword, logout, avatarObjectUrl } = useAuth()
 const { t } = useLocale()
 
 const loadingProfile = ref(false)
@@ -148,8 +148,8 @@ async function handlePasswordSubmit() {
             <div class="profile-avatar-editor">
               <div class="profile-avatar-frame">
                 <img
-                  v-if="avatarPreviewUrl || user?.avatar?.url"
-                  :src="avatarPreviewUrl || user?.avatar?.url"
+                  v-if="avatarPreviewUrl || avatarObjectUrl"
+                  :src="avatarPreviewUrl || avatarObjectUrl"
                   alt="Avatar"
                   class="rounded-circle shadow object-fit-cover"
                 >

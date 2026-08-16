@@ -1,51 +1,51 @@
 [data-theme="light"] {
   /* Основной фон приложения */
-  --rs-bg: #f5f7fb;
+  --rs-bg: #f1eee7;
 
   /* Фон основного контента */
-  --rs-content-bg: #f5f7fb;
+  --rs-content-bg: #f6f3ed;
 
   /* Sidebar */
-  --rs-sidebar-bg: #192533;
+  --rs-sidebar-bg: #24251b;
 
   /* Header */
-  --rs-header-bg: #ffffff;
+  --rs-header-bg: #fffdf9;
 
   /* Карточки */
-  --rs-panel: #ffffff;
+  --rs-panel: #fffdf9;
 
   /* Вложенные блоки и input */
-  --rs-panel-2: #f4f7fb;
+  --rs-panel-2: #f8f5ef;
 
   /* Hover */
-  --rs-hover: #dce8f7;
+  --rs-hover: #eee8da;
 
   /* Активный элемент */
-  --rs-active-bg: #d5e5fb;
+  --rs-active-bg: #e7dfc4;
 
   /* Главный синий */
-  --rs-primary: #18b7a0;
+  --rs-primary: #4d9f63;
 
   /* Более тёмный синий */
-  --rs-primary-dark: #0f8f82;
+  --rs-primary-dark: #3d8150;
 
   /* Светлый синий */
-  --rs-primary-soft: #d9f5f0;
+  --rs-primary-soft: #e5f1e5;
 
   /* Основной текст */
-  --rs-text: #10203d;
+  --rs-text: #292b25;
 
   /* Вторичный текст */
-  --rs-text-2: #1f3d68;
+  --rs-text-2: #5d6257;
 
   /* Приглушённый текст */
-  --rs-muted: #526b89;
+  --rs-muted: #85877e;
 
   /* Границы */
-  --rs-border: #c5d2e3;
+  --rs-border: #ded8cc;
 
   /* Более мягкие границы */
-  --rs-border-soft: #dbe4ef;
+  --rs-border-soft: #ebe5db;
 
   /* Успешное состояние */
   --rs-success: #15803d;
@@ -64,8 +64,8 @@
   --rs-info-bg: #e0f2fe;
 
   /* Тени */
-  --rs-shadow: 0 8px 24px rgba(30, 64, 175, 0.08);
-  --rs-shadow-hover: 0 12px 32px rgba(30, 64, 175, 0.14);
+  --rs-shadow: 0 8px 24px rgba(79, 67, 43, 0.08);
+  --rs-shadow-hover: 0 12px 32px rgba(79, 67, 43, 0.14);
 
   --rs-radius: 12px;
   
@@ -95,14 +95,14 @@
 }
 
 [data-theme="light"] .app-sidebar {
-  background: #192533 !important;
-  border-right: 1px solid #263849;
-  box-shadow: 8px 0 24px rgba(15, 28, 43, 0.12) !important;
+  background: var(--rs-sidebar-bg) !important;
+  border-right: 1px solid #35362a;
+  box-shadow: 8px 0 24px rgba(38, 35, 23, 0.14) !important;
 }
 
 [data-theme="light"] .sidebar-brand {
-  background: #192533;
-  border-bottom: 1px solid #263849;
+  background: var(--rs-sidebar-bg);
+  border-bottom: 1px solid #35362a;
 }
 
 [data-theme="light"] .brand-link .brand-text {
@@ -116,7 +116,7 @@
 
 [data-theme="light"] .sidebar-menu .nav-link:hover {
   color: #ffffff !important;
-  background: #203845 !important;
+  background: #353626 !important;
 }
 
 [data-theme="light"] .sidebar-menu .nav-header {
@@ -124,7 +124,7 @@
 }
 
 [data-theme="light"] .sidebar-menu .nav-link {
-  color: var(--rs-text-2);
+  color: #e6e2d5;
 }
 
 [data-theme="light"] .sidebar-menu .nav-link:hover {
@@ -133,7 +133,7 @@
 }
 
 [data-theme="light"] .sidebar-menu .nav-link.active {
-  background: #173943 !important;
+  background: #5a5930 !important;
   color: #ffffff !important;
   font-weight: 600;
 }
@@ -143,8 +143,8 @@
 }
 
 [data-theme="light"] .app-sidebar .sidebar-search .input-group {
-  background: #202f3e;
-  border-color: #33475a;
+  background: #2d2e22;
+  border-color: #484936;
 }
 
 [data-theme="light"] .app-sidebar .sidebar-search .form-control {
@@ -156,7 +156,7 @@
 }
 
 [data-theme="light"] .sidebar-menu .nav-header {
-  color: #607697;
+  color: #a9a58d;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.7rem;
@@ -166,7 +166,7 @@
 [data-theme="light"] .app-header {
   position: static;
   min-height: 58px;
-  background: #ffffff !important;
+  background: var(--rs-header-bg) !important;
   border-bottom: 1px solid var(--rs-border-soft);
   color: #10203d;
 }
@@ -200,7 +200,7 @@
 }
 
 [data-theme="light"] .card {
-  background: #ffffff;
+  background: var(--rs-panel);
   border: 1px solid var(--rs-border-soft);
   border-radius: var(--rs-radius);
   box-shadow: var(--rs-shadow);
@@ -212,13 +212,13 @@
 }
 
 [data-theme="light"] .card-header {
-  background: #f8fafc;
+  background: #fbf9f4;
   border-bottom: 1px solid var(--rs-border-soft);
   color: var(--rs-text);
 }
 
 [data-theme="light"] .card-body {
-  background: #ffffff;
+  background: var(--rs-panel);
 }
 
 [data-theme="light"] h1,
@@ -327,10 +327,10 @@
 [data-theme="light"] input:focus,
 [data-theme="light"] textarea:focus,
 [data-theme="light"] select:focus {
-  background: #edf3fa;
+  background: #fffdf9;
   border-color: var(--rs-primary);
   color: var(--rs-text);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+  box-shadow: 0 0 0 3px rgba(77, 159, 99, 0.18);
   outline: none;
 }
 
@@ -350,7 +350,7 @@
 
 [data-theme="light"] select:focus {
   border-color: var(--rs-primary) !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+  box-shadow: 0 0 0 3px rgba(77, 159, 99, 0.18);
 }
 
 [data-theme="light"] select:disabled {
@@ -402,8 +402,8 @@
 }
 
 [data-theme="light"] .table thead th {
-  background: #e2eaf4;
-  color: #516b8e;
+  background: #f0eadf;
+  color: #6f725f;
   border-bottom: 1px solid var(--rs-border);
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -416,7 +416,7 @@
 }
 
 [data-theme="light"] .table tbody tr:hover {
-  background: #eaf2fc;
+  background: #faf6ed;
 }
 
 [data-theme="light"] .table tbody tr.is-clickable {
@@ -490,14 +490,14 @@
 [data-theme="light"] .auth-wrapper {
   background:
     radial-gradient(circle at 10% 90%, rgba(24, 183, 160, 0.12), transparent 32%),
-    #f5f7fb;
+    #f1eee7;
   color: var(--rs-text);
 }
 
 [data-theme="light"] .login-card {
-  background: #ffffff;
-  border: 1px solid #dce5ef;
-  box-shadow: 0 18px 48px rgba(31, 61, 104, 0.12);
+  background: var(--rs-panel);
+  border: 1px solid var(--rs-border-soft);
+  box-shadow: 0 18px 48px rgba(79, 67, 43, 0.13);
 }
 
 [data-theme="light"] .login-card .auth-title {
@@ -505,8 +505,8 @@
 }
 
 [data-theme="light"] .login-card .form-control {
-  background: #f5f7fb;
-  border-color: #d3deea;
+  background: var(--rs-panel-2);
+  border-color: var(--rs-border);
   color: var(--rs-text);
 }
 

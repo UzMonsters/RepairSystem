@@ -55,6 +55,7 @@ const uz = {
   'russian': 'Ruscha',
   'english': 'Inglizcha',
   'signIn': 'Kirish',
+  'rememberMe': 'Meni eslab qolish',
   'loginTitle': 'Ta’mirlash tizimiga xush kelibsiz',
   'loginSubtitle': 'Boshqaruv paneliga kirish uchun hisobingizni kiriting',
   'loginFieldsRequired': 'Email va parolni kiriting.',

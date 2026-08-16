@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { getApiErrorMessage } from '~/utils/api'
 
 definePageMeta({ layout: 'auth' })
@@ -7,6 +7,7 @@ const { t } = useLocale()
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
+const rememberMe = ref(false)
 const error = ref('')
 const loading = ref(false)
 const { login } = useAuth()
@@ -21,7 +22,7 @@ async function onSubmit() {
   }
   loading.value = true
   try {
-    await login(email.value, password.value)
+    await login(email.value, password.value, rememberMe.value)
     await navigateTo('/admin')
   } catch (e) {
     error.value = getApiErrorMessage(e, 'Login failed. Please check your credentials.')
@@ -60,7 +61,8 @@ async function onSubmit() {
         novalidate
         @submit.prevent="onSubmit"
       >
-        <div class="form-floating mb-3">
+        <div class="login-field mb-3">
+          <label for="login-email">{{ t('email') }}</label>
           <input
             id="login-email"
             v-model="email"
@@ -71,9 +73,9 @@ async function onSubmit() {
             autofocus
             required
           >
-          <label for="login-email">{{ t('email') }}</label>
         </div>
-        <div class="form-floating login-password-field mb-4">
+        <div class="login-field login-password-field mb-4">
+          <label for="login-password">{{ t('password') }}</label>
           <input
             id="login-password"
             v-model="password"
@@ -83,7 +85,6 @@ async function onSubmit() {
             autocomplete="current-password"
             required
           >
-          <label for="login-password">{{ t('password') }}</label>
           <button
             type="button"
             class="password-toggle"
@@ -93,6 +94,17 @@ async function onSubmit() {
           >
             <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'" />
           </button>
+        </div>
+        <div class="form-check mb-4">
+          <input
+            id="login-remember-me"
+            v-model="rememberMe"
+            type="checkbox"
+            class="form-check-input"
+          >
+          <label for="login-remember-me" class="form-check-label text-muted">
+            {{ t('rememberMe') }}
+          </label>
         </div>
         <div class="d-grid gap-2 mb-3">
           <button
@@ -117,6 +129,25 @@ async function onSubmit() {
   position: relative;
 }
 
+.login-field > label {
+  display: block;
+  margin-bottom: .45rem;
+  color: var(--rs-text-2);
+  font-size: .9rem;
+  font-weight: 600;
+}
+
+.login-field > .form-control {
+  min-height: 48px;
+  padding: .75rem 1rem;
+  border-radius: 10px;
+}
+
+.login-field > .form-control::placeholder {
+  color: var(--rs-muted);
+  opacity: .85;
+}
+
 .password-toggle {
   position: absolute;
   top: 50%;
@@ -127,14 +158,14 @@ async function onSubmit() {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #8fa4cc;
+  color: var(--rs-muted);
   transform: translateY(-50%);
   cursor: pointer;
 }
 
 .password-toggle:hover,
 .password-toggle:focus-visible {
-  color: #fff;
-  background: rgba(255, 255, 255, .1);
+  color: var(--rs-primary);
+  background: var(--rs-primary-soft);
 }
 </style>
