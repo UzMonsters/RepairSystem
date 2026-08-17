@@ -1,19 +1,17 @@
 package com.example.darks.repair_auto.identity.application;
 
-import com.example.darks.repair_auto.identity.application.EmailNormalizer;
-import com.example.darks.repair_auto.identity.application.PasswordPolicy;
-import com.example.darks.repair_auto.identity.application.PasswordService;
-import com.example.darks.repair_auto.identity.application.RefreshSessionService;
-import com.example.darks.repair_auto.shared.pagination.PageResponse;
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
-import com.example.darks.repair_auto.identity.domain.User;
-import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
-import com.example.darks.repair_auto.identity.domain.UserRole;
+import com.example.darks.repair_auto.identity.api.dto.ResetPasswordRequest;
 import com.example.darks.repair_auto.identity.api.dto.UserCreateRequest;
 import com.example.darks.repair_auto.identity.api.dto.UserDetailsResponse;
 import com.example.darks.repair_auto.identity.api.dto.UserMapper;
 import com.example.darks.repair_auto.identity.api.dto.UserSummaryResponse;
 import com.example.darks.repair_auto.identity.api.dto.UserUpdateRequest;
+import com.example.darks.repair_auto.identity.domain.User;
+import com.example.darks.repair_auto.identity.domain.UserRole;
+import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
+import com.example.darks.repair_auto.shared.error.BusinessException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
+import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.slf4j.Logger;
@@ -75,7 +73,7 @@ public class UserManagementService {
             LOGGER.info("User management event operation=user_created result=success userId={}", saved.getId());
             return UserMapper.details(saved);
         } catch (DataIntegrityViolationException exception) {
-            throw new BusinessRuleException("USER_EMAIL_ALREADY_EXISTS", "User email already exists.", 409);
+            throw new BusinessException(ErrorCode.USER_EMAIL_ALREADY_EXISTS);
         }
     }
 
@@ -92,7 +90,7 @@ public class UserManagementService {
         try {
             return UserMapper.details(userRepository.saveAndFlush(user));
         } catch (DataIntegrityViolationException exception) {
-            throw new BusinessRuleException("USER_EMAIL_ALREADY_EXISTS", "User email already exists.", 409);
+            throw new BusinessException(ErrorCode.USER_EMAIL_ALREADY_EXISTS);
         }
     }
 
@@ -103,10 +101,7 @@ public class UserManagementService {
                 .orElseThrow(() -> notFound());
         if (user.getRole() == UserRole.ADMIN && role != UserRole.ADMIN && user.isActive()
                 && userRepository.countActiveAdmins() <= 1) {
-            throw new BusinessRuleException(
-                    "LAST_ACTIVE_ADMIN_REQUIRED",
-                    "At least one active administrator is required.",
-                    409);
+            throw new BusinessException(ErrorCode.LAST_ACTIVE_ADMIN_REQUIRED);
         }
         boolean changed = user.getRole() != role;
         user.setRole(role, now());
@@ -124,13 +119,10 @@ public class UserManagementService {
         User user = userRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> notFound());
         if (!active && id.equals(currentUserId)) {
-            throw new BusinessRuleException("SELF_DISABLE_NOT_ALLOWED", "Administrators cannot disable themselves.", 409);
+            throw new BusinessException(ErrorCode.SELF_DISABLE_NOT_ALLOWED);
         }
         if (!active && user.getRole() == UserRole.ADMIN && user.isActive() && userRepository.countActiveAdmins() <= 1) {
-            throw new BusinessRuleException(
-                    "LAST_ACTIVE_ADMIN_REQUIRED",
-                    "At least one active administrator is required.",
-                    409);
+            throw new BusinessException(ErrorCode.LAST_ACTIVE_ADMIN_REQUIRED);
         }
         boolean deactivated = user.isActive() && !active;
         user.setActive(active, now());
@@ -150,17 +142,14 @@ public class UserManagementService {
     }
 
     @Transactional
-    public void resetPassword(Long targetUserId, com.example.darks.repair_auto.identity.api.dto.ResetPasswordRequest request, Long actorUserId) {
+    public void resetPassword(Long targetUserId, ResetPasswordRequest request, Long actorUserId) {
         if (request.newPassword() == null || !request.newPassword().equals(request.confirmPassword())) {
-            throw new BusinessRuleException(
-                    "PASSWORD_CONFIRMATION_MISMATCH",
-                    "New password and confirmation password do not match.",
-                    400);
+            throw new BusinessException(ErrorCode.PASSWORD_CONFIRMATION_MISMATCH);
         }
         User user = userRepository.findByIdForUpdate(targetUserId)
                 .orElseThrow(this::notFound);
         if (passwordService.matches(request.newPassword(), user.getPasswordHash())) {
-            throw new BusinessRuleException("PASSWORD_REUSE_NOT_ALLOWED", "New password must differ.", 400);
+            throw new BusinessException(ErrorCode.PASSWORD_REUSE_NOT_ALLOWED);
         }
         passwordPolicy.validate(request.newPassword(), user.getEmail());
         user.changePassword(passwordService.hash(request.newPassword()), now());
@@ -177,8 +166,8 @@ public class UserManagementService {
         userRepository.findActiveAdminsForUpdate();
     }
 
-    private BusinessRuleException notFound() {
-        return new BusinessRuleException("USER_NOT_FOUND", "User was not found.", 404);
+    private BusinessException notFound() {
+        return new BusinessException(ErrorCode.USER_NOT_FOUND);
     }
 
     private OffsetDateTime now() {

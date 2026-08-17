@@ -1,5 +1,7 @@
 package com.example.darks.repair_auto.technician.application;
 
+import com.example.darks.repair_auto.shared.error.BusinessException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import com.example.darks.repair_auto.shared.phone.PhoneNumberNormalizer;
@@ -118,26 +120,20 @@ public class TechnicianService {
 
     private void validateMaximum(int maximumConcurrentRequests) {
         if (maximumConcurrentRequests < 1) {
-            throw new BusinessRuleException(
-                    "INVALID_MAXIMUM_CONCURRENT_REQUESTS",
-                    "Maximum concurrent requests must be positive.",
-                    400);
+            throw new BusinessException(ErrorCode.INVALID_MAXIMUM_CONCURRENT_REQUESTS);
         }
     }
 
-    private BusinessRuleException notFound() {
-        return new BusinessRuleException("TECHNICIAN_NOT_FOUND", "Technician was not found.", 404);
+    private BusinessException notFound() {
+        return new BusinessException(ErrorCode.TECHNICIAN_NOT_FOUND);
     }
 
-    private BusinessRuleException technicianConflict(DataIntegrityViolationException exception) {
-        String message = exception.getMostSpecificCause().getMessage();
+    private BusinessException technicianConflict(DataIntegrityViolationException exception) {
+        String message = exception.getMostSpecificCause() != null ? exception.getMostSpecificCause().getMessage() : "";
         if (message != null && message.contains("telegram_user_id")) {
-            return new BusinessRuleException(
-                    "TECHNICIAN_TELEGRAM_ID_ALREADY_EXISTS",
-                    "Technician Telegram user ID already exists.",
-                    409);
+            return new BusinessException(ErrorCode.TECHNICIAN_TELEGRAM_ID_ALREADY_EXISTS);
         }
-        return new BusinessRuleException("TECHNICIAN_PHONE_ALREADY_EXISTS", "Technician phone already exists.", 409);
+        return new BusinessException(ErrorCode.TECHNICIAN_PHONE_ALREADY_EXISTS);
     }
 
     private OffsetDateTime now() {

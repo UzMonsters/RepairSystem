@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.identity.application;
 
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.BusinessException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -11,32 +12,29 @@ public class PasswordPolicy {
 
     public void validate(String password, String normalizedEmail) {
         if (password == null || password.isBlank()) {
-            throw violation("Password is required.");
+            throw violation();
         }
-        if (password.length() < MIN_LENGTH) {
-            throw violation("Password must be at least 10 characters.");
-        }
-        if (password.length() > MAX_LENGTH) {
-            throw violation("Password is too long.");
+        if (password.length() < MIN_LENGTH || password.length() > MAX_LENGTH) {
+            throw violation();
         }
         if (normalizedEmail != null && password.equalsIgnoreCase(normalizedEmail)) {
-            throw violation("Password must not match email.");
+            throw violation();
         }
         if (!password.matches(".*[A-Z].*")) {
-            throw violation("Password must contain an uppercase letter.");
+            throw violation();
         }
         if (!password.matches(".*[a-z].*")) {
-            throw violation("Password must contain a lowercase letter.");
+            throw violation();
         }
         if (!password.matches(".*\\d.*")) {
-            throw violation("Password must contain a digit.");
+            throw violation();
         }
         if (!password.matches(".*[^A-Za-z0-9].*")) {
-            throw violation("Password must contain a non-alphanumeric character.");
+            throw violation();
         }
     }
 
-    private BusinessRuleException violation(String message) {
-        return new BusinessRuleException("PASSWORD_POLICY_VIOLATION", message);
+    private BusinessException violation() {
+        return new BusinessException(ErrorCode.PASSWORD_POLICY_VIOLATION);
     }
 }

@@ -1,5 +1,8 @@
 package com.example.darks.repair_auto.identity.infrastructure.security;
 
+import com.example.darks.repair_auto.shared.error.BusinessException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
+
 import com.example.darks.repair_auto.shared.config.AppProperties;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.identity.domain.User;
@@ -90,7 +93,7 @@ public class JwtTokenService {
             }
             long expiresAt = numberClaim(claims, "exp");
             if (clock.instant().getEpochSecond() >= expiresAt) {
-                throw new BusinessRuleException("ACCESS_TOKEN_EXPIRED", "Access token has expired.", 401);
+                throw new BusinessException(ErrorCode.ACCESS_TOKEN_EXPIRED);
             }
             return new ValidatedAccessToken(
                     positiveNumberClaim(claims, "userId"),
@@ -98,7 +101,7 @@ public class JwtTokenService {
                     UserRole.valueOf(stringClaim(claims, "role")),
                     OffsetDateTime.ofInstant(Instant.ofEpochSecond(positiveNumberClaim(claims, "iat")), ZoneOffset.UTC),
                     positiveNumberClaim(claims, "authVersion"));
-        } catch (BusinessRuleException exception) {
+        } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
             throw invalid("Invalid access token.");
@@ -184,8 +187,8 @@ public class JwtTokenService {
         throw invalid("Missing string claim.");
     }
 
-    private BusinessRuleException invalid(String message) {
-        return new BusinessRuleException("INVALID_ACCESS_TOKEN", message, 401);
+    private BusinessException invalid(String message) {
+        return new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
     }
 
     public record ValidatedAccessToken(
