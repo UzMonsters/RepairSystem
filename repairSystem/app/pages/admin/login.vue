@@ -103,7 +103,7 @@ async function onSubmit() {
             class="form-check-input"
           >
           <label for="login-remember-me" class="form-check-label text-muted">
-            {{ t('rememberMe') }}+
+            {{ t('rememberMe') }}
           </label>
         </div>
         <div class="d-grid gap-2 mb-3">

@@ -41,6 +41,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       body,
       headers: forwardHeaders,
       retry: 0,
+      timeout: 20000,
       // Avatar downloads are image bytes, not JSON. Explicitly keep the
       // response binary while all other API calls retain normal JSON parsing.
       responseType: isAvatarDownload ? 'arrayBuffer' : 'json'

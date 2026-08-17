@@ -4,11 +4,11 @@ import { getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
 
 const { t } = useLocale()
-const { data, pending, error, refresh } = await useAsyncData('dashboard', () =>
+const { data, pending, error, refresh } = useAsyncData('dashboard', () =>
   apiFetch<DashboardOverview>('/dashboard/overview')
 )
 
-const { data: recentRequests } = await useAsyncData('dashboard-recent', () =>
+const { data: recentRequests } = useAsyncData('dashboard-recent', () =>
   apiFetch<Page<RepairRequest>>('/requests', { query: { page: 0, size: 6, sort: 'createdAt,desc' } })
 )
 
