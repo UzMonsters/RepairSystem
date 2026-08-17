@@ -195,7 +195,7 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].requestNumber").value(first.requestNumber()))
-                .andExpect(jsonPath("$.content[0].customer.fullName").value("Ali Valiyev"));
+                .andExpect(jsonPath("$.content[0].customerFullName").value("Ali Valiyev"));
 
         mockMvc.perform(get("/api/v1/requests")
                         .with(user(new AuthenticatedUser(admin)))
@@ -275,8 +275,7 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].id").value(first.id()))
-                .andExpect(jsonPath("$.content[0].customer.id").value(customerId))
-                .andExpect(jsonPath("$.content[0].customer.fullName").value("Ali Valiyev"));
+                .andExpect(jsonPath("$.content[0].customerFullName").value("Ali Valiyev"));
 
         mockMvc.perform(get("/api/v1/customers/999999/requests").with(user(new AuthenticatedUser(admin))))
                 .andExpect(status().isNotFound())

@@ -11,7 +11,6 @@ import com.example.darks.repair_auto.catalog.category.infrastructure.RepairCateg
 import com.example.darks.repair_auto.customer.application.CustomerService;
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestCategorySummary;
-import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestCustomerSummary;
 import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestSummaryResponse;
 import com.example.darks.repair_auto.repair.request.application.RepairRequestQuery;
 import com.example.darks.repair_auto.repair.request.application.RepairRequestService;
@@ -264,7 +263,7 @@ class TelegramCustomerBotServiceTest {
                 "Washer leaks water.",
                 "Tashkent",
                 null,
-                new RepairRequestCustomerSummary(1L, "Customer Name", "+998901234567", LanguageCode.UZ, true),
+                "Customer Name",
                 new RepairRequestCategorySummary(123L, "Washer UZ", "Washer description", "Washer", "Washer RU", "Washer UZ", true),
                 OffsetDateTime.parse(createdAt),
                 OffsetDateTime.parse(createdAt));
