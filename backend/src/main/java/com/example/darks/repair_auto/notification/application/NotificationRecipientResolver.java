@@ -35,6 +35,17 @@ public class NotificationRecipientResolver {
                         technician.getPreferredLanguage()));
     }
 
+    public Optional<LanguageCode> resolveLanguage(NotificationRecipientType recipientType, Long recipientId) {
+        if (recipientType == NotificationRecipientType.CUSTOMER) {
+            return customerRepository.findById(recipientId).map(customer -> languageOrDefault(customer.getPreferredLanguage()));
+        }
+        return technicianRepository.findById(recipientId).map(technician -> languageOrDefault(technician.getPreferredLanguage()));
+    }
+
+    private LanguageCode languageOrDefault(LanguageCode language) {
+        return language == null ? LanguageCode.UZ : language;
+    }
+
     public record ResolvedRecipient(Long chatId, LanguageCode language) {
     }
 }

@@ -142,17 +142,17 @@ public class RepairAssignmentService {
         statusHistoryService.recordTransition(repairRequest, fromStatus, request.reason(), assignedBy, now);
         String eventPart = "assignment:%d:reassigned-to:%d".formatted(current.getId(), next.getId());
         notificationOutboxService.enqueue(notificationEventFactory.technician(
-                NotificationType.TECHNICIAN_REMOVED_FROM_REQUEST,
+                NotificationType.TECHNICIAN_UNASSIGNED,
                 repairRequest,
                 current,
                 eventPart));
         notificationOutboxService.enqueue(notificationEventFactory.technician(
-                NotificationType.TECHNICIAN_REASSIGNED_TO_REQUEST,
+                NotificationType.TECHNICIAN_ASSIGNED,
                 repairRequest,
                 next,
                 eventPart));
         notificationOutboxService.enqueue(notificationEventFactory.customer(
-                NotificationType.CUSTOMER_TECHNICIAN_REASSIGNED,
+                NotificationType.TECHNICIAN_ASSIGNED,
                 repairRequest,
                 next,
                 eventPart));
@@ -172,12 +172,12 @@ public class RepairAssignmentService {
         statusHistoryService.recordTransition(repairRequest, fromStatus, reason, changedBy, now);
         String eventPart = "assignment:%d:unassigned".formatted(assignment.getId());
         notificationOutboxService.enqueue(notificationEventFactory.technician(
-                NotificationType.TECHNICIAN_REMOVED_FROM_REQUEST,
+                NotificationType.TECHNICIAN_UNASSIGNED,
                 repairRequest,
                 assignment,
                 eventPart));
         notificationOutboxService.enqueue(notificationEventFactory.customer(
-                NotificationType.CUSTOMER_TECHNICIAN_UNASSIGNED,
+                NotificationType.TECHNICIAN_UNASSIGNED,
                 repairRequest,
                 eventPart));
         return details(repairRequest);
@@ -454,12 +454,12 @@ public class RepairAssignmentService {
     private void enqueueAssignmentCreated(RepairRequest request, RepairAssignment assignment) {
         String eventPart = "assignment:%d:created".formatted(assignment.getId());
         notificationOutboxService.enqueue(notificationEventFactory.customer(
-                NotificationType.CUSTOMER_TECHNICIAN_ASSIGNED,
+                NotificationType.TECHNICIAN_ASSIGNED,
                 request,
                 assignment,
                 eventPart));
         notificationOutboxService.enqueue(notificationEventFactory.technician(
-                NotificationType.TECHNICIAN_NEW_ASSIGNMENT,
+                NotificationType.TECHNICIAN_ASSIGNED,
                 request,
                 assignment,
                 eventPart));
@@ -473,14 +473,14 @@ public class RepairAssignmentService {
         NotificationType customerType;
         NotificationType technicianType;
         if (scheduledVisitAt == null) {
-            customerType = NotificationType.CUSTOMER_VISIT_SCHEDULE_CLEARED;
-            technicianType = NotificationType.TECHNICIAN_VISIT_SCHEDULE_CLEARED;
+            customerType = NotificationType.VISIT_CANCELLED;
+            technicianType = NotificationType.VISIT_CANCELLED;
         } else if (previousScheduledVisitAt == null) {
-            customerType = NotificationType.CUSTOMER_VISIT_SCHEDULED;
-            technicianType = NotificationType.TECHNICIAN_VISIT_SCHEDULED;
+            customerType = NotificationType.VISIT_SCHEDULED;
+            technicianType = NotificationType.VISIT_SCHEDULED;
         } else {
-            customerType = NotificationType.CUSTOMER_VISIT_RESCHEDULED;
-            technicianType = NotificationType.TECHNICIAN_VISIT_RESCHEDULED;
+            customerType = NotificationType.VISIT_RESCHEDULED;
+            technicianType = NotificationType.VISIT_RESCHEDULED;
         }
         String schedulePart = scheduledVisitAt == null ? "cleared" : scheduledVisitAt.toInstant().toString();
         String eventPart = "assignment:%d:schedule:%s".formatted(assignment.getId(), schedulePart);

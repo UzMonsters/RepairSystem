@@ -10,5 +10,8 @@ public record ClaimedNotification(
         Long recipientId,
         String templateKey,
         String payloadJson,
-        int payloadVersion) {
+        int payloadVersion,
+        String language,
+        String renderedTitle,
+        String renderedMessage) {
 }

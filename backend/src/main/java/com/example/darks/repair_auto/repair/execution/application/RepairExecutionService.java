@@ -145,7 +145,7 @@ public class RepairExecutionService {
         request.markInProgress(now);
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, "Repair work started.", changedBy, now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_REPAIR_STARTED, request, history);
+        enqueueCustomerStatus(NotificationType.REPAIR_STARTED, request, history);
         return details(request, assignment, execution);
     }
 
@@ -171,7 +171,7 @@ public class RepairExecutionService {
         request.markInProgress(now);
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, "Repair work started.", changedBy, now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_REPAIR_STARTED, request, history);
+        enqueueCustomerStatus(NotificationType.REPAIR_STARTED, request, history);
         return details(request, assignment, execution);
     }
 
@@ -244,7 +244,7 @@ public class RepairExecutionService {
         request.markWaitingForParts(now);
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, reason, changedBy, now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_WAITING_FOR_PARTS, request, history);
+        enqueueCustomerStatus(NotificationType.WAITING_FOR_PARTS, request, history);
         return details(request, assignment, execution);
     }
 
@@ -271,7 +271,7 @@ public class RepairExecutionService {
         request.markWaitingForParts(now);
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, reason, changedBy, now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_WAITING_FOR_PARTS, request, history);
+        enqueueCustomerStatus(NotificationType.WAITING_FOR_PARTS, request, history);
         return details(request, assignment, execution);
     }
 
@@ -293,7 +293,7 @@ public class RepairExecutionService {
                 resumeReason(previousReason, requestBody == null ? null : requestBody.note()),
                 changedBy,
                 now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_REPAIR_RESUMED, request, history);
+        enqueueCustomerStatus(NotificationType.REPAIR_RESUMED, request, history);
         return details(request, assignment, execution);
     }
 
@@ -319,7 +319,7 @@ public class RepairExecutionService {
                 resumeReason(previousReason, requestBody == null ? null : requestBody.note()),
                 changedBy,
                 now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_REPAIR_RESUMED, request, history);
+        enqueueCustomerStatus(NotificationType.REPAIR_RESUMED, request, history);
         return details(request, assignment, execution);
     }
 
@@ -362,7 +362,7 @@ public class RepairExecutionService {
         request.markCompleted(now);
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, "Repair completed.", changedBy, now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_REPAIR_COMPLETED, request, history);
+        enqueueCustomerStatus(NotificationType.REPAIR_COMPLETED, request, history);
         return details(request, null, execution);
     }
 
@@ -406,7 +406,7 @@ public class RepairExecutionService {
         request.markCompleted(now);
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, "Repair completed.", changedBy, now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_REPAIR_COMPLETED, request, history);
+        enqueueCustomerStatus(NotificationType.REPAIR_COMPLETED, request, history);
         return details(request, null, execution);
     }
 
@@ -444,10 +444,10 @@ public class RepairExecutionService {
         request.markCancelled(now);
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, reason, changedBy, now);
-        enqueueCustomerStatus(NotificationType.CUSTOMER_REQUEST_CANCELLED, request, history);
+        enqueueCustomerStatus(NotificationType.REQUEST_CANCELLED, request, history);
         if (assignment != null) {
             notificationOutboxService.enqueue(notificationEventFactory.technician(
-                    NotificationType.TECHNICIAN_REQUEST_CANCELLED,
+                    NotificationType.REQUEST_CANCELLED,
                     request,
                     assignment.getTechnician(),
                     assignment.getScheduledVisitAt(),

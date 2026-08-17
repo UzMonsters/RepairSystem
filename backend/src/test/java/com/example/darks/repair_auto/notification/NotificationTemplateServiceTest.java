@@ -3,6 +3,7 @@ package com.example.darks.repair_auto.notification;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.darks.repair_auto.notification.application.NotificationTemplateService;
+import com.example.darks.repair_auto.notification.domain.NotificationRecipientType;
 import com.example.darks.repair_auto.notification.domain.NotificationType;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import java.time.ZoneId;
@@ -13,9 +14,10 @@ class NotificationTemplateServiceTest {
     private final NotificationTemplateService service = new NotificationTemplateService(ZoneId.of("Asia/Tashkent"));
 
     @Test
-    void customerAssignmentNotificationDoesNotExposeRequestCode() {
-        String text = service.render(
-                NotificationType.CUSTOMER_TECHNICIAN_ASSIGNED,
+    void customerAssignmentNotificationIncludesTechnicianAndRequestNumber() {
+        var rendered = service.render(
+                NotificationType.TECHNICIAN_ASSIGNED,
+                NotificationRecipientType.CUSTOMER,
                 """
                         {
                           "requestNumber":"REP-2026-000002",
@@ -30,15 +32,16 @@ class NotificationTemplateServiceTest {
                 1,
                 LanguageCode.RU);
 
-        assertThat(text)
+        assertThat(rendered.message())
                 .contains("John Week")
-                .doesNotContain("REP-2026-000002");
+                .contains("REP-2026-000002");
     }
 
     @Test
-    void technicianAssignmentNotificationPointsToExistingPendingMenu() {
-        String text = service.render(
-                NotificationType.TECHNICIAN_NEW_ASSIGNMENT,
+    void technicianAssignmentNotificationUsesTechnicianVariant() {
+        var rendered = service.render(
+                NotificationType.TECHNICIAN_ASSIGNED,
+                NotificationRecipientType.TECHNICIAN,
                 """
                         {
                           "requestNumber":"REP-2026-000002",
@@ -52,9 +55,7 @@ class NotificationTemplateServiceTest {
                 1,
                 LanguageCode.UZ);
 
-        assertThat(text)
-                .contains("Kutilayotgan")
-                .doesNotContain("Mening ishlarim")
-                .doesNotContain("REP-2026-000002");
+        assertThat(rendered.title()).isEqualTo("Yangi topshiriq");
+        assertThat(rendered.message()).contains("REP-2026-000002");
     }
 }

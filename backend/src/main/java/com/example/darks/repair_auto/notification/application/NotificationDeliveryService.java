@@ -31,16 +31,10 @@ public class NotificationDeliveryService {
         if (recipient.isEmpty()) {
             return NotificationDeliveryResult.unavailable(NotificationFailureCategory.RECIPIENT_UNAVAILABLE);
         }
-        String text;
-        try {
-            text = templateService.render(
-                    notification.notificationType(),
-                    notification.payloadJson(),
-                    notification.payloadVersion(),
-                    recipient.get().language());
-        } catch (IllegalArgumentException exception) {
-            return NotificationDeliveryResult.permanentFailure(NotificationFailureCategory.TEMPLATE_RENDER_FAILED);
-        }
+        String text = templateService.renderTelegramText(new NotificationTemplateService.RenderedNotification(
+                recipient.get().language(),
+                notification.renderedTitle(),
+                notification.renderedMessage()));
         try {
             botClient(notification.recipientType()).sendMessage(recipient.get().chatId(), text, null);
             return NotificationDeliveryResult.delivered();

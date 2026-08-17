@@ -57,6 +57,15 @@ public class NotificationOutbox {
     @Column(name = "payload_version", nullable = false)
     private int payloadVersion;
 
+    @Column(nullable = false, length = 10)
+    private String language;
+
+    @Column(name = "rendered_title", nullable = false, length = 240)
+    private String renderedTitle;
+
+    @Column(name = "rendered_message", nullable = false, length = 4096)
+    private String renderedMessage;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private NotificationStatus status;
@@ -116,6 +125,9 @@ public class NotificationOutbox {
             RepairRequest repairRequest,
             String templateKey,
             String payloadJson,
+            String language,
+            String renderedTitle,
+            String renderedMessage,
             OffsetDateTime now) {
         this.eventKey = eventKey;
         this.notificationType = notificationType;
@@ -126,6 +138,9 @@ public class NotificationOutbox {
         this.templateKey = templateKey;
         this.payloadJson = payloadJson;
         this.payloadVersion = PAYLOAD_VERSION;
+        this.language = language;
+        this.renderedTitle = renderedTitle;
+        this.renderedMessage = renderedMessage;
         this.status = NotificationStatus.PENDING;
         this.attemptCount = 0;
         this.nextAttemptAt = now;
@@ -171,6 +186,18 @@ public class NotificationOutbox {
 
     public int getPayloadVersion() {
         return payloadVersion;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public String getRenderedTitle() {
+        return renderedTitle;
+    }
+
+    public String getRenderedMessage() {
+        return renderedMessage;
     }
 
     public NotificationStatus getStatus() {

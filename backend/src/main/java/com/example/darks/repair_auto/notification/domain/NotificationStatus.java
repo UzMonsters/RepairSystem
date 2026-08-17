@@ -5,6 +5,15 @@ public enum NotificationStatus {
     PROCESSING,
     RETRY_SCHEDULED,
     DELIVERED,
+    FAILED,
     SKIPPED,
-    DEAD
+    DEAD;
+
+    public NotificationStatus externalStatus() {
+        return switch (this) {
+            case PROCESSING, RETRY_SCHEDULED -> PENDING;
+            case DEAD -> FAILED;
+            default -> this;
+        };
+    }
 }
