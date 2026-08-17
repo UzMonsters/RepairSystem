@@ -412,7 +412,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
                         <i class="bi bi-eye me-2" />{{ t('viewDetails') }}
                       </NuxtLink>
                     </li>
-                    <li>
+                    <li v-if="r.status !== 'COMPLETED' && r.status !== 'CANCELLED'">
                       <a
                         href="#"
                         class="dropdown-item"
@@ -421,7 +421,7 @@ const execRequired = computed(() => execAction.value !== 'resume')
                         <i class="bi bi-person-badge me-2" />{{ t('assignTechnician') }}
                       </a>
                     </li>
-                    <li><hr class="dropdown-divider"></li>
+                    <li v-if="r.status !== 'COMPLETED' && r.status !== 'CANCELLED'"><hr class="dropdown-divider"></li>
                     <li v-if="r.status === 'ASSIGNED' && r.currentAssignment?.status === 'PENDING'">
                       <a
                         href="#"

@@ -67,7 +67,9 @@ export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> 
   const headers = new Headers(options.headers as HeadersInit | undefined)
 
   // Attach default accept and language headers
-  headers.set('accept', 'application/json')
+  if (!headers.has('accept')) {
+    headers.set('accept', options.responseType === 'blob' ? '*/*' : 'application/json')
+  }
   if (!headers.has('accept-language')) {
     const { locale } = useLocale()
     headers.set('accept-language', locale.value || 'uz')
