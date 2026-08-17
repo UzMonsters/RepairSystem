@@ -51,7 +51,7 @@ function timeAgo(value?: string) {
       >
         <div class="dropdown-divider" />
         <NuxtLink
-          :to="n.repairRequestId ? `/admin/requests/${n.repairRequestId}` : '/notifications'"
+          :to="n.repairRequestId ? `/admin/requests/${n.repairRequestId}` : '/admin/notifications'"
           class="dropdown-item"
         >
           <i class="bi bi-bell me-2" />

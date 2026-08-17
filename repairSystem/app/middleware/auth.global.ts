@@ -3,7 +3,7 @@
 
   if (to.path === '/' || to.path === '/contacts' || to.path === '/login') return
 
-  // Restore an existing session before showing the admin login page.
+
   if (to.path === '/admin/login') {
     await init()
     if (isAuthenticated.value) return navigateTo('/admin', { replace: true })
