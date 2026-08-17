@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.identity.infrastructure.security;
 
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.BusinessException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.SecurityErrorHandler;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
@@ -39,9 +40,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             authenticate(request);
             filterChain.doFilter(request, response);
-        } catch (BusinessRuleException exception) {
+        } catch (BusinessException exception) {
             SecurityContextHolder.clearContext();
-            securityErrorHandler.writeUnauthorized(request, response, exception.code(), exception.getMessage());
+            securityErrorHandler.writeUnauthorized(request, response, exception.code(), exception.getErrorCode().getMessageKey());
         } finally {
             SecurityContextHolder.clearContext();
         }
@@ -53,19 +54,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         if (!authorization.startsWith("Bearer ")) {
-            throw new BusinessRuleException("INVALID_ACCESS_TOKEN", "Authorization header must use Bearer token.", 401);
+            throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
         String token = authorization.substring("Bearer ".length());
         if (token.isBlank()) {
-            throw new BusinessRuleException("INVALID_ACCESS_TOKEN", "Bearer token is missing.", 401);
+            throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
         JwtTokenService.ValidatedAccessToken validated = jwtTokenService.validate(token);
         Optional<User> user = userRepository.findById(validated.userId());
         if (user.isEmpty() || !user.get().isActive()) {
-            throw new BusinessRuleException("INVALID_ACCESS_TOKEN", "Access token is no longer valid.", 401);
+            throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
         if (validated.authVersion() != user.get().getAuthVersion()) {
-            throw new BusinessRuleException("INVALID_ACCESS_TOKEN", "Access token is no longer valid.", 401);
+            throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
         AuthenticatedUser principal = new AuthenticatedUser(user.get());
         UsernamePasswordAuthenticationToken authentication =
