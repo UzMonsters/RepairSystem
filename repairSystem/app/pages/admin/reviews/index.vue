@@ -116,7 +116,9 @@ function openReview(r: Review) {
               <th>{{ t('comment') }}</th>
               <th>{{ t('source') }}</th>
               <th>{{ t('date') }}</th>
-              <th class="text-end">{{ t('actions') }}</th>
+              <th class="text-end">
+                {{ t('actions') }}
+              </th>
             </tr>
           </thead>
           <tbody>

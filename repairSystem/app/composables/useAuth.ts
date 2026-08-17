@@ -27,9 +27,8 @@ export function useAuth() {
     }
 
     try {
-      const blob = await $fetch<Blob>('/api/me/avatar', {
-        responseType: 'blob',
-        credentials: 'include'
+      const blob = await apiFetch<Blob>('/me/avatar', {
+        responseType: 'blob'
       })
       const nextUrl = URL.createObjectURL(blob)
       if (avatarObjectUrl.value) URL.revokeObjectURL(avatarObjectUrl.value)
@@ -64,10 +63,11 @@ export function useAuth() {
 
   async function login(email: string, password: string, rememberMe = false) {
     const data = await apiFetch<{ user: AuthUser }>('/auth/login', {
-      method: 'POST', 
-      body: { email, password, rememberMe } 
+      method: 'POST',
+      body: { email, password, rememberMe }
     })
     user.value = data.user
+    await loadAvatar()
   }
 
   async function fetchProfile() {

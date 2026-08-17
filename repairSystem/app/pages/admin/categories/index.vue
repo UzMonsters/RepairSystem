@@ -141,7 +141,9 @@ async function toggleActive(c: Category) {
   >
     <template #header>
       <div class="page-header-with-action">
-        <h3 class="mb-0">{{ t('categories') }}</h3>
+        <h3 class="mb-0">
+          {{ t('categories') }}
+        </h3>
         <button
           type="button"
           class="btn btn-primary btn-sm"

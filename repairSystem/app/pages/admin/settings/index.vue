@@ -35,7 +35,7 @@ async function saveSettings() {
   try {
     const updated = await apiFetch<UserSettings>('/settings/me', { method: 'PUT', body: personal.value as unknown as Record<string, unknown> })
     personal.value = updated
-    
+
     // Sync with global user profile
     if (user.value) {
       user.value.language = updated.language

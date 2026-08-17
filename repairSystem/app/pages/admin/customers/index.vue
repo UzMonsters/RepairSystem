@@ -7,11 +7,14 @@ const { t } = useLocale()
 const search = ref('')
 const page = ref(1)
 const size = ref(10)
+const sortField = ref('createdAt')
+const sortDirection = ref<'asc' | 'desc'>('desc')
 
 const query = computed(() => ({
   page: page.value - 1,
   size: size.value,
-  search: search.value.trim() || undefined
+  search: search.value.trim() || undefined,
+  sort: `${sortField.value},${sortDirection.value}`
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('customers-list', () =>
@@ -40,6 +43,22 @@ function changeSize(s: number) {
   size.value = s
   page.value = 1
   refresh()
+}
+
+function toggleSort(field: string) {
+  if (sortField.value === field) sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+  page.value = 1
+  refresh()
+}
+
+function sortIcon(field: string) {
+  return sortField.value === field
+    ? sortDirection.value === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'
+    : 'bi-arrow-down-up'
 }
 
 function openCustomer(id: number) {
@@ -98,12 +117,30 @@ function openCustomer(id: number) {
         >
           <thead>
             <tr>
-              <th>{{ t('name') }}</th>
-              <th>{{ t('phone') }}</th>
-              <th>{{ t('language') }}</th>
-              <th>{{ t('telegramLinked') }}</th>
-              <th>{{ t('active') }}</th>
-              <th>{{ t('created') }}</th>
+              <th
+                v-for="column in [
+                  { label: t('name'), field: 'fullName' },
+                  { label: t('phone'), field: 'phone' },
+                  { label: t('language'), field: 'preferredLanguage' },
+                  { label: t('telegramLinked'), field: 'registrationSource' },
+                  { label: t('active'), field: 'active' },
+                  { label: t('created'), field: 'createdAt' }
+                ]"
+                :key="column.field"
+              >
+                <button
+                  type="button"
+                  class="table-sort-button"
+                  @click.stop="toggleSort(column.field)"
+                >
+                  {{ column.label }}
+                  <i
+                    class="bi ms-1"
+                    :class="sortIcon(column.field)"
+                    aria-hidden="true"
+                  />
+                </button>
+              </th>
               <th class="text-end">
                 {{ t('actions') }}
               </th>

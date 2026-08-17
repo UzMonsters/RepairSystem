@@ -9,11 +9,11 @@ export function useTheme() {
     const value = localStorage.getItem('repair_theme')
     return value === 'LIGHT' || value === 'DARK' || value === 'SYSTEM' ? value : null
   }
-  
+
   const currentTheme = computed(() => {
     return user.value?.theme || storedTheme() || 'SYSTEM'
   })
-  
+
   const isDark = computed(() => {
     if (currentTheme.value === 'DARK') return true
     if (currentTheme.value === 'LIGHT') return false
@@ -36,7 +36,7 @@ export function useTheme() {
         document.documentElement.dataset.theme = 'light'
       }
     })
-    
+
     // Listen to system changes if theme is SYSTEM
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
       if (currentTheme.value === 'SYSTEM') {
@@ -53,7 +53,7 @@ export function useTheme() {
     // If currently dark, switch to light. If currently light, switch to dark.
     // If currently SYSTEM, evaluate current system theme and flip it.
     const newTheme = isDark.value ? 'LIGHT' : 'DARK'
-    
+
     // Immediately apply to local state
     if (user.value) {
       user.value.theme = newTheme
@@ -69,7 +69,7 @@ export function useTheme() {
         document.documentElement.removeAttribute('data-theme')
       }
     }
-    
+
     // Persist to backend if logged in
     if (user.value) {
       try {

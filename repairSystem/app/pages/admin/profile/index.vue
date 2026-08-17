@@ -21,6 +21,7 @@ const passwordForm = ref({
 
 const avatarPreviewUrl = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
+const avatarSrc = computed(() => avatarPreviewUrl.value || avatarObjectUrl.value || undefined)
 
 async function handleFileSelect(e: Event) {
   const target = e.target as HTMLInputElement
@@ -55,7 +56,6 @@ async function handleProfileSubmit() {
 }
 
 async function handleAvatarDelete() {
-  if (!confirm(t('confirmDelete') || 'Are you sure?')) return
   loadingAvatar.value = true
   try {
     await deleteAvatar()
@@ -149,16 +149,14 @@ async function handlePasswordSubmit() {
               <div class="profile-avatar-frame">
                 <img
                   v-if="avatarPreviewUrl || avatarObjectUrl"
-                  :src="avatarPreviewUrl || avatarObjectUrl"
+                  :src="avatarSrc"
                   alt="Avatar"
                   class="rounded-circle shadow object-fit-cover"
                 >
                 <div
                   v-else
                   class="d-flex align-items-center justify-content-center rounded-circle bg-secondary text-white shadow"
-                >
-                  {{ (user?.fullName || 'A').charAt(0) }}
-                </div>
+                />
                 <label
                   class="profile-avatar-action profile-avatar-upload"
                   :class="{ disabled: loadingAvatar }"
@@ -166,8 +164,8 @@ async function handlePasswordSubmit() {
                 >
                   <i
                     v-if="!loadingAvatar"
-                    class="profile-avatar-plus"
-                  >+</i>
+                    class="bi bi-camera-fill profile-avatar-camera"
+                  />
                   <span
                     v-else
                     class="spinner-border spinner-border-sm"

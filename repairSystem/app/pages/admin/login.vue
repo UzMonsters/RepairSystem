@@ -102,7 +102,10 @@ async function onSubmit() {
             type="checkbox"
             class="form-check-input"
           >
-          <label for="login-remember-me" class="form-check-label text-muted">
+          <label
+            for="login-remember-me"
+            class="form-check-label text-muted"
+          >
             {{ t('rememberMe') }}
           </label>
         </div>

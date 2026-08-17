@@ -7,7 +7,6 @@ const { locale, setLocale, t } = useLocale()
 const { isDark, toggleTheme } = useTheme()
 
 const displayName = computed(() => user.value?.fullName || 'Administrator')
-const role = computed(() => user.value?.role || '')
 const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
 const avatarUrl = avatarObjectUrl
 const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value === 'en' ? 'EN' : 'UZ')
@@ -195,7 +194,7 @@ onMounted(async () => {
               class="user-image rounded-circle shadow object-fit-cover"
               style="width: 32px; height: 32px;"
             >
-            <span 
+            <span
               v-else
               class="user-image d-inline-flex align-items-center justify-content-center rounded-circle bg-primary text-white shadow"
               style="width: 32px; height: 32px; font-size: 12px; font-weight: 600;"

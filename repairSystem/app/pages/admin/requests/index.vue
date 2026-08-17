@@ -12,6 +12,8 @@ const priority = ref('')
 const categoryId = ref('')
 const page = ref(1)
 const size = ref(10)
+const sortField = ref('createdAt')
+const sortDirection = ref<'asc' | 'desc'>('desc')
 
 const query = computed(() => ({
   page: page.value - 1,
@@ -20,7 +22,7 @@ const query = computed(() => ({
   status: status.value || undefined,
   priority: priority.value || undefined,
   categoryId: categoryId.value || undefined,
-  sort: 'createdAt,desc'
+  sort: `${sortField.value},${sortDirection.value}`
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('requests-list', () =>
@@ -65,6 +67,17 @@ function changeSize(s: number) {
   refresh()
 }
 
+function toggleSort(field: string) {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+  page.value = 1
+  refresh()
+}
+
 function categoryName(r: RepairRequest) {
   return r.category?.name || '-'
 }
@@ -79,6 +92,12 @@ function customerName(r: RepairRequest) {
 
 function openRequest(r: RepairRequest) {
   navigateTo(`/admin/requests/${r.id}`)
+}
+
+function sortIcon(field: string) {
+  return sortField.value === field
+    ? sortDirection.value === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'
+    : 'bi-arrow-down-up'
 }
 
 const errorMessage = computed(() => {
@@ -288,12 +307,30 @@ const execRequired = computed(() => execAction.value !== 'resume')
         >
           <thead>
             <tr>
-              <th>{{ t('description') }}</th>
-              <th>{{ t('client') }}</th>
-              <th>{{ t('categories') }}</th>
-              <th>{{ t('priority') }}</th>
-              <th>{{ t('status') }}</th>
-              <th>{{ t('created') }}</th>
+              <th
+                v-for="column in [
+                  { label: t('description'), field: 'requestNumber' },
+                  { label: t('client'), field: 'customerName' },
+                  { label: t('categories'), field: 'categoryName' },
+                  { label: t('priority'), field: 'priority' },
+                  { label: t('status'), field: 'status' },
+                  { label: t('created'), field: 'createdAt' }
+                ]"
+                :key="column.field"
+              >
+                <button
+                  type="button"
+                  class="table-sort-button"
+                  @click.stop="toggleSort(column.field)"
+                >
+                  {{ column.label }}
+                  <i
+                    class="bi ms-1"
+                    :class="sortIcon(column.field)"
+                    aria-hidden="true"
+                  />
+                </button>
+              </th>
               <th class="text-end">
                 {{ t('actions') }}
               </th>

@@ -1,3 +1,5 @@
+import type { H3Event } from 'h3'
+
 const ACCESS_COOKIE = 'access_token'
 const REFRESH_COOKIE = 'refresh_token'
 
@@ -47,4 +49,3 @@ export function withoutTokens<T extends TokenPayload>(payload: T) {
   const { accessToken: _accessToken, refreshToken: _refreshToken, ...safePayload } = payload
   return safePayload
 }
-import type { H3Event } from 'h3'

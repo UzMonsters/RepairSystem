@@ -52,6 +52,11 @@ const originalRole = ref<UserRole>('MANAGER')
 const saving = ref(false)
 const saveError = ref('')
 
+const resetUserId = ref<number | null>(null)
+const resetPasswordForm = ref({ newPassword: '', confirmPassword: '' })
+const resettingSaving = ref(false)
+const resettingError = ref('')
+
 function openCreate() {
   editingId.value = null
   form.value = { fullName: '', email: '', password: '', role: 'MANAGER' }
@@ -103,6 +108,40 @@ async function save() {
   }
 }
 
+function openResetPassword(u: CrmUser) {
+  resetUserId.value = u.id
+  resetPasswordForm.value = { newPassword: '', confirmPassword: '' }
+  resettingError.value = ''
+  showModal('reset-password-modal')
+}
+
+async function submitResetPassword() {
+  if (resetUserId.value == null) return
+  resettingError.value = ''
+  if (resetPasswordForm.value.newPassword !== resetPasswordForm.value.confirmPassword) {
+    resettingError.value = t('passwordMismatch') || 'Passwords do not match.'
+    return
+  }
+  if (resetPasswordForm.value.newPassword.length < 10) {
+    resettingError.value = 'Password must be at least 10 characters.'
+    return
+  }
+
+  resettingSaving.value = true
+  try {
+    await apiFetch(`/users/${resetUserId.value}/reset-password`, {
+      method: 'POST',
+      body: resetPasswordForm.value
+    })
+    hideModal('reset-password-modal')
+    useToast().showSuccess(t('savedSuccessfully'))
+  } catch (e) {
+    resettingError.value = getApiErrorMessage(e, 'Failed to reset password.')
+  } finally {
+    resettingSaving.value = false
+  }
+}
+
 const togglingId = ref<number | null>(null)
 const toggleError = ref('')
 
@@ -131,7 +170,9 @@ async function toggleActive(u: CrmUser) {
   >
     <template #header>
       <div class="page-header-with-action">
-        <h3 class="mb-0">{{ t('users') }}</h3>
+        <h3 class="mb-0">
+          {{ t('users') }}
+        </h3>
         <button
           type="button"
           class="btn btn-primary btn-sm"

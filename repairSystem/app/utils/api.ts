@@ -65,14 +65,14 @@ export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> 
   const { refreshSession, logout, isAuthenticated } = useAuth()
   const fetcher = import.meta.server ? useRequestFetch() : $fetch
   const headers = new Headers(options.headers as HeadersInit | undefined)
-  
+
   // Attach default accept and language headers
   headers.set('accept', 'application/json')
   if (!headers.has('accept-language')) {
     const { locale } = useLocale()
     headers.set('accept-language', locale.value || 'uz')
   }
-  
+
   const url = `/api${path.startsWith('/') ? path : `/${path}`}`
 
   async function execute(retried = false): Promise<T> {

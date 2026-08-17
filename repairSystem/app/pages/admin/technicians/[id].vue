@@ -68,27 +68,59 @@ function formatDate(value?: string) {
           </div>
           <div class="card-body">
             <dl class="row mb-0">
-              <dt class="col-sm-6">{{ t('fullName') }}</dt>
-              <dd class="col-sm-6">{{ technician.fullName }}</dd>
-              <dt class="col-sm-6">{{ t('phone') }}</dt>
-              <dd class="col-sm-6">{{ technician.phone || '-' }}</dd>
-              <dt class="col-sm-6">{{ t('specialization') }}</dt>
-              <dd class="col-sm-6">{{ technician.specialization || '-' }}</dd>
-              <dt class="col-sm-6">{{ t('maxConcurrentRequests') }}</dt>
-              <dd class="col-sm-6">{{ technician.maximumConcurrentRequests ?? '-' }}</dd>
-              <dt class="col-sm-6">{{ t('preferredLanguage') }}</dt>
-              <dd class="col-sm-6">{{ technician.preferredLanguage ? t(`language.${technician.preferredLanguage}`) : '-' }}</dd>
-              <dt class="col-sm-6">{{ t('telegramLinked') }}</dt>
-              <dd class="col-sm-6">{{ technician.telegramLinked ? t('yes') : t('no') }}</dd>
-              <dt class="col-sm-6">{{ t('created') }}</dt>
-              <dd class="col-sm-6">{{ formatDate(technician.createdAt) }}</dd>
+              <dt class="col-sm-6">
+                {{ t('fullName') }}
+              </dt>
+              <dd class="col-sm-6">
+                {{ technician.fullName }}
+              </dd>
+              <dt class="col-sm-6">
+                {{ t('phone') }}
+              </dt>
+              <dd class="col-sm-6">
+                {{ technician.phone || '-' }}
+              </dd>
+              <dt class="col-sm-6">
+                {{ t('specialization') }}
+              </dt>
+              <dd class="col-sm-6">
+                {{ technician.specialization || '-' }}
+              </dd>
+              <dt class="col-sm-6">
+                {{ t('maxConcurrentRequests') }}
+              </dt>
+              <dd class="col-sm-6">
+                {{ technician.maximumConcurrentRequests ?? '-' }}
+              </dd>
+              <dt class="col-sm-6">
+                {{ t('preferredLanguage') }}
+              </dt>
+              <dd class="col-sm-6">
+                {{ technician.preferredLanguage ? t(`language.${technician.preferredLanguage}`) : '-' }}
+              </dd>
+              <dt class="col-sm-6">
+                {{ t('telegramLinked') }}
+              </dt>
+              <dd class="col-sm-6">
+                {{ technician.telegramLinked ? t('yes') : t('no') }}
+              </dd>
+              <dt class="col-sm-6">
+                {{ t('created') }}
+              </dt>
+              <dd class="col-sm-6">
+                {{ formatDate(technician.createdAt) }}
+              </dd>
             </dl>
             <div
               v-if="technician.notes"
               class="border-top pt-3 mt-3"
             >
-              <div class="text-muted small mb-1">{{ t('description') }}</div>
-              <p class="mb-0">{{ technician.notes }}</p>
+              <div class="text-muted small mb-1">
+                {{ t('description') }}
+              </div>
+              <p class="mb-0">
+                {{ technician.notes }}
+              </p>
             </div>
           </div>
         </div>
@@ -97,12 +129,14 @@ function formatDate(value?: string) {
       <div class="col-lg-7">
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="card-title mb-0">{{ t('workload') }}</h3>
+            <h3 class="card-title mb-0">
+              {{ t('workload') }}
+            </h3>
             <button
               type="button"
               class="btn btn-sm btn-outline-secondary"
               :title="t('retry')"
-              @click="refreshWorkload"
+              @click="() => refreshWorkload()"
             >
               <i class="bi bi-arrow-clockwise" />
             </button>

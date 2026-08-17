@@ -29,7 +29,9 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   if (incoming['content-type']) forwardHeaders['content-type'] = incoming['content-type']
   if (incoming.cookie) forwardHeaders.cookie = incoming.cookie
 
-  let body = ['GET', 'HEAD'].includes(method) ? undefined : await readRawBody(event, false)
+  let body: BodyInit | Record<string, unknown> | undefined = ['GET', 'HEAD'].includes(method)
+    ? undefined
+    : await readRawBody(event, false) as unknown as BodyInit
   if (isRefresh || isLogout) {
     body = { refreshToken: getRefreshToken(event) || '' }
   }

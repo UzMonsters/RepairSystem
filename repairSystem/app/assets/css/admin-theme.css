@@ -1,3 +1,5 @@
+@import url('./light-theme.css');
+
 /* ============================================================
    Repair System — dashdarkX-style dark theme
    Palette (from dashdarkX / MUI):
@@ -1395,15 +1397,21 @@ select option {
 }
 
 .profile-avatar-upload {
-  right: 0;
-  bottom: 0;
-  background: var(--rs-primary);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  z-index: 1;
 }
 
 .profile-avatar-delete {
-  top: 0;
-  right: 0;
+  top: -4px;
+  right: 34px;
   background: var(--rs-danger);
+  z-index: 2;
 }
 
 .profile-avatar-action input {
@@ -1446,12 +1454,48 @@ select option {
   width: 100%;
 }
 
-.profile-avatar-plus,
 .profile-avatar-x {
   font-size: 24px;
   font-style: normal;
   font-weight: 500;
   line-height: 1;
+}
+
+.table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-align: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.table-sort-button:hover,
+.table-sort-button:focus-visible {
+  color: var(--rs-primary);
+}
+
+.table-sort-button .bi {
+  font-size: 0.75rem;
+}
+
+.profile-avatar-camera {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.profile-avatar-upload .profile-avatar-camera {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.42);
 }
 
 .page-header-with-action {
@@ -1510,5 +1554,3 @@ select option {
 .card-body.d-flex::after {
   display: none;
 }
-
-@import url('./light-theme.css');
