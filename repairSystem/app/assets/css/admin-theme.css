@@ -1409,7 +1409,7 @@ select option {
 
 .profile-avatar-delete {
   top: -4px;
-  right: 34px;
+  right: -4px;
   background: var(--rs-danger);
   z-index: 2;
 }
@@ -1496,6 +1496,16 @@ select option {
   border-radius: 50%;
   color: #fff;
   background: rgba(0, 0, 0, 0.42);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.profile-avatar-frame:not(.has-avatar):hover .profile-avatar-upload {
+  background: rgba(0, 0, 0, 0.32);
+}
+
+.profile-avatar-frame:not(.has-avatar):hover .profile-avatar-upload .profile-avatar-camera {
+  opacity: 1;
 }
 
 .page-header-with-action {

@@ -6,10 +6,13 @@ const { t, locale } = useLocale()
 const activeLanguageTab = ref<'en' | 'ru' | 'uz'>('en')
 const page = ref(1)
 const size = ref(10)
+const sortField = ref('id')
+const sortDirection = ref<'asc' | 'desc'>('asc')
 
 const query = computed(() => ({
   page: page.value - 1,
-  size: size.value
+  size: size.value,
+  sort: `${sortField.value},${sortDirection.value}`
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('categories-list', () =>
@@ -33,6 +36,22 @@ function changeSize(s: number) {
   size.value = s
   page.value = 1
   refresh()
+}
+
+function toggleSort(field: string) {
+  if (sortField.value === field) sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+  page.value = 1
+  refresh()
+}
+
+function sortIcon(field: string) {
+  return sortField.value === field
+    ? sortDirection.value === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'
+    : 'bi-arrow-down-up'
 }
 
 function localizedName(c: Category) {
@@ -175,10 +194,28 @@ async function toggleActive(c: Category) {
         >
           <thead>
             <tr>
-              <th>#</th>
-              <th>{{ t('name') }}</th>
-              <th>{{ t('description') }}</th>
-              <th>{{ t('active') }}</th>
+              <th
+                v-for="column in [
+                  { label: '#', field: 'id' },
+                  { label: t('name'), field: 'nameEn' },
+                  { label: t('description'), field: 'nameEn' },
+                  { label: t('active'), field: 'active' }
+                ]"
+                :key="column.label"
+              >
+                <button
+                  type="button"
+                  class="table-sort-button"
+                  @click.stop="toggleSort(column.field)"
+                >
+                  {{ column.label }}
+                  <i
+                    class="bi ms-1"
+                    :class="sortIcon(column.field)"
+                    aria-hidden="true"
+                  />
+                </button>
+              </th>
               <th class="text-end">
                 {{ t('actions') }}
               </th>

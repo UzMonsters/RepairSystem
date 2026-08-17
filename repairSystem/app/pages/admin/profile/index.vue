@@ -146,7 +146,10 @@ async function handlePasswordSubmit() {
           </div>
           <div class="card-body">
             <div class="profile-avatar-editor">
-              <div class="profile-avatar-frame">
+              <div
+                class="profile-avatar-frame"
+                :class="{ 'has-avatar': avatarPreviewUrl || avatarObjectUrl }"
+              >
                 <img
                   v-if="avatarPreviewUrl || avatarObjectUrl"
                   :src="avatarSrc"

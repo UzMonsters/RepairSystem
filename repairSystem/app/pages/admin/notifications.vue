@@ -7,12 +7,14 @@ const { t } = useLocale()
 const page = ref(1)
 const size = ref(10)
 const status = ref('')
+const sortField = ref('createdAt')
+const sortDirection = ref<'asc' | 'desc'>('desc')
 
 const query = computed(() => ({
   page: page.value - 1,
   size: size.value,
   status: status.value || undefined,
-  sort: 'createdAt,desc'
+  sort: `${sortField.value},${sortDirection.value}`
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('notifications', () =>
@@ -58,6 +60,22 @@ function changeSize(s: number) {
   size.value = s
   page.value = 1
   refresh()
+}
+
+function toggleSort(field: string) {
+  if (sortField.value === field) sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+  page.value = 1
+  refresh()
+}
+
+function sortIcon(field: string) {
+  return sortField.value === field
+    ? sortDirection.value === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'
+    : 'bi-arrow-down-up'
 }
 
 function formatDate(value?: string) {
@@ -129,13 +147,31 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
         >
           <thead>
             <tr>
-              <th>{{ t('eventKey') }}</th>
-              <th>{{ t('type') }}</th>
-              <th>{{ t('recipient') }}</th>
-              <th>{{ t('relatedRequest') }}</th>
-              <th>{{ t('status') }}</th>
-              <th>{{ t('attempts') }}</th>
-              <th>{{ t('created') }}</th>
+              <th
+                v-for="column in [
+                  { label: t('eventKey'), field: 'notificationType' },
+                  { label: t('type'), field: 'notificationType' },
+                  { label: t('recipient'), field: 'notificationType' },
+                  { label: t('relatedRequest'), field: 'id' },
+                  { label: t('status'), field: 'status' },
+                  { label: t('attempts'), field: 'id' },
+                  { label: t('created'), field: 'createdAt' }
+                ]"
+                :key="column.label"
+              >
+                <button
+                  type="button"
+                  class="table-sort-button"
+                  @click.stop="toggleSort(column.field)"
+                >
+                  {{ column.label }}
+                  <i
+                    class="bi ms-1"
+                    :class="sortIcon(column.field)"
+                    aria-hidden="true"
+                  />
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>

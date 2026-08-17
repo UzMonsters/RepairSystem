@@ -7,11 +7,14 @@ const { t } = useLocale()
 const page = ref(1)
 const size = ref(10)
 const rating = ref('')
+const sortField = ref('submittedAt')
+const sortDirection = ref<'asc' | 'desc'>('desc')
 
 const query = computed(() => ({
   page: page.value - 1,
   size: size.value,
-  rating: rating.value || undefined
+  rating: rating.value || undefined,
+  sort: `${sortField.value},${sortDirection.value}`
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('reviews-list', () =>
@@ -44,6 +47,22 @@ function changeSize(s: number) {
 
 function formatDate(value?: string) {
   return formatApiDate(value)
+}
+
+function toggleSort(field: string) {
+  if (sortField.value === field) sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+  page.value = 1
+  refresh()
+}
+
+function sortIcon(field: string) {
+  return sortField.value === field
+    ? sortDirection.value === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'
+    : 'bi-arrow-down-up'
 }
 
 function openReview(r: Review) {
@@ -111,11 +130,29 @@ function openReview(r: Review) {
         >
           <thead>
             <tr>
-              <th>{{ t('client') }}</th>
-              <th>{{ t('rating') }}</th>
-              <th>{{ t('comment') }}</th>
-              <th>{{ t('source') }}</th>
-              <th>{{ t('date') }}</th>
+              <th
+                v-for="column in [
+                  { label: t('client'), field: 'requestNumber' },
+                  { label: t('rating'), field: 'rating' },
+                  { label: t('comment'), field: 'submittedAt' },
+                  { label: t('source'), field: 'requestNumber' },
+                  { label: t('date'), field: 'submittedAt' }
+                ]"
+                :key="column.field + column.label"
+              >
+                <button
+                  type="button"
+                  class="table-sort-button"
+                  @click.stop="toggleSort(column.field)"
+                >
+                  {{ column.label }}
+                  <i
+                    class="bi ms-1"
+                    :class="sortIcon(column.field)"
+                    aria-hidden="true"
+                  />
+                </button>
+              </th>
               <th class="text-end">
                 {{ t('actions') }}
               </th>

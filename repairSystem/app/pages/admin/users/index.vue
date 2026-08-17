@@ -9,11 +9,14 @@ const isAdmin = computed(() => currentUser.value?.role === 'ADMIN')
 const page = ref(1)
 const size = ref(20)
 const roleFilter = ref('all')
+const sortField = ref('createdAt')
+const sortDirection = ref<'asc' | 'desc'>('desc')
 
 const query = computed(() => ({
   page: page.value - 1,
   size: size.value,
-  role: roleFilter.value === 'all' ? undefined : roleFilter.value
+  role: roleFilter.value === 'all' ? undefined : roleFilter.value,
+  sort: `${sortField.value},${sortDirection.value}`
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('users-list', () =>
@@ -106,6 +109,22 @@ async function save() {
   } finally {
     saving.value = false
   }
+}
+
+function toggleSort(field: string) {
+  if (sortField.value === field) sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+  page.value = 1
+  refresh()
+}
+
+function sortIcon(field: string) {
+  return sortField.value === field
+    ? sortDirection.value === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'
+    : 'bi-arrow-down-up'
 }
 
 function openResetPassword(u: CrmUser) {
@@ -256,9 +275,27 @@ async function toggleActive(u: CrmUser) {
         >
           <thead>
             <tr>
-              <th>{{ t('fullName') }}</th>
-              <th>{{ t('email') }}</th>
-              <th>{{ t('role') }}</th>
+              <th
+                v-for="column in [
+                  { label: t('fullName'), field: 'fullName' },
+                  { label: t('email'), field: 'email' },
+                  { label: t('role'), field: 'role' }
+                ]"
+                :key="column.field"
+              >
+                <button
+                  type="button"
+                  class="table-sort-button"
+                  @click.stop="toggleSort(column.field)"
+                >
+                  {{ column.label }}
+                  <i
+                    class="bi ms-1"
+                    :class="sortIcon(column.field)"
+                    aria-hidden="true"
+                  />
+                </button>
+              </th>
               <th class="text-end">
                 {{ t('actions') }}
               </th>
