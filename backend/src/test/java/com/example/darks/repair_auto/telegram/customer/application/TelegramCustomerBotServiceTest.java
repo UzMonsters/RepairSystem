@@ -263,6 +263,7 @@ class TelegramCustomerBotServiceTest {
                 "Washer leaks water.",
                 "Tashkent",
                 null,
+                "Customer Name",
                 new RepairRequestCategorySummary(123L, "Washer UZ", "Washer description", "Washer", "Washer RU", "Washer UZ", true),
                 OffsetDateTime.parse(createdAt),
                 OffsetDateTime.parse(createdAt));

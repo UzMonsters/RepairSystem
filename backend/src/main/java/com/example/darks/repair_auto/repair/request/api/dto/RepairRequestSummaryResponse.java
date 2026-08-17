@@ -14,6 +14,7 @@ public record RepairRequestSummaryResponse(
         String description,
         String address,
         OffsetDateTime customerPreferredVisitAt,
+        String customerFullName,
         RepairRequestCategorySummary category,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt) {
