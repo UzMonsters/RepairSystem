@@ -4,7 +4,7 @@ import {
   getRefreshToken,
   storeAuthCookies,
   withoutTokens
-} from '~/server/utils/auth'
+} from '../../utils/auth'
 
 export default defineEventHandler(async (event): Promise<unknown> => {
   const config = useRuntimeConfig(event)
