@@ -2,11 +2,13 @@ package com.example.darks.repair_auto.identity.application;
 
 import com.example.darks.repair_auto.identity.api.dto.LoginResponse;
 import com.example.darks.repair_auto.identity.api.dto.TokenResponse;
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
-import com.example.darks.repair_auto.identity.infrastructure.security.JwtTokenService;
+import com.example.darks.repair_auto.identity.api.dto.UserMapper;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
-import com.example.darks.repair_auto.identity.api.dto.UserMapper;
+import com.example.darks.repair_auto.identity.infrastructure.security.JwtTokenService;
+import com.example.darks.repair_auto.shared.error.BusinessException;
+import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.slf4j.Logger;
@@ -76,7 +78,7 @@ public class AuthenticationService {
         return login(email, password, false, ip, userAgent);
     }
 
-    @Transactional(noRollbackFor = BusinessRuleException.class)
+    @Transactional(noRollbackFor = {BusinessRuleException.class, BusinessException.class})
     public TokenResponse refresh(String refreshToken, String ip, String userAgent) {
         RefreshSessionService.RotationResult rotation = refreshSessionService.rotate(refreshToken, ip, userAgent);
         LOGGER.info("Authentication event operation=refresh result=success userId={}", rotation.user().getId());
@@ -103,18 +105,15 @@ public class AuthenticationService {
     @Transactional
     public void changePassword(Long userId, String oldPassword, String newPassword, String confirmPassword) {
         if (newPassword == null || !newPassword.equals(confirmPassword)) {
-            throw new BusinessRuleException(
-                    "PASSWORD_CONFIRMATION_MISMATCH",
-                    "New password and confirmation password do not match.",
-                    400);
+            throw new BusinessException(ErrorCode.PASSWORD_CONFIRMATION_MISMATCH);
         }
         User user = userRepository.findByIdForUpdate(userId)
-                .orElseThrow(() -> new BusinessRuleException("USER_NOT_FOUND", "User was not found.", 404));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
         if (!passwordService.matches(oldPassword, user.getPasswordHash())) {
-            throw new BusinessRuleException("INVALID_CURRENT_PASSWORD", "Current password is invalid.", 400);
+            throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
         }
         if (passwordService.matches(newPassword, user.getPasswordHash())) {
-            throw new BusinessRuleException("PASSWORD_REUSE_NOT_ALLOWED", "New password must differ.", 400);
+            throw new BusinessException(ErrorCode.PASSWORD_REUSE_NOT_ALLOWED);
         }
         passwordPolicy.validate(newPassword, user.getEmail());
         user.changePassword(passwordService.hash(newPassword), now());
@@ -123,9 +122,9 @@ public class AuthenticationService {
         LOGGER.info("Authentication event operation=password_changed result=success userId={}", userId);
     }
 
-    private BusinessRuleException invalidCredentials() {
+    private BusinessException invalidCredentials() {
         LOGGER.info("Authentication event operation=login result=failure reason=INVALID_CREDENTIALS");
-        return new BusinessRuleException("INVALID_CREDENTIALS", "Invalid email or password.", 401);
+        return new BusinessException(ErrorCode.INVALID_CREDENTIALS);
     }
 
     private OffsetDateTime now() {

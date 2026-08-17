@@ -1,25 +1,26 @@
 package com.example.darks.repair_auto.shared.error;
 
-public class BusinessRuleException extends RuntimeException {
+public class BusinessRuleException extends BusinessException {
 
-    private final String code;
-    private final int status;
+    public BusinessRuleException(ErrorCode errorCode, Object... arguments) {
+        super(errorCode, arguments);
+    }
 
     public BusinessRuleException(String code, String message) {
-        this(code, message, 409);
+        this(resolveErrorCode(code));
     }
 
     public BusinessRuleException(String code, String message, int status) {
-        super(message);
-        this.code = code;
-        this.status = status;
+        this(resolveErrorCode(code));
     }
 
-    public String code() {
-        return code;
-    }
-
-    public int status() {
-        return status;
+    private static ErrorCode resolveErrorCode(String code) {
+        if (code != null) {
+            try {
+                return ErrorCode.valueOf(code);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        return ErrorCode.BUSINESS_RULE_VIOLATION;
     }
 }

@@ -1,0 +1,161 @@
+{
+  "common": {
+    "internal-error": "Kutilmagan xatolik yuz berdi.",
+    "validation-failed": "So'rov ma'lumotlarini tekshirishda xatolik.",
+    "resource-not-found": "So'ralgan resurs topilmadi.",
+    "business-rule-violation": "Biznes qoidasi buzilishi yuz berdi.",
+    "optimistic-lock-conflict": "Yozuv boshqa so'rov tomonidan o'zgartirilgan. Sahifani yangilab, qayta urinib ko'ring.",
+    "resource-version-conflict": "Resurs versiyasida ziddiyat. Yangilab, qayta urinib ko'ring.",
+    "data-integrity-violation": "Ma'lumotlar yaxlitligida ziddiyat yuz berdi."
+  },
+  "security": {
+    "authentication-required": "Autentifikatsiya talab qilinadi.",
+    "access-denied": "Sizda ushbu amalni bajarish uchun ruxsat yo'q.",
+    "invalid-token": "Autentifikatsiya tokeni yaroqsiz.",
+    "expired-token": "Autentifikatsiya tokenining muddati tugagan.",
+    "invalid-access-token": "Kirish tokeni yaroqsiz.",
+    "access-token-expired": "Kirish tokenining muddati tugagan.",
+    "invalid-refresh-token": "Yangilash tokeni yaroqsiz.",
+    "refresh-token-expired": "Yangilash tokenining muddati tugagan.",
+    "refresh-token-revoked": "Yangilash tokeni bekor qilingan.",
+    "refresh-token-reuse-detected": "Yangilash tokeni takroran ishlatilgani aniqlandi. Seans bekor qilindi.",
+    "session-revoked": "Seans bekor qilindi."
+  },
+  "auth": {
+    "invalid-credentials": "Foydalanuvchi nomi yoki parol noto'g'ri.",
+    "invalid-current-password": "Joriy parol noto'g'ri.",
+    "password-reuse-not-allowed": "Yangi parol joriy paroldan farq qilishi kerak.",
+    "password-policy-violation": "Parol xavfsizlik talablariga javob bermaydi.",
+    "password-confirmation-mismatch": "Parol tasdiqlanishi mos kelmadi.",
+    "new-password-same-as-current": "Yangi parol joriy parol bilan bir xil bo'lishi mumkin emas."
+  },
+  "user": {
+    "not-found": "Foydalanuvchi topilmadi.",
+    "email-already-exists": "Ushbu email bilan foydalanuvchi allaqachon mavjud.",
+    "disabled": "Foydalanuvchi hisobi o'chirilgan.",
+    "last-active-admin-required": "Oxirgi faol administratorni o'chirish yoki olib tashlash mumkin emas.",
+    "self-disable-not-allowed": "Administratorlar o'z hisoblarini o'chirishlari mumkin emas."
+  },
+  "customer": {
+    "not-found": "Mijoz topilmadi.",
+    "phone-already-exists": "Mijoz telefon raqami allaqachon mavjud.",
+    "telegram-id-already-exists": "Mijoz Telegram hisobi allaqachon ulangan.",
+    "inactive": "Mijoz hisobi faol emas."
+  },
+  "technician": {
+    "not-found": "Usta topilmadi.",
+    "phone-already-exists": "Usta telefon raqami allaqachon mavjud.",
+    "telegram-id-already-exists": "Usta Telegram hisobi allaqachon ulangan.",
+    "inactive": "Usta hisobi faol emas.",
+    "invalid-maximum-concurrent-requests": "Bir vaqtdagi arizalar cheklovi noto'g'ri."
+  },
+  "category": {
+    "not-found": "Ta'mirlash kategoriyasi topilmadi.",
+    "name-en-already-exists": "Ingliz tilidagi kategoriya nomi allaqachon mavjud.",
+    "name-uz-already-exists": "O'zbek tilidagi kategoriya nomi allaqachon mavjud.",
+    "name-ru-already-exists": "Rus tilidagi kategoriya nomi allaqachon mavjud.",
+    "inactive": "Ta'mirlash kategoriyasi faol emas.",
+    "invalid-order": "Kategoriya ko'rsatilish tartibi noto'g'ri."
+  },
+  "repair": {
+    "request": {
+      "not-found": "Ta'mirlash arizasi topilmadi.",
+      "not-editable": "Ushbu ta'mirlash arizasini endi tahrirlab bo'lmaydi.",
+      "not-assignable": "Ushbu ta'mirlash arizasini tayinlab bo'lmaydi.",
+      "already-assigned": "Ushbu ta'mirlash arizasiga usta allaqachon biriktirilgan.",
+      "customer-inactive": "Mijoz faol emas.",
+      "category-inactive": "Tanlangan ta'mirlash kategoriyasi faol emas.",
+      "invalid-status": "Ta'mirlash arizasi {0} holatida bo'lganda ushbu amalni bajarib bo'lmaydi.",
+      "invalid-description": "Ta'mirlash arizasi tavsifi noto'g'ri.",
+      "invalid-location": "Ta'mirlash arizasi manzili noto'g'ri.",
+      "invalid-preferred-visit-time": "Maqbul tashrif vaqti noto'g'ri.",
+      "invalid-date-range": "So'rov sana oralig'i noto'g'ri."
+    },
+    "assignment": {
+      "active-not-found": "Faol biriktirish topilmadi.",
+      "technician-already-assigned": "Usta ushbu ta'mirlash arizasiga allaqachon biriktirilgan.",
+      "technician-capacity-exceeded": "Ustaning maksimal yuklamasi oshib ketdi.",
+      "already-accepted": "Biriktirish allaqachon qabul qilingan.",
+      "already-rejected": "Biriktirish allaqachon rad etilgan.",
+      "not-pending": "Biriktirish kutilayotgan holatda emas.",
+      "invalid-scheduled-visit-time": "Rejalashtirilgan tashrif vaqti noto'g'ri.",
+      "conflict": "Biriktirish jadvalida ziddiyat.",
+      "not-schedulable": "Ta'mirlash arizasini rejalashtirib bo'lmaydi."
+    },
+    "execution": {
+      "not-found": "Ta'mirlash bajarilishi yozuvi topilmadi.",
+      "already-started": "Ta'mirlash bajiirilishi allaqachon boshlangan.",
+      "not-startable": "Ta'mirlash bajarilishini boshlab bo'lmaydi.",
+      "not-in-progress": "Ta'mirlash bajarilish jarayonida emas.",
+      "not-waiting-for-parts": "Ta'mirlash ehtiyot qismlarni kutayotgani yo'q.",
+      "already-completed": "Ta'mirlash allaqachon yakunlangan.",
+      "already-cancelled": "Ta'mirlash allaqachon bekor qilingan.",
+      "diagnosis-required": "Ta'mirlashni yakunlashdan oldin tashxis talab qilinadi.",
+      "invalid-diagnosis": "Ta'mirlash tashxisi ma'lumotlari noto'g'ri.",
+      "work-performed-required": "Bajarilgan ishlar tavsifi talab qilinadi.",
+      "invalid-waiting-reason": "Ehtiyot qismlarni kutish sababi noto'g'ri.",
+      "invalid-cancellation-reason": "Bekor qilish sababi noto'g'ri.",
+      "active-accepted-assignment-required": "Faol qabul qilingan biriktirish talab qilinadi.",
+      "conflict": "Ta'mirlash bajarilishi holatida ziddiyat.",
+      "invalid-status-transition": "Ta'mirlash holati o'tishi noto'g'ri."
+    }
+  },
+  "attachment": {
+    "not-found": "So'ralgan biriktirma topilmadi.",
+    "empty": "Yuklangan biriktirma fayli bo'sh.",
+    "too-large": "Biriktirma fayli ruxsat etilgan maksimal hajmdan oshib ketdi.",
+    "content-type-not-allowed": "Biriktirma kontent turi ruxsat etilmagan.",
+    "content-mismatch": "Biriktirma kontenti ko'rsatilgan turga mos kelmaydi.",
+    "type-not-allowed": "Biriktirma fayl turi ruxsat etilmagan.",
+    "upload-not-allowed": "Ushbu ariza holatida biriktirma yuklashga ruxsat berilmagan.",
+    "delete-not-allowed": "Biriktirmani o'chirib bo'lmaydi.",
+    "limit-exceeded": "Biriktirmalarning maksimal chekloviga etildi.",
+    "not-available": "Biriktirma fayli vaqtincha mavjud emas.",
+    "storage-failed": "Biriktirmalarni saqlash xizmatida xatolik.",
+    "conflict": "Biriktirma holatida ziddiyat.",
+    "already-deleted": "Biriktirma allaqachon o'chirilgan.",
+    "completion-photo-required": "Yakunlash tasdiq fotosurati talab qilinadi.",
+    "part-required": "Majburiy biriktirma yetishmayapti."
+  },
+  "telegram": {
+    "link": {
+      "invalid": "Telegram ulanish kodi noto'g'ri.",
+      "expired": "Telegram ulanish kodining muddati tugagan."
+    },
+    "already-linked": "Telegram hisobi allaqachon ulangan.",
+    "technician-not-connected": "Usta Telegram hisobi ulanmagan.",
+    "customer-not-connected": "Mijoz Telegram hisobi ulanmagan.",
+    "api-unavailable": "Telegram integratsiya xizmati vaqtincha mavjud emas."
+  },
+  "validation": {
+    "required": "Ushbu maydon to'ldirilishi majburiy.",
+    "invalid-value": "Noto'g'ri qiymat kiritildi.",
+    "email": {
+      "invalid": "To'g'ri email manzilini kiriting."
+    },
+    "password": {
+      "required": "Parol kiriting.",
+      "invalid": "Parol xavfsizlik talablariga javob bermaydi."
+    },
+    "phone": {
+      "invalid": "To'g'ri telefon raqamini kiriting."
+    },
+    "telegram-username": {
+      "invalid": "To'g'ri Telegram foydalanuvchi nomini kiriting."
+    }
+  },
+  "request": {
+    "body": {
+      "invalid-json": "So'rov tanasi noto'g'ri formatda yoki yaroqsiz JSON.",
+      "required": "So'rov tanasi majburiy.",
+      "invalid-enum": "{0} maydoni uchun noto'g'ri qiymat ko'rsatildi."
+    },
+    "parameter": {
+      "invalid-value": "So'rov parametri noto'g'ri qiymatga ega.",
+      "required": "Majburiy '{0}' so'rov parametri yuborilmagan.",
+      "invalid-type": "'{0}' parametri uchun qiymat turi noto'g'ri."
+    },
+    "method-not-supported": "HTTP usuli ushbu endpoint uchun qo'llab-quvvatlanmaydi.",
+    "media-type-not-supported": "So'rov mediatipi qo'llab-quvvatlanmaydi."
+  }
+}

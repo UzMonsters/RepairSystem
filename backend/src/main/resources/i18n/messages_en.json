@@ -1,0 +1,161 @@
+{
+  "common": {
+    "internal-error": "An unexpected error occurred.",
+    "validation-failed": "Request validation failed.",
+    "resource-not-found": "Requested resource was not found.",
+    "business-rule-violation": "Business rule violation occurred.",
+    "optimistic-lock-conflict": "The record was modified by another request. Refresh and try again.",
+    "resource-version-conflict": "Resource version conflict. Refresh and try again.",
+    "data-integrity-violation": "Data integrity conflict occurred."
+  },
+  "security": {
+    "authentication-required": "Authentication is required.",
+    "access-denied": "You do not have permission to perform this action.",
+    "invalid-token": "Authentication token is invalid.",
+    "expired-token": "Authentication token has expired.",
+    "invalid-access-token": "Access token is invalid.",
+    "access-token-expired": "Access token has expired.",
+    "invalid-refresh-token": "Refresh token is invalid.",
+    "refresh-token-expired": "Refresh token has expired.",
+    "refresh-token-revoked": "Refresh token has been revoked.",
+    "refresh-token-reuse-detected": "Refresh token reuse detected. Session revoked.",
+    "session-revoked": "Session has been revoked."
+  },
+  "auth": {
+    "invalid-credentials": "Username or password is incorrect.",
+    "invalid-current-password": "Current password is incorrect.",
+    "password-reuse-not-allowed": "New password must be different from current password.",
+    "password-policy-violation": "Password does not meet complexity requirements.",
+    "password-confirmation-mismatch": "Password confirmation does not match.",
+    "new-password-same-as-current": "New password cannot be the same as current password."
+  },
+  "user": {
+    "not-found": "User was not found.",
+    "email-already-exists": "User with this email already exists.",
+    "disabled": "User account is disabled.",
+    "last-active-admin-required": "Cannot disable or remove the last active administrator.",
+    "self-disable-not-allowed": "Administrators cannot disable their own account."
+  },
+  "customer": {
+    "not-found": "Customer was not found.",
+    "phone-already-exists": "Customer phone number already exists.",
+    "telegram-id-already-exists": "Customer Telegram account already linked.",
+    "inactive": "Customer account is inactive."
+  },
+  "technician": {
+    "not-found": "Technician was not found.",
+    "phone-already-exists": "Technician phone number already exists.",
+    "telegram-id-already-exists": "Technician Telegram account already linked.",
+    "inactive": "Technician account is inactive.",
+    "invalid-maximum-concurrent-requests": "Invalid maximum concurrent requests limit."
+  },
+  "category": {
+    "not-found": "Repair category was not found.",
+    "name-en-already-exists": "Category name in English already exists.",
+    "name-uz-already-exists": "Category name in Uzbek already exists.",
+    "name-ru-already-exists": "Category name in Russian already exists.",
+    "inactive": "Repair category is inactive.",
+    "invalid-order": "Invalid category display order."
+  },
+  "repair": {
+    "request": {
+      "not-found": "Repair request was not found.",
+      "not-editable": "This repair request can no longer be edited.",
+      "not-assignable": "This repair request cannot be assigned.",
+      "already-assigned": "Technician is already assigned to this repair request.",
+      "customer-inactive": "Customer is inactive.",
+      "category-inactive": "Selected repair category is inactive.",
+      "invalid-status": "This action cannot be performed while the repair request is in status {0}.",
+      "invalid-description": "Invalid repair request description.",
+      "invalid-location": "Invalid repair request location.",
+      "invalid-preferred-visit-time": "Invalid preferred visit time.",
+      "invalid-date-range": "Invalid request date range."
+    },
+    "assignment": {
+      "active-not-found": "Active assignment was not found.",
+      "technician-already-assigned": "Technician is already assigned to this repair request.",
+      "technician-capacity-exceeded": "Technician maximum active capacity exceeded.",
+      "already-accepted": "Assignment has already been accepted.",
+      "already-rejected": "Assignment has already been rejected.",
+      "not-pending": "Assignment is not in pending status.",
+      "invalid-scheduled-visit-time": "Invalid scheduled visit time.",
+      "conflict": "Assignment schedule conflict.",
+      "not-schedulable": "Repair request is not schedulable."
+    },
+    "execution": {
+      "not-found": "Repair execution record was not found.",
+      "already-started": "Repair execution has already started.",
+      "not-startable": "Repair execution cannot be started.",
+      "not-in-progress": "Repair execution is not in progress.",
+      "not-waiting-for-parts": "Repair execution is not waiting for parts.",
+      "already-completed": "Repair execution is already completed.",
+      "already-cancelled": "Repair execution is already cancelled.",
+      "diagnosis-required": "Diagnosis is required before completing repair.",
+      "invalid-diagnosis": "Invalid repair diagnosis details.",
+      "work-performed-required": "Work performed description is required.",
+      "invalid-waiting-reason": "Invalid reason for waiting for parts.",
+      "invalid-cancellation-reason": "Invalid cancellation reason.",
+      "active-accepted-assignment-required": "Active accepted assignment is required.",
+      "conflict": "Repair execution state conflict.",
+      "invalid-status-transition": "Invalid repair status transition."
+    }
+  },
+  "attachment": {
+    "not-found": "Requested attachment was not found.",
+    "empty": "Uploaded attachment file is empty.",
+    "too-large": "Attachment file exceeds maximum allowed size.",
+    "content-type-not-allowed": "Attachment content type is not allowed.",
+    "content-mismatch": "Attachment content does not match reported media type.",
+    "type-not-allowed": "Attachment file type is not allowed.",
+    "upload-not-allowed": "Attachment upload is not allowed for this request status.",
+    "delete-not-allowed": "Attachment cannot be deleted.",
+    "limit-exceeded": "Maximum attachment limit reached.",
+    "not-available": "Attachment file is currently unavailable.",
+    "storage-failed": "Attachment storage service failure.",
+    "conflict": "Attachment state conflict.",
+    "already-deleted": "Attachment has already been deleted.",
+    "completion-photo-required": "Completion photo attachment is required.",
+    "part-required": "Required multipart attachment is missing."
+  },
+  "telegram": {
+    "link": {
+      "invalid": "Telegram linking code is invalid.",
+      "expired": "Telegram linking code has expired."
+    },
+    "already-linked": "Telegram account is already linked.",
+    "technician-not-connected": "Technician Telegram account is not connected.",
+    "customer-not-connected": "Customer Telegram account is not connected.",
+    "api-unavailable": "Telegram integration service is temporarily unavailable."
+  },
+  "validation": {
+    "required": "This field is required.",
+    "invalid-value": "Invalid value provided.",
+    "email": {
+      "invalid": "Enter a valid email address."
+    },
+    "password": {
+      "required": "Password is required.",
+      "invalid": "Password does not meet security requirements."
+    },
+    "phone": {
+      "invalid": "Enter a valid phone number."
+    },
+    "telegram-username": {
+      "invalid": "Enter a valid Telegram username."
+    }
+  },
+  "request": {
+    "body": {
+      "invalid-json": "Request body is malformed or invalid JSON.",
+      "required": "Request body is required.",
+      "invalid-enum": "Invalid value specified for field {0}."
+    },
+    "parameter": {
+      "invalid-value": "Request parameter has an invalid value.",
+      "required": "Required request parameter '{0}' is missing.",
+      "invalid-type": "Invalid value type for parameter '{0}'."
+    },
+    "method-not-supported": "HTTP method is not supported for this endpoint.",
+    "media-type-not-supported": "Request media type is not supported."
+  }
+}

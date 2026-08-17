@@ -8,6 +8,8 @@ import com.example.darks.repair_auto.customer.api.dto.CustomerUpdateRequest;
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.domain.CustomerRegistrationSource;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
+import com.example.darks.repair_auto.shared.error.BusinessException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
@@ -196,33 +198,24 @@ public class CustomerService {
         return customerRepository.findById(id).orElseThrow(this::notFound);
     }
 
-    private BusinessRuleException notFound() {
-        return new BusinessRuleException("CUSTOMER_NOT_FOUND", "Customer was not found.", 404);
+    private BusinessException notFound() {
+        return new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND);
     }
 
-    private BusinessRuleException customerConflict(DataIntegrityViolationException exception) {
-        String message = exception.getMostSpecificCause().getMessage();
+    private BusinessException customerConflict(DataIntegrityViolationException exception) {
+        String message = exception.getMostSpecificCause() != null ? exception.getMostSpecificCause().getMessage() : "";
         if (message != null && message.contains("telegram_user_id")) {
-            return new BusinessRuleException(
-                    "CUSTOMER_TELEGRAM_ID_ALREADY_EXISTS",
-                    "Customer Telegram user ID already exists.",
-                    409);
+            return new BusinessException(ErrorCode.CUSTOMER_TELEGRAM_ID_ALREADY_EXISTS);
         }
-        return new BusinessRuleException("CUSTOMER_PHONE_ALREADY_EXISTS", "Customer phone already exists.", 409);
+        return new BusinessException(ErrorCode.CUSTOMER_PHONE_ALREADY_EXISTS);
     }
 
-    private BusinessRuleException telegramLinkConflict() {
-        return new BusinessRuleException(
-                "TELEGRAM_CUSTOMER_LINK_CONFLICT",
-                "Telegram profile could not be linked to this customer.",
-                409);
+    private BusinessException telegramLinkConflict() {
+        return new BusinessException(ErrorCode.CUSTOMER_TELEGRAM_ID_ALREADY_EXISTS);
     }
 
-    private BusinessRuleException archivedCustomer() {
-        return new BusinessRuleException(
-                "TELEGRAM_CUSTOMER_ARCHIVED",
-                "Customer profile is archived. Please contact support.",
-                409);
+    private BusinessException archivedCustomer() {
+        return new BusinessException(ErrorCode.CUSTOMER_INACTIVE);
     }
 
     private OffsetDateTime now() {
