@@ -50,7 +50,9 @@ export default defineEventHandler(async (event): Promise<unknown> => {
     setResponseStatus(event, res.status)
     const contentType = res.headers.get('content-type')
     if (contentType) setResponseHeader(event, 'content-type', contentType)
-    for (const header of ['content-length', 'content-disposition', 'cache-control']) {
+    // Do not forward content-length: Nitro serializes the parsed backend
+    // payload again, so the upstream length can truncate the browser response.
+    for (const header of ['content-disposition', 'cache-control']) {
       const value = res.headers.get(header)
       if (value) setResponseHeader(event, header, value)
     }

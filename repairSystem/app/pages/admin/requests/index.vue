@@ -25,7 +25,7 @@ const query = computed(() => ({
 
 const { data, pending, error, refresh } = await useAsyncData('requests-list', () =>
   apiFetch<Page<RepairRequest>>('/requests', { query: query.value }),
-{ watch: [query] })
+{ dedupe: 'defer' })
 
 const { data: categories } = await useAsyncData('requests-categories', () =>
   apiFetch<Page<Category>>('/categories', { query: { size: 100 } })
@@ -46,6 +46,7 @@ watch(() => route.query.search, (value) => {
   if (search.value === nextSearch) return
   search.value = nextSearch
   page.value = 1
+  refresh()
 })
 
 function applyFilters() {
