@@ -155,7 +155,7 @@ public class RepairRequestService {
         RepairRequest saved = repairRequestRepository.saveAndFlush(repairRequest);
         var history = statusHistoryService.recordInitial(saved, "Request created.", createdBy, now);
         notificationOutboxService.enqueue(notificationEventFactory.customer(
-                NotificationType.CUSTOMER_REQUEST_CREATED,
+                NotificationType.REQUEST_CREATED,
                 saved,
                 NotificationEventFactory.statusEventKeyPart(history.getId(), saved.getStatus())));
         return RepairRequestMapper.created(saved);

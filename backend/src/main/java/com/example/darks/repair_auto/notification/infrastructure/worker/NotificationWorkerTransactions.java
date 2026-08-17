@@ -79,7 +79,10 @@ public class NotificationWorkerTransactions {
                         notification.getRecipientId(),
                         notification.getTemplateKey(),
                         notification.getPayloadJson(),
-                        notification.getPayloadVersion()))
+                        notification.getPayloadVersion(),
+                        notification.getLanguage(),
+                        notification.getRenderedTitle(),
+                        notification.getRenderedMessage()))
                 .toList();
     }
 

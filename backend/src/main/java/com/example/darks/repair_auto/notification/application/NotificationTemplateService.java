@@ -1,5 +1,6 @@
 package com.example.darks.repair_auto.notification.application;
 
+import com.example.darks.repair_auto.notification.domain.NotificationRecipientType;
 import com.example.darks.repair_auto.notification.domain.NotificationType;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
@@ -23,7 +24,8 @@ public class NotificationTemplateService {
     private static final int TELEGRAM_TEXT_LIMIT = 4096;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final Map<NotificationType, Map<LanguageCode, String>> templates = new EnumMap<>(NotificationType.class);
+    private final Map<NotificationType, Map<NotificationRecipientType, Map<LanguageCode, Template>>> templates =
+            new EnumMap<>(NotificationType.class);
     private final DateTimeFormatter telegramDateFormatter;
 
     public NotificationTemplateService(ZoneId businessZone) {
@@ -31,30 +33,52 @@ public class NotificationTemplateService {
         loadTemplates();
     }
 
-    public String render(NotificationType type, String payloadJson, int payloadVersion, LanguageCode language) {
+    public RenderedNotification render(
+            NotificationType type,
+            NotificationRecipientType recipientType,
+            String payloadJson,
+            int payloadVersion,
+            LanguageCode language) {
         if (payloadVersion != 1) {
             throw new IllegalArgumentException("Unsupported notification payload version.");
         }
         LanguageCode safeLanguage = language == null ? LanguageCode.UZ : language;
-        Map<String, String> payload = payload(payloadJson);
-        String template = templates.getOrDefault(type, Map.of()).get(safeLanguage);
+        Template template = templates
+                .getOrDefault(type, Map.of())
+                .getOrDefault(recipientType, Map.of())
+                .get(safeLanguage);
         if (template == null) {
             throw new IllegalArgumentException("Missing notification template.");
         }
-        String text = template
-                .replace("{category}", category(payload, safeLanguage))
-                .replace("{technicianName}", value(payload, "technicianName"))
-                .replace("{scheduledVisitAt}", scheduledVisitAt(payload, safeLanguage))
-                .replace("{priority}", priority(payload, safeLanguage))
-                .replace("{status}", status(payload, safeLanguage));
-        if (text.length() > TELEGRAM_TEXT_LIMIT) {
-            return text.substring(0, TELEGRAM_TEXT_LIMIT - 1);
-        }
-        return text;
+        Map<String, String> payload = payload(payloadJson);
+        String title = interpolate(template.title(), payload, safeLanguage);
+        String message = limit(interpolate(template.message(), payload, safeLanguage));
+        return new RenderedNotification(safeLanguage, title, message);
+    }
+
+    public String renderTelegramText(RenderedNotification rendered) {
+        return limit(rendered.title() + "\n\n" + rendered.message());
+    }
+
+    public boolean hasTemplate(NotificationType type, NotificationRecipientType recipientType, LanguageCode language) {
+        return templates.containsKey(type)
+                && templates.get(type).containsKey(recipientType)
+                && templates.get(type).get(recipientType).containsKey(language);
     }
 
     public boolean hasTemplate(NotificationType type, LanguageCode language) {
-        return templates.containsKey(type) && templates.get(type).containsKey(language);
+        return templates.getOrDefault(type, Map.of()).values().stream()
+                .anyMatch(byLanguage -> byLanguage.containsKey(language));
+    }
+
+    private String interpolate(String template, Map<String, String> payload, LanguageCode language) {
+        return template
+                .replace("{requestNumber}", value(payload, "requestNumber"))
+                .replace("{category}", category(payload, language))
+                .replace("{technicianName}", value(payload, "technicianName"))
+                .replace("{scheduledVisitAt}", scheduledVisitAt(payload, language))
+                .replace("{priority}", priority(payload, language))
+                .replace("{status}", status(payload, language));
     }
 
     private Map<String, String> payload(String payloadJson) {
@@ -165,94 +189,105 @@ public class NotificationTemplateService {
         };
     }
 
-    private void loadTemplates() {
-        put(NotificationType.CUSTOMER_REQUEST_CREATED,
-                "Request was created for {category}. Status: {status}.",
-                "Заявка создана для категории {category}. Статус: {status}.",
-                "{category} bo'yicha so'rov yaratildi. Holat: {status}.");
-        put(NotificationType.CUSTOMER_TECHNICIAN_ASSIGNED,
-                "Technician {technicianName} was assigned. Visit: {scheduledVisitAt}.",
-                "Мастер {technicianName} назначен. Визит: {scheduledVisitAt}.",
-                "{technicianName} biriktirildi. Tashrif: {scheduledVisitAt}.");
-        put(NotificationType.CUSTOMER_TECHNICIAN_REASSIGNED,
-                "Request was reassigned to technician {technicianName}. Visit: {scheduledVisitAt}.",
-                "Заявка переназначена мастеру {technicianName}. Визит: {scheduledVisitAt}.",
-                "So'rov {technicianName} ustaga qayta biriktirildi. Tashrif: {scheduledVisitAt}.");
-        put(NotificationType.CUSTOMER_TECHNICIAN_UNASSIGNED,
-                "Request is waiting for a technician again.",
-                "Заявка снова ожидает назначения мастера.",
-                "So'rov yana usta biriktirilishini kutmoqda.");
-        put(NotificationType.CUSTOMER_VISIT_SCHEDULED,
-                "Visit is scheduled for {scheduledVisitAt}.",
-                "Визит назначен на {scheduledVisitAt}.",
-                "Tashrif {scheduledVisitAt} vaqtiga belgilandi.");
-        put(NotificationType.CUSTOMER_VISIT_RESCHEDULED,
-                "Visit was moved to {scheduledVisitAt}.",
-                "Визит перенесен на {scheduledVisitAt}.",
-                "Tashrif {scheduledVisitAt} vaqtiga ko'chirildi.");
-        put(NotificationType.CUSTOMER_VISIT_SCHEDULE_CLEARED,
-                "Visit time is no longer confirmed.",
-                "Время визита больше не подтверждено.",
-                "Tashrif vaqti hozircha tasdiqlanmagan.");
-        put(NotificationType.CUSTOMER_REPAIR_STARTED,
-                "Repair is now {status}.",
-                "Ремонт теперь {status}.",
-                "Ta'mirlash holati: {status}.");
-        put(NotificationType.CUSTOMER_WAITING_FOR_PARTS,
-                "Repair is {status}. Required parts are being arranged.",
-                "Ремонт {status}. Необходимые запчасти подготавливаются.",
-                "Ta'mirlash {status}. Kerakli qismlar tayyorlanmoqda.");
-        put(NotificationType.CUSTOMER_REPAIR_RESUMED,
-                "Repair resumed and is {status}.",
-                "Ремонт возобновлен, статус: {status}.",
-                "Ta'mirlash davom ettirildi, holat: {status}.");
-        put(NotificationType.CUSTOMER_REPAIR_COMPLETED,
-                "Repair is {status}. You can leave a review in the bot.",
-                "Ремонт {status}.",
-                "Ta'mirlash {status}. Botda sharh qoldirishingiz mumkin.");
-        put(NotificationType.CUSTOMER_REPAIR_COMPLETED,
-                "Repair is {status}. You can leave a review in the bot.",
-                "Ремонт {status}. Вы можете оставить отзыв в боте.",
-                "Ta'mirlash {status}. Botda sharh qoldirishingiz mumkin.");
-        put(NotificationType.CUSTOMER_REQUEST_CANCELLED,
-                "Repair is {status}.",
-                "Ремонт {status}.",
-                "Ta'mirlash {status}.");
-        put(NotificationType.TECHNICIAN_NEW_ASSIGNMENT,
-                "New job: {category}. Priority: {priority}. Visit: {scheduledVisitAt}. Open Pending.",
-                "Новая работа: {category}. Приоритет: {priority}. Визит: {scheduledVisitAt}. Откройте Ожидающие.",
-                "Yangi ish: {category}. Muhimlik: {priority}. Tashrif: {scheduledVisitAt}. Kutilayotgan bo'limini oching.");
-        put(NotificationType.TECHNICIAN_REASSIGNED_TO_REQUEST,
-                "Job was reassigned to you. Priority: {priority}. Visit: {scheduledVisitAt}. Open Pending.",
-                "Заявка переназначена вам. Приоритет: {priority}. Визит: {scheduledVisitAt}. Откройте Ожидающие.",
-                "Ish sizga qayta biriktirildi. Muhimlik: {priority}. Tashrif: {scheduledVisitAt}. Kutilayotgan bo'limini oching.");
-        put(NotificationType.TECHNICIAN_REMOVED_FROM_REQUEST,
-                "You were removed from the job.",
-                "Вы сняты с заявки.",
-                "Siz ishdan olib tashlandingiz.");
-        put(NotificationType.TECHNICIAN_VISIT_SCHEDULED,
-                "Visit for job is scheduled for {scheduledVisitAt}. Open Active.",
-                "Визит по заявке назначен на {scheduledVisitAt}. Откройте Активные.",
-                "Ish bo'yicha tashrif {scheduledVisitAt} vaqtiga belgilandi. Faol bo'limini oching.");
-        put(NotificationType.TECHNICIAN_VISIT_RESCHEDULED,
-                "Visit for job was moved to {scheduledVisitAt}. Open Active.",
-                "Визит по заявке перенесен на {scheduledVisitAt}. Откройте Активные.",
-                "Ish bo'yicha tashrif {scheduledVisitAt} vaqtiga ko'chirildi. Faol bo'limini oching.");
-        put(NotificationType.TECHNICIAN_VISIT_SCHEDULE_CLEARED,
-                "Visit time for job is no longer confirmed.",
-                "Время визита по заявке больше не подтверждено.",
-                "Ish bo'yicha tashrif vaqti hozircha tasdiqlanmagan.");
-        put(NotificationType.TECHNICIAN_REQUEST_CANCELLED,
-                "Job was cancelled.",
-                "Заявка отменена.",
-                "Ish bekor qilindi.");
+    private String limit(String value) {
+        if (value.length() > TELEGRAM_TEXT_LIMIT) {
+            return value.substring(0, TELEGRAM_TEXT_LIMIT - 1);
+        }
+        return value;
     }
 
-    private void put(NotificationType type, String en, String ru, String uz) {
-        Map<LanguageCode, String> byLanguage = new EnumMap<>(LanguageCode.class);
-        byLanguage.put(LanguageCode.EN, en);
-        byLanguage.put(LanguageCode.RU, ru);
-        byLanguage.put(LanguageCode.UZ, uz);
-        templates.put(type, byLanguage);
+    private void loadTemplates() {
+        put(NotificationType.REQUEST_CREATED, NotificationRecipientType.CUSTOMER,
+                "Request created", "Repair request {requestNumber} for {category} was created. Status: {status}.",
+                "Заявка создана", "Заявка {requestNumber} по категории {category} создана. Статус: {status}.",
+                "Ariza yaratildi", "{requestNumber} raqamli {category} bo'yicha ariza yaratildi. Holat: {status}.");
+        put(NotificationType.TECHNICIAN_ASSIGNED, NotificationRecipientType.CUSTOMER,
+                "Technician assigned", "Technician {technicianName} has been assigned to request {requestNumber}. Visit: {scheduledVisitAt}.",
+                "Мастер назначен", "Мастер {technicianName} назначен на заявку {requestNumber}. Визит: {scheduledVisitAt}.",
+                "Usta biriktirildi", "{requestNumber} arizasiga {technicianName} biriktirildi. Tashrif: {scheduledVisitAt}.");
+        put(NotificationType.TECHNICIAN_ASSIGNED, NotificationRecipientType.TECHNICIAN,
+                "New assignment", "A new repair request {requestNumber} was assigned to you. Priority: {priority}. Visit: {scheduledVisitAt}.",
+                "Новое назначение", "Вам назначена новая заявка {requestNumber}. Приоритет: {priority}. Визит: {scheduledVisitAt}.",
+                "Yangi topshiriq", "Sizga {requestNumber} raqamli yangi ariza biriktirildi. Muhimlik: {priority}. Tashrif: {scheduledVisitAt}.");
+        put(NotificationType.TECHNICIAN_UNASSIGNED, NotificationRecipientType.CUSTOMER,
+                "Technician removed", "Request {requestNumber} is waiting for a technician again.",
+                "Мастер снят", "Заявка {requestNumber} снова ожидает назначения мастера.",
+                "Usta olib tashlandi", "{requestNumber} arizasi yana usta biriktirilishini kutmoqda.");
+        put(NotificationType.TECHNICIAN_UNASSIGNED, NotificationRecipientType.TECHNICIAN,
+                "Assignment removed", "You were removed from repair request {requestNumber}.",
+                "Назначение снято", "Вы сняты с заявки {requestNumber}.",
+                "Topshiriq olib tashlandi", "Siz {requestNumber} arizasidan olib tashlandingiz.");
+        put(NotificationType.VISIT_SCHEDULED, NotificationRecipientType.CUSTOMER,
+                "Visit scheduled", "Visit for request {requestNumber} is scheduled for {scheduledVisitAt}.",
+                "Визит назначен", "Визит по заявке {requestNumber} назначен на {scheduledVisitAt}.",
+                "Tashrif belgilandi", "{requestNumber} arizasi bo'yicha tashrif {scheduledVisitAt} vaqtiga belgilandi.");
+        put(NotificationType.VISIT_SCHEDULED, NotificationRecipientType.TECHNICIAN,
+                "Visit scheduled", "Visit for request {requestNumber} is scheduled for {scheduledVisitAt}.",
+                "Визит назначен", "Визит по заявке {requestNumber} назначен на {scheduledVisitAt}.",
+                "Tashrif belgilandi", "{requestNumber} arizasi bo'yicha tashrif {scheduledVisitAt} vaqtiga belgilandi.");
+        put(NotificationType.VISIT_RESCHEDULED, NotificationRecipientType.CUSTOMER,
+                "Visit rescheduled", "Visit for request {requestNumber} was moved to {scheduledVisitAt}.",
+                "Визит перенесён", "Визит по заявке {requestNumber} перенесён на {scheduledVisitAt}.",
+                "Tashrif ko'chirildi", "{requestNumber} arizasi bo'yicha tashrif {scheduledVisitAt} vaqtiga ko'chirildi.");
+        put(NotificationType.VISIT_RESCHEDULED, NotificationRecipientType.TECHNICIAN,
+                "Visit rescheduled", "Visit for request {requestNumber} was moved to {scheduledVisitAt}.",
+                "Визит перенесён", "Визит по заявке {requestNumber} перенесён на {scheduledVisitAt}.",
+                "Tashrif ko'chirildi", "{requestNumber} arizasi bo'yicha tashrif {scheduledVisitAt} vaqtiga ko'chirildi.");
+        put(NotificationType.VISIT_CANCELLED, NotificationRecipientType.CUSTOMER,
+                "Visit cancelled", "Visit time for request {requestNumber} is no longer confirmed.",
+                "Визит отменён", "Время визита по заявке {requestNumber} больше не подтверждено.",
+                "Tashrif bekor qilindi", "{requestNumber} arizasi bo'yicha tashrif vaqti hozircha tasdiqlanmagan.");
+        put(NotificationType.VISIT_CANCELLED, NotificationRecipientType.TECHNICIAN,
+                "Visit cancelled", "Visit time for request {requestNumber} is no longer confirmed.",
+                "Визит отменён", "Время визита по заявке {requestNumber} больше не подтверждено.",
+                "Tashrif bekor qilindi", "{requestNumber} arizasi bo'yicha tashrif vaqti hozircha tasdiqlanmagan.");
+        put(NotificationType.REPAIR_STARTED, NotificationRecipientType.CUSTOMER,
+                "Repair started", "Repair request {requestNumber} is now {status}.",
+                "Ремонт начат", "Ремонт по заявке {requestNumber} теперь {status}.",
+                "Ta'mirlash boshlandi", "{requestNumber} arizasi bo'yicha ta'mirlash holati: {status}.");
+        put(NotificationType.WAITING_FOR_PARTS, NotificationRecipientType.CUSTOMER,
+                "Waiting for parts", "Repair request {requestNumber} is {status}. Required parts are being arranged.",
+                "Ожидаются запчасти", "Ремонт по заявке {requestNumber}: {status}. Необходимые запчасти подготавливаются.",
+                "Qismlar kutilmoqda", "{requestNumber} arizasi bo'yicha ta'mirlash {status}. Kerakli qismlar tayyorlanmoqda.");
+        put(NotificationType.REPAIR_RESUMED, NotificationRecipientType.CUSTOMER,
+                "Repair resumed", "Repair request {requestNumber} resumed and is {status}.",
+                "Ремонт возобновлён", "Ремонт по заявке {requestNumber} возобновлён, статус: {status}.",
+                "Ta'mirlash davom etdi", "{requestNumber} arizasi bo'yicha ta'mirlash davom ettirildi, holat: {status}.");
+        put(NotificationType.REPAIR_COMPLETED, NotificationRecipientType.CUSTOMER,
+                "Repair completed", "Repair request {requestNumber} has been completed.",
+                "Ремонт завершён", "Ремонт по заявке {requestNumber} завершён.",
+                "Ta'mirlash yakunlandi", "{requestNumber} raqamli ta'mirlash arizasi yakunlandi.");
+        put(NotificationType.REQUEST_CANCELLED, NotificationRecipientType.CUSTOMER,
+                "Request cancelled", "Repair request {requestNumber} has been cancelled.",
+                "Заявка отменена", "Заявка {requestNumber} отменена.",
+                "Ariza bekor qilindi", "{requestNumber} raqamli ariza bekor qilindi.");
+        put(NotificationType.REQUEST_CANCELLED, NotificationRecipientType.TECHNICIAN,
+                "Request cancelled", "Repair request {requestNumber} assigned to you has been cancelled.",
+                "Заявка отменена", "Назначенная вам заявка {requestNumber} отменена.",
+                "Ariza bekor qilindi", "Sizga biriktirilgan {requestNumber} arizasi bekor qilindi.");
+    }
+
+    private void put(
+            NotificationType type,
+            NotificationRecipientType recipientType,
+            String enTitle,
+            String enMessage,
+            String ruTitle,
+            String ruMessage,
+            String uzTitle,
+            String uzMessage) {
+        Map<NotificationRecipientType, Map<LanguageCode, Template>> byRecipient =
+                templates.computeIfAbsent(type, ignored -> new EnumMap<>(NotificationRecipientType.class));
+        Map<LanguageCode, Template> byLanguage =
+                byRecipient.computeIfAbsent(recipientType, ignored -> new EnumMap<>(LanguageCode.class));
+        byLanguage.put(LanguageCode.EN, new Template(enTitle, enMessage));
+        byLanguage.put(LanguageCode.RU, new Template(ruTitle, ruMessage));
+        byLanguage.put(LanguageCode.UZ, new Template(uzTitle, uzMessage));
+    }
+
+    private record Template(String title, String message) {
+    }
+
+    public record RenderedNotification(LanguageCode language, String title, String message) {
     }
 }

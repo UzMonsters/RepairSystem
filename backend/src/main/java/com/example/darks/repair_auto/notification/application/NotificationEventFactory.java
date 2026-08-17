@@ -89,6 +89,8 @@ public class NotificationEventFactory {
     private String payload(RepairRequest request, Technician technician, OffsetDateTime scheduledVisitAt) {
         Map<String, Object> payload = new LinkedHashMap<>();
         RepairCategory category = request.getCategory();
+        payload.put("requestId", String.valueOf(request.getId()));
+        payload.put("requestNumber", request.getRequestNumber());
         payload.put("categoryNameEn", category.getNameEn());
         payload.put("categoryNameRu", category.getNameRu());
         payload.put("categoryNameUz", category.getNameUz());
@@ -118,7 +120,7 @@ public class NotificationEventFactory {
     }
 
     private String templateKey(NotificationType type) {
-        return "notification." + type.name().toLowerCase(java.util.Locale.ROOT);
+        return "notification." + type.name().toLowerCase(java.util.Locale.ROOT).replace('_', '.');
     }
 
     private String json(Map<String, Object> payload) {

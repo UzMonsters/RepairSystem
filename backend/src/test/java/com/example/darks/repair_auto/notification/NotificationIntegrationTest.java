@@ -216,7 +216,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
 
         assertThat(outboxRepository.findAll())
                 .extracting(notification -> notification.getNotificationType())
-                .containsExactly(NotificationType.CUSTOMER_REQUEST_CREATED);
+                .containsExactly(NotificationType.REQUEST_CREATED);
 
         requestService.telegramCreate(
                 customerId,
@@ -229,7 +229,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
 
         assertThat(outboxRepository.findAll())
                 .extracting(notification -> notification.getNotificationType())
-                .containsExactly(NotificationType.CUSTOMER_REQUEST_CREATED);
+                .containsExactly(NotificationType.REQUEST_CREATED);
         assertThat(created.requestNumber()).startsWith("REP-");
     }
 
@@ -258,15 +258,15 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(outboxRepository.findAll())
                 .extracting(notification -> notification.getNotificationType())
                 .contains(
-                        NotificationType.CUSTOMER_REQUEST_CREATED,
-                        NotificationType.CUSTOMER_TECHNICIAN_ASSIGNED,
-                        NotificationType.TECHNICIAN_NEW_ASSIGNMENT,
-                        NotificationType.CUSTOMER_VISIT_SCHEDULED,
-                        NotificationType.TECHNICIAN_VISIT_SCHEDULED,
-                        NotificationType.CUSTOMER_REPAIR_STARTED,
-                        NotificationType.CUSTOMER_WAITING_FOR_PARTS,
-                        NotificationType.CUSTOMER_REPAIR_RESUMED,
-                        NotificationType.CUSTOMER_REPAIR_COMPLETED);
+                        NotificationType.REQUEST_CREATED,
+                        NotificationType.TECHNICIAN_ASSIGNED,
+                        NotificationType.TECHNICIAN_ASSIGNED,
+                        NotificationType.VISIT_SCHEDULED,
+                        NotificationType.VISIT_SCHEDULED,
+                        NotificationType.REPAIR_STARTED,
+                        NotificationType.WAITING_FOR_PARTS,
+                        NotificationType.REPAIR_RESUMED,
+                        NotificationType.REPAIR_COMPLETED);
     }
 
     @Test
@@ -278,8 +278,8 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(outboxRepository.findAll())
                 .extracting(notification -> notification.getNotificationType())
                 .contains(
-                        NotificationType.CUSTOMER_REQUEST_CANCELLED,
-                        NotificationType.TECHNICIAN_REQUEST_CANCELLED);
+                        NotificationType.REQUEST_CANCELLED,
+                        NotificationType.REQUEST_CANCELLED);
     }
 
     @Test
@@ -460,13 +460,13 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 new UnassignmentRequest("Customer requested reassessment."),
                 principal(admin));
 
-        assertNotification(created.id(), NotificationType.CUSTOMER_TECHNICIAN_ASSIGNED, customerId);
-        assertNotification(created.id(), NotificationType.TECHNICIAN_NEW_ASSIGNMENT, technicianId);
-        assertNotification(created.id(), NotificationType.CUSTOMER_TECHNICIAN_REASSIGNED, customerId);
-        assertNotification(created.id(), NotificationType.TECHNICIAN_REMOVED_FROM_REQUEST, technicianId);
-        assertNotification(created.id(), NotificationType.TECHNICIAN_REASSIGNED_TO_REQUEST, secondTechnicianId);
-        assertNotification(created.id(), NotificationType.CUSTOMER_TECHNICIAN_UNASSIGNED, customerId);
-        assertNotification(created.id(), NotificationType.TECHNICIAN_REMOVED_FROM_REQUEST, secondTechnicianId);
+        assertNotification(created.id(), NotificationType.TECHNICIAN_ASSIGNED, customerId);
+        assertNotification(created.id(), NotificationType.TECHNICIAN_ASSIGNED, technicianId);
+        assertNotification(created.id(), NotificationType.TECHNICIAN_ASSIGNED, customerId);
+        assertNotification(created.id(), NotificationType.TECHNICIAN_UNASSIGNED, technicianId);
+        assertNotification(created.id(), NotificationType.TECHNICIAN_ASSIGNED, secondTechnicianId);
+        assertNotification(created.id(), NotificationType.TECHNICIAN_UNASSIGNED, customerId);
+        assertNotification(created.id(), NotificationType.TECHNICIAN_UNASSIGNED, secondTechnicianId);
     }
 
     @Test
@@ -483,12 +483,12 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(outboxRepository.count()).isEqualTo(beforeSameValue);
         assignmentService.schedule(created.id(), new ScheduleRequest(null, true), principal(admin));
 
-        assertNotification(created.id(), NotificationType.CUSTOMER_VISIT_SCHEDULED, customerId);
-        assertNotification(created.id(), NotificationType.TECHNICIAN_VISIT_SCHEDULED, technicianId);
-        assertNotification(created.id(), NotificationType.CUSTOMER_VISIT_RESCHEDULED, customerId);
-        assertNotification(created.id(), NotificationType.TECHNICIAN_VISIT_RESCHEDULED, technicianId);
-        assertNotification(created.id(), NotificationType.CUSTOMER_VISIT_SCHEDULE_CLEARED, customerId);
-        assertNotification(created.id(), NotificationType.TECHNICIAN_VISIT_SCHEDULE_CLEARED, technicianId);
+        assertNotification(created.id(), NotificationType.VISIT_SCHEDULED, customerId);
+        assertNotification(created.id(), NotificationType.VISIT_SCHEDULED, technicianId);
+        assertNotification(created.id(), NotificationType.VISIT_RESCHEDULED, customerId);
+        assertNotification(created.id(), NotificationType.VISIT_RESCHEDULED, technicianId);
+        assertNotification(created.id(), NotificationType.VISIT_CANCELLED, customerId);
+        assertNotification(created.id(), NotificationType.VISIT_CANCELLED, technicianId);
     }
 
     @Test
@@ -614,7 +614,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
     void duplicateEventKeyAndTwoWorkerClaimsAreSafe() {
         var created = createRequest();
         var request = requestRepository.findWithRelationsById(created.id()).orElseThrow();
-        var event = eventFactory.customer(NotificationType.CUSTOMER_REQUEST_CREATED, request, "manual-duplicate");
+        var event = eventFactory.customer(NotificationType.REQUEST_CREATED, request, "manual-duplicate");
 
         outboxService.enqueue(event);
         outboxService.enqueue(event);
