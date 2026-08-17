@@ -44,6 +44,7 @@ public final class RepairRequestMapper {
                 request.getDescription(),
                 request.getAddress(),
                 request.getCustomerPreferredVisitAt(),
+                customer(request.getCustomer()),
                 category(request.getCategory(), language, resolver),
                 request.getCreatedAt(),
                 request.getUpdatedAt());
