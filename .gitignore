@@ -15,8 +15,7 @@ repairSystem/.env.*
 # Backend
 backend/build/
 backend/.gradle/
-backend/.env
-
+backend/.en
 # Logs and local OS files
 *.log
 .DS_Store
