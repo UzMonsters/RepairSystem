@@ -21,19 +21,22 @@ function cookieOptions(maxAge?: number) {
 }
 
 export function useAuth() {
+  const nuxtApp = useNuxtApp()
   const accessToken = useCookie<string | null>('access_token', cookieOptions())
   // We'll manage refresh_token dynamically via a helper
   const user = useState<AuthUser | null>('auth:user', () => null)
   const avatarObjectUrl = useState<string | null>('auth:avatar-object-url', () => null)
   
   function getRefreshToken() {
-    return useCookie<string | null>('refresh_token', cookieOptions()).value
+    return nuxtApp.runWithContext(() => useCookie<string | null>('refresh_token', cookieOptions()).value)
   }
 
   function setRefreshTokenCookie(token: string | null, rememberMe?: boolean, maxAgeSeconds?: number) {
-    const maxAge = rememberMe ? (maxAgeSeconds || 30 * 24 * 60 * 60) : undefined
-    const cookie = useCookie<string | null>('refresh_token', cookieOptions(maxAge))
-    cookie.value = token
+    nuxtApp.runWithContext(() => {
+      const maxAge = rememberMe ? (maxAgeSeconds || 30 * 24 * 60 * 60) : undefined
+      const cookie = useCookie<string | null>('refresh_token', cookieOptions(maxAge))
+      cookie.value = token
+    })
   }
 
   const isAuthenticated = computed(() => Boolean(accessToken.value))
