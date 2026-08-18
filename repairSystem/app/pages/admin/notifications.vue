@@ -82,6 +82,12 @@ function formatDate(value?: string) {
   return formatApiDate(value, true)
 }
 
+function openNotification(notification: NotificationSummary) {
+  if (notification.repairRequest?.id) {
+    navigateTo(`/admin/requests/${notification.repairRequest.id}`)
+  }
+}
+
 const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
 </script>
 
@@ -151,9 +157,7 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
                 v-for="column in [
                   { label: t('title'), field: 'notificationType' },
                   { label: t('message'), field: 'createdAt' },
-                  { label: t('type'), field: 'notificationType' },
                   { label: t('recipient'), field: 'id' },
-                  { label: t('relatedRequest'), field: 'id' },
                   { label: t('channel'), field: 'notificationType' },
                   { label: t('deliveryStatus'), field: 'status' },
                   { label: t('created'), field: 'createdAt' }
@@ -178,7 +182,7 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="8"
+                colspan="6"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
@@ -186,7 +190,7 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
             </tr>
             <tr v-else-if="!rows.length">
               <td
-                colspan="8"
+                colspan="6"
                 class="text-center py-4"
               >
                 <div class="empty-state">
@@ -198,6 +202,11 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
             <tr
               v-for="n in rows"
               :key="n.id"
+              class="table-row-link"
+              :class="{ 'is-disabled': !n.repairRequest?.id }"
+              :tabindex="n.repairRequest?.id ? 0 : -1"
+              @click="openNotification(n)"
+              @keydown.enter="openNotification(n)"
             >
               <td class="fw-semibold">
                 {{ n.title || '-' }}
@@ -205,20 +214,8 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
               <td>
                 {{ n.message || '-' }}
               </td>
-              <td>{{ n.type || '-' }}</td>
               <td>
-                {{ n.recipient?.name || n.recipient?.type || '-' }}<template v-if="n.recipient?.id">
-                  · {{ n.recipient.id }}
-                </template>
-              </td>
-              <td>
-                <NuxtLink
-                  v-if="n.repairRequest?.id"
-                  :to="`/admin/requests/${n.repairRequest.id}`"
-                >
-                  {{ n.repairRequest.number || `#${n.repairRequest.id}` }}
-                </NuxtLink>
-                <span v-else>-</span>
+                {{ n.recipient?.name || n.recipient?.type || '-' }}
               </td>
               <td>{{ n.channel || '-' }}</td>
               <td>
