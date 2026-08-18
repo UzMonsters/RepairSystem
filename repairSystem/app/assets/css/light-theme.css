@@ -1,18 +1,18 @@
 [data-theme="light"] {
   /* Основной фон приложения */
-  --rs-bg: #f1eee7;
+  --rs-bg: #00000012;
 
   /* Фон основного контента */
-  --rs-content-bg: #f6f3ed;
+  --rs-content-bg: #00000012;
 
   /* Sidebar */
   --rs-sidebar-bg: #24251b;
 
   /* Header */
-  --rs-header-bg: #fffdf9;
+  --rs-header-bg: #ffffff;
 
   /* Карточки */
-  --rs-panel: #fffdf9;
+  --rs-panel: #ffffff;
 
   /* Вложенные блоки и input */
   --rs-panel-2: #f8f5ef;

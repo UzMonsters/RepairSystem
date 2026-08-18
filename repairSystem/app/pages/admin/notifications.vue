@@ -13,7 +13,7 @@ const sortDirection = ref<'asc' | 'desc'>('desc')
 const query = computed(() => ({
   page: page.value - 1,
   size: size.value,
-  status: status.value || undefined,
+  deliveryStatus: status.value || undefined,
   sort: `${sortField.value},${sortDirection.value}`
 }))
 
@@ -82,7 +82,7 @@ function formatDate(value?: string) {
   return formatApiDate(value, true)
 }
 
-const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIPPED', 'DEAD']
+const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
 </script>
 
 <template>
@@ -149,12 +149,13 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
             <tr>
               <th
                 v-for="column in [
-                  { label: t('eventKey'), field: 'notificationType' },
+                  { label: t('title'), field: 'notificationType' },
+                  { label: t('message'), field: 'createdAt' },
                   { label: t('type'), field: 'notificationType' },
-                  { label: t('recipient'), field: 'notificationType' },
+                  { label: t('recipient'), field: 'id' },
                   { label: t('relatedRequest'), field: 'id' },
-                  { label: t('status'), field: 'status' },
-                  { label: t('attempts'), field: 'id' },
+                  { label: t('channel'), field: 'notificationType' },
+                  { label: t('deliveryStatus'), field: 'status' },
                   { label: t('created'), field: 'createdAt' }
                 ]"
                 :key="column.label"
@@ -177,7 +178,7 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="7"
+                colspan="8"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
@@ -185,7 +186,7 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
             </tr>
             <tr v-else-if="!rows.length">
               <td
-                colspan="7"
+                colspan="8"
                 class="text-center py-4"
               >
                 <div class="empty-state">
@@ -199,32 +200,35 @@ const statuses = ['PENDING', 'PROCESSING', 'RETRY_SCHEDULED', 'DELIVERED', 'SKIP
               :key="n.id"
             >
               <td class="fw-semibold">
-                {{ n.eventKey || n.notificationType || '-' }}
+                {{ n.title || '-' }}
               </td>
-              <td>{{ n.notificationType || '-' }}</td>
               <td>
-                {{ n.recipientType || '-' }}<template v-if="n.recipientId">
-                  В· {{ n.recipientId }}
+                {{ n.message || '-' }}
+              </td>
+              <td>{{ n.type || '-' }}</td>
+              <td>
+                {{ n.recipient?.name || n.recipient?.type || '-' }}<template v-if="n.recipient?.id">
+                  · {{ n.recipient.id }}
                 </template>
               </td>
               <td>
                 <NuxtLink
-                  v-if="n.repairRequestId"
-                  :to="`/admin/requests/${n.repairRequestId}`"
+                  v-if="n.repairRequest?.id"
+                  :to="`/admin/requests/${n.repairRequest.id}`"
                 >
-                  {{ n.repairRequestId ? `#${n.repairRequestId}` : '-' }}
+                  {{ n.repairRequest.number || `#${n.repairRequest.id}` }}
                 </NuxtLink>
                 <span v-else>-</span>
               </td>
+              <td>{{ n.channel || '-' }}</td>
               <td>
                 <span
                   class="status-chip"
-                  :class="n.status === 'DELIVERED' ? 'status-completed' : n.status === 'DEAD' ? 'status-cancelled' : n.status === 'SKIPPED' ? 'status-cancelled' : 'status-assigned'"
+                  :class="n.deliveryStatus === 'DELIVERED' ? 'status-completed' : n.deliveryStatus === 'FAILED' || n.deliveryStatus === 'SKIPPED' ? 'status-cancelled' : 'status-assigned'"
                 >
-                  <span class="status-dot" />{{ n.status }}
+                  <span class="status-dot" />{{ n.deliveryStatus }}
                 </span>
               </td>
-              <td>{{ n.attemptCount }}</td>
               <td class="text-nowrap">
                 {{ formatDate(n.createdAt) }}
               </td>

@@ -87,7 +87,7 @@ function categoryOptionName(c: Category) {
 }
 
 function customerName(r: RepairRequest) {
-  return r.customer?.fullName ?? '-'
+  return r.customerFullName ?? r.customer?.fullName ?? '-'
 }
 
 function openRequest(r: RepairRequest) {
@@ -421,7 +421,9 @@ const execRequired = computed(() => execAction.value !== 'resume')
                         <i class="bi bi-person-badge me-2" />{{ t('assignTechnician') }}
                       </a>
                     </li>
-                    <li v-if="r.status !== 'COMPLETED' && r.status !== 'CANCELLED'"><hr class="dropdown-divider"></li>
+                    <li v-if="r.status !== 'COMPLETED' && r.status !== 'CANCELLED'">
+                      <hr class="dropdown-divider">
+                    </li>
                     <li v-if="r.status === 'ASSIGNED' && r.currentAssignment?.status === 'PENDING'">
                       <a
                         href="#"

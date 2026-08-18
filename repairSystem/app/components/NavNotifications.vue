@@ -51,7 +51,7 @@ function timeAgo(value?: string) {
       >
         <div class="dropdown-divider" />
         <NuxtLink
-          :to="n.repairRequestId ? `/admin/requests/${n.repairRequestId}` : '/admin/notifications'"
+          :to="n.repairRequest?.id ? `/admin/requests/${n.repairRequest.id}` : '/admin/notifications'"
           class="dropdown-item"
         >
           <i class="bi bi-bell me-2" />
@@ -59,14 +59,14 @@ function timeAgo(value?: string) {
             class="d-inline-block"
             style="max-width: 220px;"
           >
-            {{ shortKey(n.notificationType) }}
+            {{ shortKey(n.type) }}
             <span
-              v-if="n.repairRequestId"
+              v-if="n.repairRequest?.id"
               class="float-end text-secondary fs-7"
-            >#{{ n.repairRequestId }}</span>
+            >#{{ n.repairRequest.id }}</span>
           </span>
           <span class="d-block text-secondary fs-7">
-            {{ n.status }}
+            {{ n.deliveryStatus }}
             <span class="float-end">{{ timeAgo(n.createdAt) }}</span>
           </span>
         </NuxtLink>

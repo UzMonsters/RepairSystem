@@ -43,6 +43,10 @@ const uz = {
   'inactive': 'Faol emas',
   'all': 'Hammasi',
   'eventKey': 'Hodisa',
+  'title': 'Sarlavha',
+  'message': 'Xabar',
+  'channel': 'Kanal',
+  'deliveryStatus': 'Yetkazib berish holati',
   'type': 'Tur',
   'recipient': 'Qabul qiluvchi',
   'attempts': 'Urinishlar',
@@ -245,4 +249,3 @@ const uz = {
 }
 
 export default uz
-

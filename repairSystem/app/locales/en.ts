@@ -43,6 +43,10 @@ const en = {
   'inactive': 'Inactive',
   'all': 'All',
   'eventKey': 'Event',
+  'title': 'Title',
+  'message': 'Message',
+  'channel': 'Channel',
+  'deliveryStatus': 'Delivery status',
   'type': 'Type',
   'recipient': 'Recipient',
   'attempts': 'Attempts',
@@ -278,4 +282,3 @@ const en = {
 }
 
 export default en
-

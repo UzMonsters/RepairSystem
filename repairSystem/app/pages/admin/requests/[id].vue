@@ -345,6 +345,7 @@ function can(action: string) {
                     <NuxtLink
                       v-if="request.customer?.id"
                       :to="`/admin/customers/${request.customer.id}`"
+                      class="text-body text-decoration-underline"
                     >{{ customerName }}</NuxtLink>
                     <template v-else>
                       {{ customerName }}

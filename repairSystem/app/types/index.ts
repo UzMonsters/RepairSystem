@@ -233,6 +233,7 @@ export interface RepairRequest {
   description?: string
   address?: string
   customerPreferredVisitAt?: string
+  customerFullName?: string
   customer?: RepairRequestCustomerSummary
   category?: RepairRequestCategorySummary
   currentAssignment?: CurrentAssignmentSummary | null
@@ -298,23 +299,16 @@ export interface RequestCategoryDistributionItem {
   percentage: number
 }
 
-export type NotificationStatus = 'PENDING' | 'PROCESSING' | 'RETRY_SCHEDULED' | 'DELIVERED' | 'SKIPPED' | 'DEAD'
+export type NotificationStatus = 'PENDING' | 'DELIVERED' | 'FAILED' | 'SKIPPED'
 
 export interface NotificationSummary {
   id: number
-  eventKey?: string
-  notificationType?: string
-  recipientType?: string
-  recipientId?: number
-  repairRequestId?: number
-  requestNumber?: string
-  status: NotificationStatus
-  attemptCount: number
-  nextAttemptAt?: string
-  deliveredAt?: string
-  skippedAt?: string
-  deadAt?: string
-  lastFailureCategory?: string
+  type?: string
+  recipient?: { type?: string, id?: number, name?: string }
+  title?: string
+  message?: string
+  repairRequest?: { id: number, number?: string } | null
+  channel?: string
+  deliveryStatus: NotificationStatus
   createdAt?: string
-  updatedAt?: string
 }

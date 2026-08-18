@@ -30,7 +30,8 @@ export function useAuth() {
       const blob = await apiFetch<Blob>('/me/avatar', {
         responseType: 'blob'
       })
-      const nextUrl = URL.createObjectURL(blob)
+      const imageBlob = new Blob([blob], { type: user.value?.avatar?.contentType || 'image/jpeg' })
+      const nextUrl = URL.createObjectURL(imageBlob)
       if (avatarObjectUrl.value) URL.revokeObjectURL(avatarObjectUrl.value)
       avatarObjectUrl.value = nextUrl
     } catch {

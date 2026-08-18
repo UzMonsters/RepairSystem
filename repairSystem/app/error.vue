@@ -1,11 +1,16 @@
 <template>
   <div class="error-page">
     <div class="error-content">
-      <h1 class="error-title">{{ error?.statusCode || 404 }}</h1>
+      <h1 class="error-title">
+        {{ error?.statusCode || 404 }}
+      </h1>
       <p class="error-message">
         {{ isNotFound ? t('pageNotFound') : error?.message || t('somethingWentWrong') }}
       </p>
-      <NuxtLink to="/admin" class="back-link">
+      <NuxtLink
+        to="/admin"
+        class="back-link"
+      >
         {{ t('backToHome') }}
       </NuxtLink>
     </div>

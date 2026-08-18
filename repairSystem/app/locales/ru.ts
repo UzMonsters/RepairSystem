@@ -43,6 +43,10 @@ const ru = {
   'inactive': 'Неактивен',
   'all': 'Все',
   'eventKey': 'Событие',
+  'title': 'Заголовок',
+  'message': 'Сообщение',
+  'channel': 'Канал',
+  'deliveryStatus': 'Статус доставки',
   'type': 'Тип',
   'recipient': 'Получатель',
   'attempts': 'Попытки',
@@ -269,4 +273,3 @@ const ru = {
 }
 
 export default ru
-
