@@ -43,4 +43,15 @@ public enum SupportedLanguage {
             case UZ -> UZ;
         };
     }
+
+    public static SupportedLanguage fromLanguageCode(LanguageCode languageCode) {
+        if (languageCode == null) {
+            return UZ;
+        }
+        return switch (languageCode) {
+            case RU -> RU;
+            case EN -> EN;
+            case UZ -> UZ;
+        };
+    }
 }

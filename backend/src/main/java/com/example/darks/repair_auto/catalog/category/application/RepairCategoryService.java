@@ -10,9 +10,8 @@ import com.example.darks.repair_auto.catalog.category.infrastructure.RepairCateg
 import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
 import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
 import com.example.darks.repair_auto.settings.domain.Language;
-import com.example.darks.repair_auto.shared.error.BusinessException;
-import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -123,19 +122,19 @@ public class RepairCategoryService {
         return repairCategoryRepository.findById(id).orElseThrow(this::notFound);
     }
 
-    private BusinessException notFound() {
-        return new BusinessException(ErrorCode.CATEGORY_NOT_FOUND);
+    private BusinessRuleException notFound() {
+        return new BusinessRuleException(ErrorCode.CATEGORY_NOT_FOUND);
     }
 
-    private BusinessException categoryConflict(DataIntegrityViolationException exception) {
+    private BusinessRuleException categoryConflict(DataIntegrityViolationException exception) {
         String message = exception.getMostSpecificCause() != null ? exception.getMostSpecificCause().getMessage() : "";
         if (message != null && message.contains("name_en")) {
-            return new BusinessException(ErrorCode.CATEGORY_NAME_EN_ALREADY_EXISTS);
+            return new BusinessRuleException(ErrorCode.CATEGORY_NAME_EN_ALREADY_EXISTS);
         }
         if (message != null && message.contains("name_ru")) {
-            return new BusinessException(ErrorCode.CATEGORY_NAME_RU_ALREADY_EXISTS);
+            return new BusinessRuleException(ErrorCode.CATEGORY_NAME_RU_ALREADY_EXISTS);
         }
-        return new BusinessException(ErrorCode.CATEGORY_NAME_UZ_ALREADY_EXISTS);
+        return new BusinessRuleException(ErrorCode.CATEGORY_NAME_UZ_ALREADY_EXISTS);
     }
 
     private OffsetDateTime now() {

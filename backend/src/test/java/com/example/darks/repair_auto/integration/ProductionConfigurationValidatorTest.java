@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.darks.repair_auto.identity.application.AuthThrottleProperties;
+import com.example.darks.repair_auto.identity.mobile.telegram.TelegramLoginProperties;
 import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationProperties;
+import com.example.darks.repair_auto.notification.push.config.FirebasePushProperties;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageProperties;
 import com.example.darks.repair_auto.shared.config.AppProperties;
 import com.example.darks.repair_auto.shared.config.ProductionConfigurationValidator;
@@ -52,19 +54,87 @@ class ProductionConfigurationValidatorTest {
                 .doesNotThrowAnyException();
     }
 
+    @Test
+    void givenProdProfileWithFirebaseEnabledAndDevProjectThenStartupFails() {
+        MockEnvironment environment = validEnvironment()
+                .withProperty("APP_FIREBASE_PROJECT_ID", "repairauto-dev")
+                .withProperty("APP_FIREBASE_CREDENTIALS_PATH", "/etc/secrets/firebase-adminsdk.json");
+
+        assertThatThrownBy(() -> validator(
+                environment,
+                appProperties(),
+                firebasePushProperties(true, "repairauto-dev", "/etc/secrets/firebase-adminsdk.json"),
+                telegramLoginProperties()).afterSingletonsInstantiated())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("APP_FIREBASE_PROJECT_ID must point to a production Firebase project");
+    }
+
+    @Test
+    void givenProdProfileWithFirebaseEnabledAndMissingCredentialSourceThenStartupFails() {
+        MockEnvironment environment = validEnvironment()
+                .withProperty("APP_FIREBASE_PROJECT_ID", "repairauto-prod");
+
+        assertThatThrownBy(() -> validator(
+                environment,
+                appProperties(),
+                firebasePushProperties(true, "repairauto-prod", ""),
+                telegramLoginProperties()).afterSingletonsInstantiated())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("APP_FIREBASE_CREDENTIALS_PATH or GOOGLE_APPLICATION_CREDENTIALS");
+    }
+
+    @Test
+    void givenProdProfileWithTelegramEnabledAndMissingLoginClientsThenStartupFails() {
+        TelegramProperties telegramProperties = telegramProperties(true);
+
+        assertThatThrownBy(() -> validator(
+                validEnvironment(),
+                appProperties(),
+                storageProperties(),
+                telegramProperties,
+                firebasePushProperties(false, "repairauto-dev", ""),
+                new TelegramLoginProperties()).afterSingletonsInstantiated())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("APP_TELEGRAM_CUSTOMER_LOGIN_CLIENT_ID");
+    }
+
     private ProductionConfigurationValidator validator(MockEnvironment environment, AppProperties appProperties) {
-        TelegramProperties telegramProperties = new TelegramProperties();
-        telegramProperties.setEnabled(false);
+        return validator(environment, appProperties, firebasePushProperties(false, "repairauto-dev", ""), telegramLoginProperties());
+    }
+
+    private ProductionConfigurationValidator validator(
+            MockEnvironment environment,
+            AppProperties appProperties,
+            FirebasePushProperties firebasePushProperties,
+            TelegramLoginProperties telegramLoginProperties) {
+        return validator(
+                environment,
+                appProperties,
+                storageProperties(),
+                telegramProperties(false),
+                firebasePushProperties,
+                telegramLoginProperties);
+    }
+
+    private ProductionConfigurationValidator validator(
+            MockEnvironment environment,
+            AppProperties appProperties,
+            StorageProperties storageProperties,
+            TelegramProperties telegramProperties,
+            FirebasePushProperties firebasePushProperties,
+            TelegramLoginProperties telegramLoginProperties) {
         NotificationProperties notificationProperties = new NotificationProperties();
         notificationProperties.setBatchSize(50);
         return new ProductionConfigurationValidator(
                 environment,
                 appProperties,
-                storageProperties(),
+                storageProperties,
                 telegramProperties,
                 ZoneId.of("Asia/Tashkent"),
                 notificationProperties,
-                new AuthThrottleProperties(true, 5, Duration.ofMinutes(10), Duration.ofMinutes(15), Duration.ofDays(1)));
+                new AuthThrottleProperties(true, 5, Duration.ofMinutes(10), Duration.ofMinutes(15), Duration.ofDays(1)),
+                firebasePushProperties,
+                telegramLoginProperties);
     }
 
     private MockEnvironment validEnvironment() {
@@ -129,5 +199,33 @@ class ProductionConfigurationValidatorTest {
                 DataSize.ofMegabytes(10),
                 20,
                 10);
+    }
+
+    private FirebasePushProperties firebasePushProperties(boolean enabled, String projectId, String credentialsPath) {
+        return new FirebasePushProperties(
+                enabled,
+                projectId,
+                credentialsPath,
+                Duration.ofSeconds(10),
+                Duration.ofSeconds(10));
+    }
+
+    private TelegramProperties telegramProperties(boolean enabled) {
+        TelegramProperties telegramProperties = new TelegramProperties();
+        telegramProperties.setEnabled(enabled);
+        telegramProperties.getCustomer().setBotToken("123456:customer-production-token");
+        telegramProperties.getCustomer().setWebhookSecret("customer-webhook-secret-value-123456");
+        telegramProperties.getCustomer().setBotUsername("repairauto_bot");
+        telegramProperties.getTechnician().setBotToken("123456:technician-production-token");
+        telegramProperties.getTechnician().setWebhookSecret("technician-webhook-secret-value-123456");
+        telegramProperties.getTechnician().setBotUsername("repairauto_staff_bot");
+        return telegramProperties;
+    }
+
+    private TelegramLoginProperties telegramLoginProperties() {
+        TelegramLoginProperties properties = new TelegramLoginProperties();
+        properties.getCustomer().setClientId("customer-login-client");
+        properties.getTechnician().setClientId("technician-login-client");
+        return properties;
     }
 }

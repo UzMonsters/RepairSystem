@@ -25,7 +25,6 @@ import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.St
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;

@@ -1,5 +1,6 @@
 package com.example.darks.repair_auto.notification.infrastructure.persistence;
 
+import com.example.darks.repair_auto.notification.domain.NotificationChannel;
 import com.example.darks.repair_auto.notification.domain.NotificationOutbox;
 import com.example.darks.repair_auto.notification.domain.NotificationStatus;
 import java.time.OffsetDateTime;
@@ -22,6 +23,8 @@ public interface NotificationOutboxRepository
     long countByEventKey(String eventKey);
 
     long countByStatus(NotificationStatus status);
+
+    long countByChannelAndStatus(NotificationChannel channel, NotificationStatus status);
 
     List<NotificationOutbox> findByEventKeyIn(Collection<String> eventKeys);
 
@@ -52,6 +55,28 @@ public interface NotificationOutboxRepository
             order by created_at, id
             """, nativeQuery = true)
     List<NotificationOutbox> findClaimableForUpdate(
+            @Param("now") OffsetDateTime now,
+            @Param("limit") int limit);
+
+    @Query(value = """
+            select *
+            from notification_outbox
+            where id in (
+                select id
+                from notification_outbox
+                where channel = :channel
+                  and (
+                    (status in ('PENDING', 'RETRY_SCHEDULED') and next_attempt_at <= :now)
+                    or (status = 'PROCESSING' and processing_lease_until < :now)
+                  )
+                order by created_at, id
+                for update skip locked
+                limit :limit
+            )
+            order by created_at, id
+            """, nativeQuery = true)
+    List<NotificationOutbox> findClaimableByChannelForUpdate(
+            @Param("channel") String channel,
             @Param("now") OffsetDateTime now,
             @Param("limit") int limit);
 }

@@ -9,6 +9,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -44,9 +45,16 @@ public class GlobalExceptionHandler {
             BusinessException exception,
             HttpServletRequest request) {
         ErrorCode errorCode = exception.getErrorCode();
-        String message = localizationService.get(errorCode.getMessageKey(), request, exception.getArguments());
-        ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        HttpStatus status = HttpStatus.resolve(exception.status());
+        if (status == null) {
+            status = errorCode.getStatus();
+        }
+        String code = exception.code();
+        String message = exception.hasExplicitMessage()
+                ? exception.getMessage()
+                : localizationService.get(errorCode.getMessageKey(), request, exception.getArguments());
+        ApiErrorResponse response = responseFactory.create(status, code, message, request, List.of());
+        return ResponseEntity.status(status).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

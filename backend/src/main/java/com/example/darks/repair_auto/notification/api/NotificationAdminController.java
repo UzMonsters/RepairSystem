@@ -83,7 +83,7 @@ public class NotificationAdminController {
                 NotificationPageRequest.toPageable(page, size, sort));
     }
 
-    @GetMapping("/api/v1/admin/notification-deliveries/{deliveryId}")
+    @GetMapping({"/api/v1/notifications/{deliveryId}", "/api/v1/admin/notification-deliveries/{deliveryId}"})
     @Operation(summary = "Get notification delivery details")
     public NotificationDeliveryResponse getDelivery(@PathVariable Long deliveryId) {
         return notificationAdminService.getDelivery(deliveryId);

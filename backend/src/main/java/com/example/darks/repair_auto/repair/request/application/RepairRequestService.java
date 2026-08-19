@@ -24,7 +24,9 @@ import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestNumberGenerator;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
+import com.example.darks.repair_auto.shared.error.BusinessException;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.InvalidRequestParameterException;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import com.example.darks.repair_auto.shared.phone.PhoneNumberNormalizer;
@@ -202,6 +204,60 @@ public class RepairRequestService {
             return repairRequestRepository.findBySourceReference(reference)
                     .orElseThrow(() -> new BusinessRuleException(
                             "TELEGRAM_REQUEST_SUBMISSION_CONFLICT",
+                            "Repair request submission conflicted. Please try again.",
+                            409));
+        }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public RepairRequest mobileCreate(
+            Long customerId,
+            Long categoryId,
+            String description,
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String sourceReference) {
+        String reference = validateSourceReference(sourceReference);
+        Optional<RepairRequest> existing = repairRequestRepository.findBySourceReference(reference);
+        if (existing.isPresent()) {
+            RepairRequest existingRequest = existing.get();
+            if (!existingRequest.getCustomer().getId().equals(customerId)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED);
+            }
+            return existingRequest;
+        }
+        OffsetDateTime now = now();
+        Customer customer = activeCustomerForUpdate(customerId);
+        RepairCategory category = activeCategoryForUpdate(categoryId);
+        String validAddress = validateAddress(address);
+        BigDecimal validLatitude = validateLatitude(latitude);
+        BigDecimal validLongitude = validateLongitude(longitude);
+        validateLocation(validAddress, validLatitude, validLongitude);
+        RepairRequest repairRequest = RepairRequest.mobile(
+                requestNumberGenerator.nextRequestNumber(),
+                customer,
+                category,
+                validateDescription(description),
+                validAddress,
+                validLatitude,
+                validLongitude,
+                RepairRequestPriority.NORMAL,
+                null,
+                reference,
+                now);
+        try {
+            RepairRequest saved = repairRequestRepository.saveAndFlush(repairRequest);
+            var history = statusHistoryService.recordInitial(saved, "Mobile request created.", null, now);
+            notificationOutboxService.enqueue(notificationEventFactory.customer(
+                    NotificationType.REQUEST_CREATED,
+                    saved,
+                    NotificationEventFactory.statusEventKeyPart(history.getId(), saved.getStatus())));
+            return saved;
+        } catch (org.springframework.dao.DataIntegrityViolationException exception) {
+            return repairRequestRepository.findBySourceReference(reference)
+                    .orElseThrow(() -> new BusinessRuleException(
+                            "REPAIR_REQUEST_SUBMISSION_CONFLICT",
                             "Repair request submission conflicted. Please try again.",
                             409));
         }

@@ -52,6 +52,22 @@ public interface RepairAttachmentRepository extends JpaRepository<RepairAttachme
             join fetch a.repairRequest
             left join fetch a.uploadedByUser
             left join fetch a.uploadedByCustomer
+            left join fetch a.uploadedByTechnician
+            where a.repairRequest.id = :requestId
+                and a.status = :status
+                and a.attachmentType in :types
+            order by a.uploadedAt asc
+            """)
+    List<RepairAttachment> findByRepairRequestIdAndStatusAndAttachmentTypeInOrderByUploadedAtAsc(
+            @Param("requestId") Long requestId,
+            @Param("status") AttachmentStatus status,
+            @Param("types") Collection<AttachmentType> types);
+
+    @Query("""
+            select a from RepairAttachment a
+            join fetch a.repairRequest
+            left join fetch a.uploadedByUser
+            left join fetch a.uploadedByCustomer
             where a.id = :id and a.status = :status
             """)
     Optional<RepairAttachment> findByIdAndStatus(@Param("id") Long id, @Param("status") AttachmentStatus status);

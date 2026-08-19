@@ -150,8 +150,8 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(manager)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"technicianId":%d,"scheduledVisitAt":"2026-08-05T10:00:00+05:00"}
-                                """.formatted(secondTechnicianId)))
+                                {"technicianId":%d,"scheduledVisitAt":"%s"}
+                                """.formatted(secondTechnicianId, OffsetDateTime.now(ZoneOffset.UTC).plusDays(2).withNano(0))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SCHEDULED"))
                 .andExpect(jsonPath("$.currentAssignment.scheduledVisitAt").exists());
@@ -212,8 +212,8 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(manager)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"scheduledVisitAt":"2026-08-07T11:30:00+05:00"}
-                                """))
+                                {"scheduledVisitAt":"%s"}
+                                """.formatted(OffsetDateTime.now(ZoneOffset.UTC).plusDays(2).withNano(0))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SCHEDULED"));
 
@@ -236,8 +236,8 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"technicianId":%d,"scheduledVisitAt":"2026-08-08T11:30:00+05:00","reason":"Original technician unavailable"}
-                                """.formatted(secondTechnicianId)))
+                                {"technicianId":%d,"scheduledVisitAt":"%s","reason":"Original technician unavailable"}
+                                """.formatted(secondTechnicianId, OffsetDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SCHEDULED"))
                 .andExpect(jsonPath("$.currentAssignment.technician.id").value(secondTechnicianId));
@@ -271,7 +271,7 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
                                 {"reason":" "}
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 
         mockMvc.perform(get("/api/v1/requests/{requestId}/assignments", requestId))
                 .andExpect(status().isUnauthorized());
@@ -388,8 +388,8 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
     @Test
     void givenConcurrentScheduleUpdatesThenAssignmentRemainsConsistent() throws Exception {
         repairAssignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(admin));
-        OffsetDateTime firstVisit = OffsetDateTime.parse("2026-08-09T12:00:00+05:00");
-        OffsetDateTime secondVisit = OffsetDateTime.parse("2026-08-10T12:00:00+05:00");
+        OffsetDateTime firstVisit = OffsetDateTime.now(ZoneOffset.UTC).plusDays(2).withNano(0);
+        OffsetDateTime secondVisit = OffsetDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0);
 
         List<Object> results = runConcurrently(
                 () -> repairAssignmentService.schedule(
@@ -420,7 +420,7 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
         List<Object> results = runConcurrently(
                 () -> repairAssignmentService.schedule(
                         requestId,
-                        new ScheduleRequest(OffsetDateTime.parse("2026-08-09T12:00:00+05:00"), false),
+                        new ScheduleRequest(OffsetDateTime.now(ZoneOffset.UTC).plusDays(2).withNano(0), false),
                         new AuthenticatedUser(admin)),
                 () -> repairRequestService.update(
                         requestId,
@@ -432,7 +432,7 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
                                 null,
                                 null,
                                 RepairRequestPriority.HIGH,
-                                OffsetDateTime.parse("2026-08-06T10:00:00+05:00"),
+                                OffsetDateTime.now(ZoneOffset.UTC).plusDays(4).withNano(0),
                                 "Updated note")));
 
         assertThat(results).anyMatch(result -> result instanceof BusinessRuleException

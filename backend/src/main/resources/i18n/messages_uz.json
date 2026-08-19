@@ -27,7 +27,16 @@
     "password-reuse-not-allowed": "Yangi parol joriy paroldan farq qilishi kerak.",
     "password-policy-violation": "Parol xavfsizlik talablariga javob bermaydi.",
     "password-confirmation-mismatch": "Parol tasdiqlanishi mos kelmadi.",
-    "new-password-same-as-current": "Yangi parol joriy parol bilan bir xil bo'lishi mumkin emas."
+    "new-password-same-as-current": "Yangi parol joriy parol bilan bir xil bo'lishi mumkin emas.",
+    "telegram-auth-invalid": "Telegram autentifikatsiya tokeni yaroqsiz.",
+    "telegram-auth-expired": "Telegram autentifikatsiya tokenining amal qilish muddati tugagan.",
+    "telegram-auth-audience-invalid": "Telegram autentifikatsiya tokeni boshqa ilova uchun mo'ljallangan.",
+    "telegram-account-not-linked": "Telegram hisobi hech qanday RepairAuto hisobiga ulanmagan.",
+    "account-inactive": "Hisob faol emas. Iltimos, qo'llab-quvvatlash xizmatiga murojaat qiling.",
+    "mobile-refresh-token-invalid": "Mobil refresh tokeni yaroqsiz.",
+    "mobile-refresh-token-expired": "Mobil refresh tokenining amal qilish muddati tugagan.",
+    "mobile-refresh-token-reused": "Refresh tokenidan qayta foydalanish aniqlandi. Sessiya bekor qilindi.",
+    "throttled": "Juda ko'p muvaffaqiyatsiz urinishlar. Birozdan so'ng qayta urinib ko'ring."
   },
   "user": {
     "not-found": "Foydalanuvchi topilmadi.",
@@ -70,6 +79,24 @@
       "invalid-location": "Ta'mirlash arizasi manzili noto'g'ri.",
       "invalid-preferred-visit-time": "Maqbul tashrif vaqti noto'g'ri.",
       "invalid-date-range": "So'rov sana oralig'i noto'g'ri."
+    },
+    "status": {
+      "new": "Yangi",
+      "assigned": "Usta biriktirildi",
+      "scheduled": "Rejalashtirildi",
+      "in-progress": "Ta'mirlash jarayonida",
+      "waiting-for-parts": "Ehtiyot qismlar kutilmoqda",
+      "completed": "Bajarildi",
+      "cancelled": "Bekor qilindi"
+    },
+    "assignment-status": {
+      "pending": "Kutilmoqda",
+      "accepted": "Qabul qilingan",
+      "rejected": "Rad etilgan",
+      "unassigned": "Biriktirish bekor qilingan",
+      "reassigned": "Qayta biriktirilgan",
+      "completed": "Bajarilgan",
+      "cancelled": "Bekor qilingan"
     },
     "assignment": {
       "active-not-found": "Faol biriktirish topilmadi.",
@@ -155,7 +182,29 @@
       "required": "Majburiy '{0}' so'rov parametri yuborilmagan.",
       "invalid-type": "'{0}' parametri uchun qiymat turi noto'g'ri."
     },
-    "method-not-supported": "HTTP usuli ushbu endpoint uchun qo'llab-quvvatlanmaydi.",
-    "media-type-not-supported": "So'rov mediatipi qo'llab-quvvatlanmaydi."
+    "method-not-supported": "Ushbu endpoint uchun HTTP metodi qo'llab-quvvatlanmaydi.",
+    "media-type-not-supported": "So'rov media turi qo'llab-quvvatlanmaydi."
+  },
+  "dashboard": {
+    "period-invalid": "Noto'g'ri dashboard davri ko'rsatildi.",
+    "category-limit-invalid": "Top toifalar chegarasi noto'g'ri ko'rsatildi."
+  },
+  "notification": {
+    "not-found": "Xabarnoma topilmadi.",
+    "invalid-date-range": "createdFrom sanasi createdTo sanasidan oldin yoki teng bo'lishi kerak.",
+    "already-delivered": "Yetkazilgan xabarnomalarni qayta yuborib bo'lmaydi.",
+    "retry-not-allowed": "Faqat muvaffaqiyatsiz yoki o'tkazib yuborilgan xabarnomalarni qayta yuborish mumkin."
+  },
+  "review": {
+    "not-found": "Sharh topilmadi.",
+    "not-eligible": "Sharh qoldirish uchun so'rov mos kelmaydi.",
+    "request-not-owned": "So'rov ushbu mijozga tegishli emas.",
+    "request-not-completed": "Faqat yakunlangan ta'mirlash so'rovlariga sharh qoldirish mumkin.",
+    "already-exists": "Ushbu ta'mirlash so'rovi uchun allaqachon sharh qoldirilgan.",
+    "customer-inactive": "Mijoz sharh qoldira olmaydi.",
+    "technician-not-resolved": "Bajarilgan usta biriktiruvi aniqlanmadi.",
+    "rating-invalid": "Baho 1 dan 5 gacha bo'lishi kerak.",
+    "comment-too-long": "Sharh matni juda uzun.",
+    "invalid-date-range": "Boshlanish sanasi tugash sanasidan oldin bo'lishi kerak."
   }
 }

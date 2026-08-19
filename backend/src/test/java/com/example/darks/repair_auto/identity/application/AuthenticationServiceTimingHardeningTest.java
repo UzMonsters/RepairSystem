@@ -6,9 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
-import com.example.darks.repair_auto.identity.infrastructure.security.JwtTokenService;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
+import com.example.darks.repair_auto.identity.infrastructure.security.JwtTokenService;
+import com.example.darks.repair_auto.shared.error.BusinessException;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -27,9 +27,9 @@ class AuthenticationServiceTimingHardeningTest {
                 mock(RefreshSessionService.class));
         when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
 
-        BusinessRuleException exception = org.assertj.core.api.Assertions.catchThrowableOfType(
+        BusinessException exception = org.assertj.core.api.Assertions.catchThrowableOfType(
                 () -> service.login("missing@example.com", "CandidatePass123!", null, null),
-                BusinessRuleException.class);
+                BusinessException.class);
 
         assertThat(exception.code()).isEqualTo("INVALID_CREDENTIALS");
         verify(passwordService).matches(eq("CandidatePass123!"), org.mockito.ArgumentMatchers.startsWith("$2a$"));

@@ -38,8 +38,10 @@ public class NotificationRecipientResolver {
     public Optional<LanguageCode> resolveLanguage(NotificationRecipientType recipientType, Long recipientId) {
         if (recipientType == NotificationRecipientType.CUSTOMER) {
             return customerRepository.findById(recipientId).map(customer -> languageOrDefault(customer.getPreferredLanguage()));
+        } else if (recipientType == NotificationRecipientType.TECHNICIAN) {
+            return technicianRepository.findById(recipientId).map(technician -> languageOrDefault(technician.getPreferredLanguage()));
         }
-        return technicianRepository.findById(recipientId).map(technician -> languageOrDefault(technician.getPreferredLanguage()));
+        return Optional.of(LanguageCode.UZ);
     }
 
     private LanguageCode languageOrDefault(LanguageCode language) {

@@ -63,16 +63,42 @@ public class SecurityConfig {
                                 "/api/v1/auth/logout")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST,
+                                "/api/v1/mobile/auth/telegram/customer",
+                                "/api/v1/mobile/auth/telegram/technician",
+                                "/api/v1/mobile/auth/refresh",
+                                "/api/v1/mobile/auth/logout")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/mobile/auth/logout-all")
+                        .hasAnyRole("CUSTOMER", "TECHNICIAN")
+                        .requestMatchers(
+                                "/api/v1/mobile/me/repair-requests",
+                                "/api/v1/mobile/me/repair-requests/**")
+                        .hasRole("CUSTOMER")
+                        .requestMatchers(
+                                "/api/v1/mobile/me/jobs",
+                                "/api/v1/mobile/me/jobs/**",
+                                "/api/v1/mobile/me/schedule")
+                        .hasRole("TECHNICIAN")
+                        .requestMatchers(
+                                "/api/v1/mobile/me/attachments/**")
+                        .hasAnyRole("CUSTOMER", "TECHNICIAN")
+                        .requestMatchers(
+                                "/api/v1/mobile/me",
+                                "/api/v1/mobile/me/**")
+                        .hasAnyRole("CUSTOMER", "TECHNICIAN")
+                        .requestMatchers(HttpMethod.POST,
                                 "/api/v1/telegram/webhook",
                                 "/api/v1/telegram/webhook/customer",
                                 "/api/v1/telegram/webhook/technician")
                         .permitAll()
                         .requestMatchers("/api/v1/users/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/notifications/*/retry").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/admin/notification-deliveries/*/retry").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/admin/notification-deliveries/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/notifications/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/reviews/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/dashboard/**").hasAnyRole("ADMIN", "MANAGER")
-                        .requestMatchers("/api/v1/requests/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/api/v1/requests/**", "/api/v1/repair-requests/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/attachments/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/customers/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/technicians/**").hasAnyRole("ADMIN", "MANAGER")
@@ -82,7 +108,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/settings/system").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/settings/system").hasRole("ADMIN")
                         .requestMatchers("/api/v1/auth/me", "/api/v1/auth/password", "/api/v1/auth/change-password", "/api/v1/auth/logout-all", "/api/v1/me/**")
-                        .authenticated()
+                        .hasAnyRole("ADMIN", "MANAGER")
                         .anyRequest().denyAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

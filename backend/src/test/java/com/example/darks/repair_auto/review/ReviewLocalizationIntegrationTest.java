@@ -18,7 +18,6 @@ import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRep
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequest;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority;
-import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
 import com.example.darks.repair_auto.review.domain.RepairReview;
 import com.example.darks.repair_auto.review.domain.ReviewSource;

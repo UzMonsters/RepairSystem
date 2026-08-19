@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Locale;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,14 +57,23 @@ public class NotificationWorker {
 
     public int runOnce() {
         var claimed = transactions.claim(workerId);
+        if (!claimed.isEmpty() && meterRegistry != null) {
+            Counter.builder("repairauto.notification.worker.claimed")
+                    .tag("channel", "telegram")
+                    .register(meterRegistry)
+                    .increment(claimed.size());
+        }
         for (var notification : claimed) {
             OffsetDateTime startedAt = OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
             var result = deliveryService.deliver(notification);
             transactions.finalizeDelivery(notification.notificationId(), workerId, startedAt, result);
-            Counter.builder("repairauto.notifications.delivery.outcomes")
-                    .tag("outcome", result.outcome().name())
-                    .register(meterRegistry)
-                    .increment();
+            if (meterRegistry != null) {
+                Counter.builder("repairauto.notification.delivery")
+                        .tag("channel", "telegram")
+                        .tag("outcome", result.outcome().name().toLowerCase(Locale.ROOT))
+                        .register(meterRegistry)
+                        .increment();
+            }
             LOGGER.debug("Processed notification id={} outcome={}", notification.notificationId(), result.outcome());
         }
         return claimed.size();

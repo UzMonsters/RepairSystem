@@ -1,7 +1,9 @@
 package com.example.darks.repair_auto.shared.config;
 
 import com.example.darks.repair_auto.identity.application.AuthThrottleProperties;
+import com.example.darks.repair_auto.identity.mobile.telegram.TelegramLoginProperties;
 import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationProperties;
+import com.example.darks.repair_auto.notification.push.config.FirebasePushProperties;
 import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageProperties;
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramProperties;
 import java.net.URI;
@@ -25,6 +27,8 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
     private final ZoneId businessZone;
     private final NotificationProperties notificationProperties;
     private final AuthThrottleProperties authThrottleProperties;
+    private final FirebasePushProperties firebasePushProperties;
+    private final TelegramLoginProperties telegramLoginProperties;
 
     public ProductionConfigurationValidator(
             Environment environment,
@@ -33,7 +37,9 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
             TelegramProperties telegramProperties,
             ZoneId businessZone,
             NotificationProperties notificationProperties,
-            AuthThrottleProperties authThrottleProperties) {
+            AuthThrottleProperties authThrottleProperties,
+            FirebasePushProperties firebasePushProperties,
+            TelegramLoginProperties telegramLoginProperties) {
         this.environment = environment;
         this.appProperties = appProperties;
         this.storageProperties = storageProperties;
@@ -41,6 +47,8 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         this.businessZone = businessZone;
         this.notificationProperties = notificationProperties;
         this.authThrottleProperties = authThrottleProperties;
+        this.firebasePushProperties = firebasePushProperties;
+        this.telegramLoginProperties = telegramLoginProperties;
     }
 
     @Override
@@ -59,6 +67,7 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         validateCors();
         validateStorage();
         validateTelegram();
+        validateFirebasePush();
         validateDurations();
         validateFlyway();
     }
@@ -118,12 +127,30 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         }
         validateTelegramBot(telegramProperties.getCustomer(), "CUSTOMER");
         validateTelegramBot(telegramProperties.getTechnician(), "TECHNICIAN");
+        requirePresent(telegramLoginProperties.getCustomer().getClientId(), "APP_TELEGRAM_CUSTOMER_LOGIN_CLIENT_ID");
+        requirePresent(telegramLoginProperties.getTechnician().getClientId(), "APP_TELEGRAM_TECHNICIAN_LOGIN_CLIENT_ID");
         requireHttpsOrHttp(telegramProperties.getApiBaseUrl(), "APP_TELEGRAM_API_BASE_URL");
         requireHttpsOrHttp(telegramProperties.getFileBaseUrl(), "APP_TELEGRAM_FILE_BASE_URL");
         if (!telegramProperties.getApiBaseUrl().getScheme().equals("https")
                 || !telegramProperties.getFileBaseUrl().getScheme().equals("https")) {
             fail("Telegram API URLs must use HTTPS in production.");
         }
+    }
+
+    private void validateFirebasePush() {
+        if (firebasePushProperties == null || !firebasePushProperties.enabled()) {
+            return;
+        }
+        require("APP_FIREBASE_PROJECT_ID");
+        String projectId = firebasePushProperties.projectId();
+        requirePresent(projectId, "APP_FIREBASE_PROJECT_ID");
+        if ("repairauto-dev".equalsIgnoreCase(projectId.trim()) || projectId.toLowerCase().contains("-dev")) {
+            fail("APP_FIREBASE_PROJECT_ID must point to a production Firebase project when Firebase Push is enabled.");
+        }
+        String configuredPath = firstNonBlank(
+                environment.getProperty("APP_FIREBASE_CREDENTIALS_PATH"),
+                environment.getProperty("GOOGLE_APPLICATION_CREDENTIALS"));
+        requirePresent(configuredPath, "APP_FIREBASE_CREDENTIALS_PATH or GOOGLE_APPLICATION_CREDENTIALS");
     }
 
     private void validateTelegramBot(TelegramProperties.Bot bot, String name) {
@@ -179,6 +206,13 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         if (value == null || value.isBlank()) {
             fail(name + " is required in production.");
         }
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        return second;
     }
 
     private void requireHttpsOrHttp(URI uri, String name) {

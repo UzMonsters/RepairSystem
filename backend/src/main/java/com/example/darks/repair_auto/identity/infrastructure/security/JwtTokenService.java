@@ -1,12 +1,11 @@
 package com.example.darks.repair_auto.identity.infrastructure.security;
 
-import com.example.darks.repair_auto.shared.error.BusinessException;
-import com.example.darks.repair_auto.shared.error.ErrorCode;
-
-import com.example.darks.repair_auto.shared.config.AppProperties;
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
+import com.example.darks.repair_auto.shared.config.AppProperties;
+import com.example.darks.repair_auto.shared.error.BusinessException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -15,6 +14,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import javax.crypto.Mac;
@@ -59,9 +59,42 @@ public class JwtTokenService {
         Map<String, Object> claims = new LinkedHashMap<>();
         claims.put("iss", issuer);
         claims.put("sub", user.getEmail());
+        claims.put("actorType", ActorType.STAFF.name());
+        claims.put("actorId", user.getId());
         claims.put("userId", user.getId());
         claims.put("role", user.getRole().name());
         claims.put("authVersion", user.getAuthVersion());
+        claims.put("iat", now.getEpochSecond());
+        claims.put("exp", expiresAt.getEpochSecond());
+        claims.put("jti", UUID.randomUUID().toString());
+        claims.put("tokenType", TOKEN_TYPE);
+        String unsigned = encodeJson(header) + "." + encodeJson(claims);
+        return unsigned + "." + sign(unsigned);
+    }
+
+    public String issueMobile(ActorType actorType, Long actorId) {
+        return issueMobile(actorType, actorId, null);
+    }
+
+    public String issueMobile(ActorType actorType, Long actorId, String subject) {
+        if (actorType == null || actorType == ActorType.STAFF) {
+            throw new IllegalArgumentException("Mobile access tokens can only be issued for CUSTOMER or TECHNICIAN.");
+        }
+        if (actorId == null || actorId <= 0) {
+            throw new IllegalArgumentException("actorId must be a positive number.");
+        }
+        Instant now = clock.instant();
+        Instant expiresAt = now.plus(ttl);
+        Map<String, Object> header = new LinkedHashMap<>();
+        header.put("alg", "HS256");
+        header.put("typ", "JWT");
+        Map<String, Object> claims = new LinkedHashMap<>();
+        claims.put("iss", issuer);
+        String sub = (subject != null && !subject.isBlank()) ? subject.trim() : actorType.name().toLowerCase(Locale.ROOT) + ":" + actorId;
+        claims.put("sub", sub);
+        claims.put("actorType", actorType.name());
+        claims.put("actorId", actorId);
+        claims.put("role", actorType.name());
         claims.put("iat", now.getEpochSecond());
         claims.put("exp", expiresAt.getEpochSecond());
         claims.put("jti", UUID.randomUUID().toString());
@@ -95,16 +128,66 @@ public class JwtTokenService {
             if (clock.instant().getEpochSecond() >= expiresAt) {
                 throw new BusinessException(ErrorCode.ACCESS_TOKEN_EXPIRED);
             }
-            return new ValidatedAccessToken(
-                    positiveNumberClaim(claims, "userId"),
-                    stringClaim(claims, "sub"),
-                    UserRole.valueOf(stringClaim(claims, "role")),
-                    OffsetDateTime.ofInstant(Instant.ofEpochSecond(positiveNumberClaim(claims, "iat")), ZoneOffset.UTC),
-                    positiveNumberClaim(claims, "authVersion"));
+            long iat = positiveNumberClaim(claims, "iat");
+            OffsetDateTime issuedAt = OffsetDateTime.ofInstant(Instant.ofEpochSecond(iat), ZoneOffset.UTC);
+            String subject = stringClaim(claims, "sub");
+
+            ActorType actorType = resolveActorType(claims);
+            return switch (actorType) {
+                case STAFF -> {
+                    long userId = positiveNumberClaim(claims, "userId");
+                    String roleName = stringClaim(claims, "role");
+                    UserRole userRole = parseUserRole(roleName);
+                    long authVersion = positiveNumberClaim(claims, "authVersion");
+                    yield new ValidatedAccessToken(
+                            ActorType.STAFF,
+                            userId,
+                            userId,
+                            subject,
+                            userRole,
+                            issuedAt,
+                            authVersion);
+                }
+                case CUSTOMER, TECHNICIAN -> {
+                    long actorId = positiveNumberClaim(claims, "actorId");
+                    yield new ValidatedAccessToken(
+                            actorType,
+                            actorId,
+                            null,
+                            subject,
+                            null,
+                            issuedAt,
+                            null);
+                }
+            };
         } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
             throw invalid("Invalid access token.");
+        }
+    }
+
+    private ActorType resolveActorType(Map<String, Object> claims) {
+        if (claims.containsKey("actorType")) {
+            String actorTypeString = stringClaim(claims, "actorType");
+            try {
+                return ActorType.valueOf(actorTypeString);
+            } catch (IllegalArgumentException e) {
+                throw invalid("Invalid actor type claim.");
+            }
+        }
+        // Backward compatibility: If actorType claim is missing, verify legacy staff claims
+        if (claims.containsKey("userId") && claims.containsKey("authVersion") && claims.containsKey("role")) {
+            return ActorType.STAFF;
+        }
+        throw invalid("Missing or invalid actor type.");
+    }
+
+    private UserRole parseUserRole(String roleName) {
+        try {
+            return UserRole.valueOf(roleName);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw invalid("Invalid user role claim.");
         }
     }
 
@@ -192,11 +275,25 @@ public class JwtTokenService {
     }
 
     public record ValidatedAccessToken(
+            ActorType actorType,
+            Long actorId,
             Long userId,
             String subject,
             UserRole role,
             OffsetDateTime issuedAt,
-            long authVersion) {
+            Long authVersion) {
+
+        public boolean isStaff() {
+            return actorType == ActorType.STAFF;
+        }
+
+        public boolean isCustomer() {
+            return actorType == ActorType.CUSTOMER;
+        }
+
+        public boolean isTechnician() {
+            return actorType == ActorType.TECHNICIAN;
+        }
     }
 
     private static final class MessageDigestShim {

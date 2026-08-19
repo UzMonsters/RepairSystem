@@ -1,0 +1,117 @@
+package com.example.darks.repair_auto.notification.infrastructure.worker;
+
+import com.example.darks.repair_auto.notification.application.NotificationDeliveryResult;
+import com.example.darks.repair_auto.notification.application.NotificationRetryPolicy;
+import com.example.darks.repair_auto.notification.domain.NotificationAttemptOutcome;
+import com.example.darks.repair_auto.notification.domain.NotificationDeliveryAttempt;
+import com.example.darks.repair_auto.notification.domain.NotificationFailureCategory;
+import com.example.darks.repair_auto.notification.domain.NotificationOutbox;
+import com.example.darks.repair_auto.notification.domain.NotificationStatus;
+import com.example.darks.repair_auto.notification.infrastructure.persistence.NotificationDeliveryAttemptRepository;
+import com.example.darks.repair_auto.notification.infrastructure.persistence.NotificationOutboxRepository;
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class PushNotificationWorkerTransactions {
+
+    private final NotificationOutboxRepository outboxRepository;
+    private final NotificationDeliveryAttemptRepository attemptRepository;
+    private final NotificationProperties properties;
+    private final NotificationRetryPolicy retryPolicy;
+    private final Clock clock;
+
+    @Autowired
+    public PushNotificationWorkerTransactions(
+            NotificationOutboxRepository outboxRepository,
+            NotificationDeliveryAttemptRepository attemptRepository,
+            NotificationProperties properties,
+            NotificationRetryPolicy retryPolicy) {
+        this(outboxRepository, attemptRepository, properties, retryPolicy, Clock.systemUTC());
+    }
+
+    public PushNotificationWorkerTransactions(
+            NotificationOutboxRepository outboxRepository,
+            NotificationDeliveryAttemptRepository attemptRepository,
+            NotificationProperties properties,
+            NotificationRetryPolicy retryPolicy,
+            Clock clock) {
+        this.outboxRepository = outboxRepository;
+        this.attemptRepository = attemptRepository;
+        this.properties = properties;
+        this.retryPolicy = retryPolicy;
+        this.clock = clock;
+    }
+
+    @Transactional
+    public List<NotificationOutbox> claim(String workerId) {
+        OffsetDateTime now = now();
+        List<NotificationOutbox> claimable =
+                outboxRepository.findClaimableByChannelForUpdate("PUSH", now, properties.getBatchSize());
+        for (NotificationOutbox notification : claimable) {
+            if (notification.getStatus() == NotificationStatus.PROCESSING) {
+                notification.recoverLease(now);
+                notification.incrementAttemptCount();
+                attemptRepository.save(new NotificationDeliveryAttempt(
+                        notification,
+                        notification.getAttemptCount(),
+                        workerId,
+                        now,
+                        now,
+                        NotificationAttemptOutcome.LEASE_RECOVERED,
+                        NotificationFailureCategory.PROCESSING_LEASE_EXPIRED,
+                        null));
+            }
+            notification.claim(workerId, now, now.plus(properties.getProcessingLease()));
+        }
+        return claimable;
+    }
+
+    @Transactional
+    public void finalizeDelivery(
+            Long notificationId,
+            String workerId,
+            OffsetDateTime startedAt,
+            NotificationDeliveryResult result) {
+        OffsetDateTime now = now();
+        NotificationOutbox notification = outboxRepository.findByIdForUpdate(notificationId)
+                .orElseThrow();
+        if (notification.getStatus() != NotificationStatus.PROCESSING) {
+            return;
+        }
+        notification.incrementAttemptCount();
+        int attemptNumber = notification.getAttemptCount();
+        if (result.outcome() == NotificationAttemptOutcome.DELIVERED) {
+            notification.markDelivered(result.providerMessageId(), now);
+        } else if (result.outcome() == NotificationAttemptOutcome.RECIPIENT_UNAVAILABLE) {
+            notification.markSkipped(result.failureCategory(), now);
+        } else if (result.outcome() == NotificationAttemptOutcome.PERMANENT_FAILURE) {
+            notification.markDead(result.failureCategory(), now);
+        } else if (attemptNumber >= properties.getMaxAttempts()) {
+            notification.markDead(NotificationFailureCategory.MAX_ATTEMPTS_EXHAUSTED, now);
+        } else {
+            OffsetDateTime nextAttemptAt = result.nextAttemptAt() != null
+                    ? result.nextAttemptAt()
+                    : now.plus(retryPolicy.nextBackoff(attemptNumber));
+            notification.scheduleRetry(result.failureCategory(), nextAttemptAt, now);
+        }
+        attemptRepository.save(new NotificationDeliveryAttempt(
+                notification,
+                attemptNumber,
+                workerId,
+                startedAt,
+                now,
+                result.outcome(),
+                result.failureCategory(),
+                result.providerMessageId()));
+    }
+
+    private OffsetDateTime now() {
+        return OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
+    }
+}

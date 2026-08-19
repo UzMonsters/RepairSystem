@@ -18,12 +18,25 @@ import com.example.darks.repair_auto.settings.domain.Theme;
 import com.example.darks.repair_auto.settings.domain.TimeFormat;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.error.ResourceNotFoundException;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.ObjectStorageService;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageUpload;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObject;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObjectDownload;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.mock.web.MockMultipartFile;
 
 @SpringBootTest
@@ -134,5 +147,52 @@ class ProfileIntegrationTest extends PostgreSqlIntegrationTest {
         assertThatThrownBy(() -> profileService.uploadAvatar(managerUser.getId(), file))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("supported");
+    }
+
+    @TestConfiguration
+    static class ProfileTestConfiguration {
+        @Bean
+        @Primary
+        ObjectStorageService objectStorageService() {
+            return new FakeObjectStorageService();
+        }
+    }
+
+    static final class FakeObjectStorageService implements ObjectStorageService {
+        private final Map<String, byte[]> objects = new ConcurrentHashMap<>();
+
+        @Override
+        public StoredObject upload(StorageUpload command) {
+            try {
+                objects.put(command.storageKey(), command.inputStream().readAllBytes());
+                return new StoredObject(command.storageKey(), command.contentType(), command.sizeBytes());
+            } catch (IOException exception) {
+                throw new IllegalStateException(exception);
+            }
+        }
+
+        @Override
+        public StoredObjectDownload download(String storageKey) {
+            byte[] bytes = objects.get(storageKey);
+            if (bytes == null) {
+                throw new ResourceNotFoundException("Storage object not found.");
+            }
+            return new StoredObjectDownload("image/png", bytes.length, new ByteArrayInputStream(bytes));
+        }
+
+        @Override
+        public URI createDownloadUrl(String storageKey, String downloadFileName, Duration ttl) {
+            return URI.create("https://storage.test/download");
+        }
+
+        @Override
+        public void delete(String storageKey) {
+            objects.remove(storageKey);
+        }
+
+        @Override
+        public boolean exists(String storageKey) {
+            return objects.containsKey(storageKey);
+        }
     }
 }

@@ -1,14 +1,16 @@
 package com.example.darks.repair_auto.identity.application;
 
 import com.example.darks.repair_auto.identity.domain.RefreshSession;
-import com.example.darks.repair_auto.identity.infrastructure.persistence.RefreshSessionRepository;
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
-import com.example.darks.repair_auto.shared.config.AppProperties;
 import com.example.darks.repair_auto.identity.domain.User;
+import com.example.darks.repair_auto.identity.infrastructure.persistence.RefreshSessionRepository;
+import com.example.darks.repair_auto.notification.push.application.PushEndpointService;
+import com.example.darks.repair_auto.shared.config.AppProperties;
+import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,18 +21,40 @@ public class RefreshSessionService {
     private final RefreshTokenGenerator tokenGenerator;
     private final TokenHashService tokenHashService;
     private final AppProperties properties;
+    private final PushEndpointService pushEndpointService;
     private final Clock clock;
 
     public RefreshSessionService(
             RefreshSessionRepository repository,
             RefreshTokenGenerator tokenGenerator,
             TokenHashService tokenHashService,
+            AppProperties properties,
+            PushEndpointService pushEndpointService) {
+        this(repository, tokenGenerator, tokenHashService, properties, pushEndpointService, Clock.systemUTC());
+    }
+
+    public RefreshSessionService(
+            RefreshSessionRepository repository,
+            RefreshTokenGenerator tokenGenerator,
+            TokenHashService tokenHashService,
             AppProperties properties) {
+        this(repository, tokenGenerator, tokenHashService, properties, null, Clock.systemUTC());
+    }
+
+    @Autowired
+    public RefreshSessionService(
+            RefreshSessionRepository repository,
+            RefreshTokenGenerator tokenGenerator,
+            TokenHashService tokenHashService,
+            AppProperties properties,
+            PushEndpointService pushEndpointService,
+            Clock clock) {
         this.repository = repository;
         this.tokenGenerator = tokenGenerator;
         this.tokenHashService = tokenHashService;
         this.properties = properties;
-        this.clock = Clock.systemUTC();
+        this.pushEndpointService = pushEndpointService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -49,7 +73,10 @@ public class RefreshSessionService {
         RefreshSession session = repository.findByTokenHashForUpdate(tokenHashService.hash(rawToken))
                 .orElseThrow(() -> new BusinessRuleException("INVALID_REFRESH_TOKEN", "Refresh token is invalid.", 401));
         if (session.isUsed()) {
-            repository.revokeFamily(session.getTokenFamilyId(), now, "REUSE_DETECTED");
+            repository.revokeAllForUser(session.getUser().getId(), now, "REUSE_DETECTED");
+            if (pushEndpointService != null) {
+                pushEndpointService.disableAllForStaff(session.getUser().getId());
+            }
             throw new BusinessRuleException(
                     "REFRESH_TOKEN_REUSE_DETECTED",
                     "Refresh token reuse was detected.",

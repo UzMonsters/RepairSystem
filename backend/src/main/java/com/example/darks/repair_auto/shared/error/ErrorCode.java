@@ -36,6 +36,17 @@ public enum ErrorCode {
     PASSWORD_CONFIRMATION_MISMATCH(HttpStatus.BAD_REQUEST, "auth.password-confirmation-mismatch"),
     NEW_PASSWORD_SAME_AS_CURRENT(HttpStatus.BAD_REQUEST, "auth.new-password-same-as-current"),
 
+    // Telegram Mobile Auth Errors
+    TELEGRAM_AUTH_INVALID(HttpStatus.UNAUTHORIZED, "auth.telegram-auth-invalid"),
+    TELEGRAM_AUTH_EXPIRED(HttpStatus.UNAUTHORIZED, "auth.telegram-auth-expired"),
+    TELEGRAM_AUTH_AUDIENCE_INVALID(HttpStatus.UNAUTHORIZED, "auth.telegram-auth-audience-invalid"),
+    TELEGRAM_ACCOUNT_NOT_LINKED(HttpStatus.UNAUTHORIZED, "auth.telegram-account-not-linked"),
+    ACCOUNT_INACTIVE(HttpStatus.FORBIDDEN, "auth.account-inactive"),
+    MOBILE_REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, "auth.mobile-refresh-token-invalid"),
+    MOBILE_REFRESH_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "auth.mobile-refresh-token-expired"),
+    MOBILE_REFRESH_TOKEN_REUSED(HttpStatus.UNAUTHORIZED, "auth.mobile-refresh-token-reused"),
+    AUTH_THROTTLED(HttpStatus.TOO_MANY_REQUESTS, "auth.throttled"),
+
     // User Management
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "user.not-found"),
     USER_EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "user.email-already-exists"),
@@ -53,7 +64,7 @@ public enum ErrorCode {
     TECHNICIAN_NOT_FOUND(HttpStatus.NOT_FOUND, "technician.not-found"),
     TECHNICIAN_PHONE_ALREADY_EXISTS(HttpStatus.CONFLICT, "technician.phone-already-exists"),
     TECHNICIAN_TELEGRAM_ID_ALREADY_EXISTS(HttpStatus.CONFLICT, "technician.telegram-id-already-exists"),
-    TECHNICIAN_INACTIVE(HttpStatus.BAD_REQUEST, "technician.inactive"),
+    TECHNICIAN_INACTIVE(HttpStatus.CONFLICT, "technician.inactive"),
     INVALID_MAXIMUM_CONCURRENT_REQUESTS(HttpStatus.BAD_REQUEST, "technician.invalid-maximum-concurrent-requests"),
 
     // Category
@@ -121,6 +132,28 @@ public enum ErrorCode {
     ATTACHMENT_ALREADY_DELETED(HttpStatus.CONFLICT, "attachment.already-deleted"),
     COMPLETION_PHOTO_REQUIRED(HttpStatus.BAD_REQUEST, "attachment.completion-photo-required"),
     PART_REQUIRED(HttpStatus.BAD_REQUEST, "attachment.part-required"),
+
+    // Customer Reviews
+    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "review.not-found"),
+    REVIEW_NOT_ELIGIBLE(HttpStatus.NOT_FOUND, "review.not-eligible"),
+    REVIEW_REQUEST_NOT_OWNED(HttpStatus.NOT_FOUND, "review.request-not-owned"),
+    REVIEW_REQUEST_NOT_COMPLETED(HttpStatus.CONFLICT, "review.request-not-completed"),
+    REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "review.already-exists"),
+    REVIEW_CUSTOMER_INACTIVE(HttpStatus.FORBIDDEN, "review.customer-inactive"),
+    REVIEW_TECHNICIAN_NOT_RESOLVED(HttpStatus.CONFLICT, "review.technician-not-resolved"),
+    REVIEW_RATING_INVALID(HttpStatus.BAD_REQUEST, "review.rating-invalid"),
+    REVIEW_COMMENT_TOO_LONG(HttpStatus.BAD_REQUEST, "review.comment-too-long"),
+    INVALID_REVIEW_DATE_RANGE(HttpStatus.BAD_REQUEST, "review.invalid-date-range"),
+
+    // Dashboard
+    DASHBOARD_PERIOD_INVALID(HttpStatus.BAD_REQUEST, "dashboard.period-invalid"),
+    DASHBOARD_CATEGORY_LIMIT_INVALID(HttpStatus.BAD_REQUEST, "dashboard.category-limit-invalid"),
+
+    // Notifications
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "notification.not-found"),
+    INVALID_NOTIFICATION_DATE_RANGE(HttpStatus.BAD_REQUEST, "notification.invalid-date-range"),
+    NOTIFICATION_ALREADY_DELIVERED(HttpStatus.CONFLICT, "notification.already-delivered"),
+    NOTIFICATION_RETRY_NOT_ALLOWED(HttpStatus.CONFLICT, "notification.retry-not-allowed"),
 
     // Telegram & Security Aliases
     TELEGRAM_LINK_INVALID(HttpStatus.BAD_REQUEST, "telegram.link.invalid"),

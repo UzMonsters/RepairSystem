@@ -327,14 +327,14 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
 
     private String requestBody(Long customerId, Long categoryId, String priority) {
         return """
-                {"customerId":%d,"categoryId":%d,"description":"The air conditioner starts but does not cool the room.","address":"Chilanzar district, Tashkent","latitude":41.285600,"longitude":69.203400,"priority":"%s","customerPreferredVisitAt":"2026-08-05T14:00:00+05:00","internalNote":"Customer prefers an afternoon visit."}
-                """.formatted(customerId, categoryId, priority);
+                {"customerId":%d,"categoryId":%d,"description":"The air conditioner starts but does not cool the room.","address":"Chilanzar district, Tashkent","latitude":41.285600,"longitude":69.203400,"priority":"%s","customerPreferredVisitAt":"%s","internalNote":"Customer prefers an afternoon visit."}
+                """.formatted(customerId, categoryId, priority, OffsetDateTime.now(ZoneOffset.UTC).plusDays(2).withNano(0));
     }
 
     private String updateBody(Long customerId, Long categoryId) {
         return """
-                {"customerId":%d,"categoryId":%d,"description":"Updated description of the appliance problem.","address":"Updated address","latitude":41.285600,"longitude":69.203400,"priority":"HIGH","customerPreferredVisitAt":"2026-08-06T10:00:00+05:00","internalNote":"Customer changed the preferred visit time."}
-                """.formatted(customerId, categoryId);
+                {"customerId":%d,"categoryId":%d,"description":"Updated description of the appliance problem.","address":"Updated address","latitude":41.285600,"longitude":69.203400,"priority":"HIGH","customerPreferredVisitAt":"%s","internalNote":"Customer changed the preferred visit time."}
+                """.formatted(customerId, categoryId, OffsetDateTime.now(ZoneOffset.UTC).plusDays(3).withNano(0));
     }
 
     private List<Object> runConcurrently(Callable<?> firstAction, Callable<?> secondAction) throws Exception {

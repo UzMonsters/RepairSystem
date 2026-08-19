@@ -28,7 +28,6 @@ public class NotificationWorkerTransactions {
     private final NotificationRetryPolicy retryPolicy;
     private final Clock clock;
 
-    @Autowired
     public NotificationWorkerTransactions(
             NotificationOutboxRepository outboxRepository,
             NotificationDeliveryAttemptRepository attemptRepository,
@@ -37,7 +36,8 @@ public class NotificationWorkerTransactions {
         this(outboxRepository, attemptRepository, properties, retryPolicy, Clock.systemUTC());
     }
 
-    NotificationWorkerTransactions(
+    @Autowired
+    public NotificationWorkerTransactions(
             NotificationOutboxRepository outboxRepository,
             NotificationDeliveryAttemptRepository attemptRepository,
             NotificationProperties properties,
@@ -54,7 +54,7 @@ public class NotificationWorkerTransactions {
     public List<ClaimedNotification> claim(String workerId) {
         OffsetDateTime now = now();
         List<NotificationOutbox> claimable =
-                outboxRepository.findClaimableForUpdate(now, properties.getBatchSize());
+                outboxRepository.findClaimableByChannelForUpdate("TELEGRAM", now, properties.getBatchSize());
         for (NotificationOutbox notification : claimable) {
             if (notification.getStatus() == NotificationStatus.PROCESSING) {
                 notification.recoverLease(now);
@@ -109,7 +109,10 @@ public class NotificationWorkerTransactions {
         } else if (attemptNumber >= properties.getMaxAttempts()) {
             notification.markDead(NotificationFailureCategory.MAX_ATTEMPTS_EXHAUSTED, now);
         } else {
-            notification.scheduleRetry(result.failureCategory(), now.plus(retryPolicy.nextBackoff(attemptNumber)), now);
+            OffsetDateTime nextAttemptAt = result.nextAttemptAt() != null
+                    ? result.nextAttemptAt()
+                    : now.plus(retryPolicy.nextBackoff(attemptNumber));
+            notification.scheduleRetry(result.failureCategory(), nextAttemptAt, now);
         }
         attemptRepository.save(new NotificationDeliveryAttempt(
                 notification,

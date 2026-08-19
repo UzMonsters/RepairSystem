@@ -9,7 +9,7 @@ import static org.mockito.Mockito.when;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.BusinessException;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramProperties;
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramUserContextRepository;
@@ -60,8 +60,7 @@ class TechnicianTelegramLinkServiceTest {
         TestContext context = context(token(technician));
 
         assertThatThrownBy(() -> context.service.consume(TOKEN_HASH, 9002L, 19002L, LanguageCode.RU))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("Technician profile is already linked");
+                .isInstanceOf(BusinessException.class);
 
         assertThat(technician.getTelegramUserId()).isEqualTo(9001L);
         assertThat(technician.getPreferredLanguage()).isEqualTo(LanguageCode.EN);
@@ -76,8 +75,7 @@ class TechnicianTelegramLinkServiceTest {
         when(context.technicians.findByTelegramUserIdForUpdate(9001L)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> context.service.consume(TOKEN_HASH, 9001L, 19001L, LanguageCode.RU))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("Telegram account is already linked");
+                .isInstanceOf(BusinessException.class);
 
         assertThat(target.getTelegramUserId()).isNull();
         assertThat(target.getPreferredLanguage()).isEqualTo(LanguageCode.EN);

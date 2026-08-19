@@ -27,7 +27,16 @@
     "password-reuse-not-allowed": "New password must be different from current password.",
     "password-policy-violation": "Password does not meet complexity requirements.",
     "password-confirmation-mismatch": "Password confirmation does not match.",
-    "new-password-same-as-current": "New password cannot be the same as current password."
+    "new-password-same-as-current": "New password cannot be the same as current password.",
+    "telegram-auth-invalid": "Telegram authentication token is invalid.",
+    "telegram-auth-expired": "Telegram authentication token has expired.",
+    "telegram-auth-audience-invalid": "Telegram authentication token is for a different application.",
+    "telegram-account-not-linked": "Telegram account is not linked to any RepairAuto account.",
+    "account-inactive": "Account is inactive. Please contact support.",
+    "mobile-refresh-token-invalid": "Mobile refresh token is invalid.",
+    "mobile-refresh-token-expired": "Mobile refresh token has expired.",
+    "mobile-refresh-token-reused": "Mobile refresh token reuse detected. Session revoked.",
+    "throttled": "Too many failed authentication attempts. Try again later."
   },
   "user": {
     "not-found": "User was not found.",
@@ -70,6 +79,24 @@
       "invalid-location": "Invalid repair request location.",
       "invalid-preferred-visit-time": "Invalid preferred visit time.",
       "invalid-date-range": "Invalid request date range."
+    },
+    "status": {
+      "new": "New",
+      "assigned": "Assigned",
+      "scheduled": "Scheduled",
+      "in-progress": "In progress",
+      "waiting-for-parts": "Waiting for parts",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "assignment-status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "unassigned": "Unassigned",
+      "reassigned": "Reassigned",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
     },
     "assignment": {
       "active-not-found": "Active assignment was not found.",
@@ -157,5 +184,27 @@
     },
     "method-not-supported": "HTTP method is not supported for this endpoint.",
     "media-type-not-supported": "Request media type is not supported."
+  },
+  "dashboard": {
+    "period-invalid": "Invalid dashboard period specified.",
+    "category-limit-invalid": "Invalid top categories limit specified."
+  },
+  "notification": {
+    "not-found": "Notification was not found.",
+    "invalid-date-range": "createdFrom must be before or equal to createdTo.",
+    "already-delivered": "Delivered notifications cannot be retried.",
+    "retry-not-allowed": "Only failed or skipped notifications can be retried."
+  },
+  "review": {
+    "not-found": "Review was not found.",
+    "not-eligible": "Review request is not eligible.",
+    "request-not-owned": "Review request does not belong to this customer.",
+    "request-not-completed": "Only completed repair requests can be reviewed.",
+    "already-exists": "This repair request has already been reviewed.",
+    "customer-inactive": "Customer cannot submit reviews.",
+    "technician-not-resolved": "Completed technician assignment could not be resolved.",
+    "rating-invalid": "Rating must be between 1 and 5.",
+    "comment-too-long": "Review comment is too long.",
+    "invalid-date-range": "submittedFrom must be before submittedTo."
   }
 }

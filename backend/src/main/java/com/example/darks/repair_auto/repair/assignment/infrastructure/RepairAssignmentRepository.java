@@ -7,6 +7,9 @@ import jakarta.persistence.QueryHint;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.time.OffsetDateTime;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -82,4 +85,46 @@ public interface RepairAssignmentRepository extends JpaRepository<RepairAssignme
     Optional<RepairAssignment> findLatestCompletedByRequestId(
             @Param("requestId") Long requestId,
             @Param("status") AssignmentStatus status);
+
+    @EntityGraph(attributePaths = {"repairRequest", "technician", "assignedByUser"})
+    @Query("""
+            select a from RepairAssignment a
+            where a.repairRequest.id = :requestId
+              and a.technician.id = :technicianId
+              and a.status in :statuses
+            order by a.createdAt desc
+            """)
+    List<RepairAssignment> findByRepairRequestIdAndTechnicianIdAndStatusInOrderByCreatedAtDesc(
+            @Param("requestId") Long requestId,
+            @Param("technicianId") Long technicianId,
+            @Param("statuses") Collection<AssignmentStatus> statuses);
+
+    @EntityGraph(attributePaths = {"repairRequest", "repairRequest.customer", "repairRequest.category", "technician"})
+    @Query(value = """
+            select a from RepairAssignment a
+            where a.technician.id = :technicianId and a.status in :statuses
+            """,
+            countQuery = """
+            select count(a) from RepairAssignment a
+            where a.technician.id = :technicianId and a.status in :statuses
+            """)
+    Page<RepairAssignment> findJobsByTechnicianIdAndStatusIn(
+            @Param("technicianId") Long technicianId,
+            @Param("statuses") Collection<AssignmentStatus> statuses,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = {"repairRequest", "repairRequest.customer", "repairRequest.category", "technician"})
+    @Query("""
+            select a from RepairAssignment a
+            where a.technician.id = :technicianId
+              and a.status in :statuses
+              and a.scheduledVisitAt >= :from
+              and a.scheduledVisitAt <= :to
+            order by a.scheduledVisitAt asc
+            """)
+    List<RepairAssignment> findSchedule(
+            @Param("technicianId") Long technicianId,
+            @Param("statuses") Collection<AssignmentStatus> statuses,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
 }

@@ -13,6 +13,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,25 @@ public class AuthenticationService {
     private final PasswordPolicy passwordPolicy;
     private final JwtTokenService jwtTokenService;
     private final RefreshSessionService refreshSessionService;
+    private final ActorAccessLifecycleService actorAccessLifecycleService;
+
+    @Autowired
+    public AuthenticationService(
+            UserRepository userRepository,
+            EmailNormalizer emailNormalizer,
+            PasswordService passwordService,
+            PasswordPolicy passwordPolicy,
+            JwtTokenService jwtTokenService,
+            RefreshSessionService refreshSessionService,
+            ActorAccessLifecycleService actorAccessLifecycleService) {
+        this.userRepository = userRepository;
+        this.emailNormalizer = emailNormalizer;
+        this.passwordService = passwordService;
+        this.passwordPolicy = passwordPolicy;
+        this.jwtTokenService = jwtTokenService;
+        this.refreshSessionService = refreshSessionService;
+        this.actorAccessLifecycleService = actorAccessLifecycleService;
+    }
 
     public AuthenticationService(
             UserRepository userRepository,
@@ -37,12 +57,7 @@ public class AuthenticationService {
             PasswordPolicy passwordPolicy,
             JwtTokenService jwtTokenService,
             RefreshSessionService refreshSessionService) {
-        this.userRepository = userRepository;
-        this.emailNormalizer = emailNormalizer;
-        this.passwordService = passwordService;
-        this.passwordPolicy = passwordPolicy;
-        this.jwtTokenService = jwtTokenService;
-        this.refreshSessionService = refreshSessionService;
+        this(userRepository, emailNormalizer, passwordService, passwordPolicy, jwtTokenService, refreshSessionService, null);
     }
 
     @Transactional
@@ -98,33 +113,41 @@ public class AuthenticationService {
 
     @Transactional
     public void logoutAll(Long userId) {
-        refreshSessionService.revokeAllForUser(userId, "LOGOUT_ALL");
-        userRepository.incrementAuthVersion(userId, now());
+        if (actorAccessLifecycleService != null) {
+            actorAccessLifecycleService.onStaffLogoutAll(userId);
+        } else {
+            refreshSessionService.revokeAllForUser(userId, "LOGOUT_ALL");
+            userRepository.incrementAuthVersion(userId, now());
+        }
     }
 
     @Transactional
     public void changePassword(Long userId, String oldPassword, String newPassword, String confirmPassword) {
         if (newPassword == null || !newPassword.equals(confirmPassword)) {
-            throw new BusinessException(ErrorCode.PASSWORD_CONFIRMATION_MISMATCH);
+            throw new BusinessRuleException(ErrorCode.PASSWORD_CONFIRMATION_MISMATCH);
         }
-        User user = userRepository.findByIdForUpdate(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessRuleException(ErrorCode.USER_NOT_FOUND));
         if (!passwordService.matches(oldPassword, user.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
+            throw new BusinessRuleException(ErrorCode.INVALID_CURRENT_PASSWORD);
         }
         if (passwordService.matches(newPassword, user.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.PASSWORD_REUSE_NOT_ALLOWED);
+            throw new BusinessRuleException(ErrorCode.PASSWORD_REUSE_NOT_ALLOWED);
         }
         passwordPolicy.validate(newPassword, user.getEmail());
         user.changePassword(passwordService.hash(newPassword), now());
-        refreshSessionService.revokeAllForUser(userId, "PASSWORD_CHANGED");
-        userRepository.incrementAuthVersion(userId, now());
+        if (actorAccessLifecycleService != null) {
+            actorAccessLifecycleService.onStaffPasswordChanged(userId, "PASSWORD_CHANGED");
+        } else {
+            refreshSessionService.revokeAllForUser(userId, "PASSWORD_CHANGED");
+            userRepository.incrementAuthVersion(userId, now());
+        }
         LOGGER.info("Authentication event operation=password_changed result=success userId={}", userId);
     }
 
-    private BusinessException invalidCredentials() {
+    private BusinessRuleException invalidCredentials() {
         LOGGER.info("Authentication event operation=login result=failure reason=INVALID_CREDENTIALS");
-        return new BusinessException(ErrorCode.INVALID_CREDENTIALS);
+        return new BusinessRuleException(ErrorCode.INVALID_CREDENTIALS);
     }
 
     private OffsetDateTime now() {

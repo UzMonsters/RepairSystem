@@ -176,11 +176,13 @@ class TechnicalDataCleanupServiceIntegrationTest extends PostgreSqlIntegrationTe
         return jdbcTemplate.queryForObject("""
                 insert into notification_outbox (
                     event_key, notification_type, channel, recipient_type, recipient_id,
-                    repair_request_id, template_key, payload_json, payload_version, status,
+                    repair_request_id, template_key, payload_json, payload_version, language,
+                    rendered_title, rendered_message, attempt_count, status,
                     next_attempt_at, delivered_at, created_at, updated_at
                 ) values (
-                    ?, 'CUSTOMER_REQUEST_CREATED', 'TELEGRAM', 'CUSTOMER', 1,
-                    ?, 'customer.request.created', '{}', 1, ?,
+                    ?, 'REQUEST_CREATED', 'TELEGRAM', 'CUSTOMER', 1,
+                    ?, 'notification.request.created', '{}', 1, 'UZ',
+                    'Test Title', 'Test Message', 0, ?,
                     now(), case when ? = 'DELIVERED' then now() else null end, now(), now()
                 )
                 returning id
