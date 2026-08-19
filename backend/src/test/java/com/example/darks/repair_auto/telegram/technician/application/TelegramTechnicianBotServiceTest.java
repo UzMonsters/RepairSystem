@@ -537,6 +537,18 @@ class TelegramTechnicianBotServiceTest {
             this.lastDownloadMaxSizeBytes = maxSizeBytes;
             return InputStream.nullInputStream();
         }
+
+        @Override
+        public void sendPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {
+        }
+
+        @Override
+        public void sendMediaGroup(Long chatId, List<com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto> photos) {
+        }
+
+        @Override
+        public void sendLocation(Long chatId, double latitude, double longitude) {
+        }
     }
 
     private record SentMessage(Long chatId, String text, String replyMarkupJson) {

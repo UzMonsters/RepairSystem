@@ -20,6 +20,8 @@ import com.example.darks.repair_auto.identity.domain.UserRole;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.RefreshSessionRepository;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
+import com.example.darks.repair_auto.notification.application.NotificationDeliveryService;
+import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationWorkerTransactions;
 import com.example.darks.repair_auto.repair.assignment.api.dto.AssignmentRequest;
 import com.example.darks.repair_auto.repair.assignment.application.RepairAssignmentService;
 import com.example.darks.repair_auto.repair.assignment.domain.AssignmentStatus;
@@ -144,6 +146,15 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private NotificationDeliveryService notificationDeliveryService;
+
+    @Autowired
+    private NotificationWorkerTransactions notificationWorkerTransactions;
+
+    @Autowired
+    private ObjectStorageService objectStorageService;
 
     private User admin;
     private Long customerId;
@@ -493,6 +504,93 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
         }
     }
 
+    @Test
+    void givenRequestWithPhotosAndLocation_whenTechnicianAssignedAndNotificationDelivered_thenSummaryPhotosLocationAndDecisionSent() throws Exception {
+        linkTechnician(112233L, 112233L);
+        telegramBotClient.clear();
+
+        var requestDetail = requestService.create(new RepairRequestCreateRequest(
+                customerId,
+                categoryId,
+                "AC is completely broken and leaking water",
+                new com.example.darks.repair_auto.repair.request.api.dto.RequestLocationRequest(
+                        new java.math.BigDecimal("41.2850000"),
+                        new java.math.BigDecimal("69.2050000"),
+                        "Chilanzar 9, Tashkent",
+                        com.example.darks.repair_auto.repair.request.domain.RequestLocationSource.DEVICE_GPS),
+                null,
+                null,
+                null,
+                RepairRequestPriority.HIGH,
+                null,
+                null), new AuthenticatedUser(admin));
+
+        Long requestId = requestDetail.id();
+
+        var customer = customerRepository.findById(customerId).orElseThrow();
+        var repairRequest = requestRepository.findById(requestId).orElseThrow();
+        var now = OffsetDateTime.now(ZoneOffset.UTC);
+
+        String validChecksum = "a".repeat(64);
+        var att1 = com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment.customerUpload(
+                repairRequest,
+                AttachmentType.CUSTOMER_PROBLEM_PHOTO,
+                "storage-key-1",
+                "problem1.jpg",
+                customer,
+                now);
+        att1.markAvailable("image/jpeg", 1024L, validChecksum, now);
+        attachmentRepository.saveAndFlush(att1);
+
+        var att2 = com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment.customerUpload(
+                repairRequest,
+                AttachmentType.CUSTOMER_PROBLEM_PHOTO,
+                "storage-key-2",
+                "problem2.jpg",
+                customer,
+                now.plusSeconds(1));
+        att2.markAvailable("image/jpeg", 1024L, validChecksum, now.plusSeconds(1));
+        attachmentRepository.saveAndFlush(att2);
+
+        objectStorageService.upload(new StorageUpload("storage-key-1", "image/jpeg", JPEG.length, new ByteArrayInputStream(JPEG)));
+        objectStorageService.upload(new StorageUpload("storage-key-2", "image/jpeg", JPEG.length, new ByteArrayInputStream(JPEG)));
+
+        assignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(admin));
+
+        var claimedList = notificationWorkerTransactions.claim("worker-test");
+        for (var claimed : claimedList) {
+            notificationDeliveryService.deliver(claimed);
+        }
+
+        assertThat(telegramBotClient.messages()).isNotEmpty();
+        var summaryMsg = telegramBotClient.messages().stream()
+                .filter(m -> m.text().contains("🔧 New repair request") || m.text().contains("🔧 Yangi ta'mirlash") || m.text().contains("🔧 Новая заявка"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(summaryMsg.text()).contains("Request: " + requestDetail.requestNumber());
+        assertThat(summaryMsg.text()).contains("Address:\nChilanzar 9, Tashkent");
+        assertThat(summaryMsg.replyMarkupJson()).isNull();
+
+        assertThat(telegramBotClient.mediaGroups()).hasSize(1);
+        assertThat(telegramBotClient.mediaGroups().get(0).photos()).hasSize(2);
+
+        assertThat(telegramBotClient.locations()).hasSize(1);
+        assertThat(telegramBotClient.locations().get(0).latitude()).isEqualTo(41.285);
+        assertThat(telegramBotClient.locations().get(0).longitude()).isEqualTo(69.205);
+
+        var decisionMsg = telegramBotClient.messages().stream()
+                .filter(m -> m.text().contains("accept this repair") || m.text().contains("qabul qilasizmi") || m.text().contains("принять этот ремонт"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(decisionMsg.replyMarkupJson()).contains("taccept:" + requestId);
+        assertThat(decisionMsg.replyMarkupJson()).contains("treject:" + requestId);
+
+        send(callback(50, 112233L, 112233L, "cb-accept", "taccept:" + requestId));
+
+        var assignment = assignmentRepository.findActiveByRequestId(requestId, RepairAssignmentRepository.ACTIVE_STATUSES).orElseThrow();
+        assertThat(assignment.getStatus()).isEqualTo(AssignmentStatus.ACCEPTED);
+    }
+
     private boolean tableExists(String tableName) {
         Integer count = jdbcTemplate.queryForObject("""
                 select count(*) from information_schema.tables
@@ -559,13 +657,31 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
     static final class FakeTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new CopyOnWriteArrayList<>();
+        private final List<SentPhoto> photos = new CopyOnWriteArrayList<>();
+        private final List<SentMediaGroup> mediaGroups = new CopyOnWriteArrayList<>();
+        private final List<SentLocation> locations = new CopyOnWriteArrayList<>();
 
         void clear() {
             messages.clear();
+            photos.clear();
+            mediaGroups.clear();
+            locations.clear();
         }
 
         List<SentMessage> messages() {
             return messages;
+        }
+
+        List<SentPhoto> photos() {
+            return photos;
+        }
+
+        List<SentMediaGroup> mediaGroups() {
+            return mediaGroups;
+        }
+
+        List<SentLocation> locations() {
+            return locations;
         }
 
         String lastText() {
@@ -590,9 +706,33 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
         public InputStream downloadFile(String filePath, long maxSizeBytes) {
             return new ByteArrayInputStream(JPEG);
         }
+
+        @Override
+        public void sendPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {
+            photos.add(new SentPhoto(chatId, filename, photoBytes, caption));
+        }
+
+        @Override
+        public void sendMediaGroup(Long chatId, List<com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto> photos) {
+            mediaGroups.add(new SentMediaGroup(chatId, photos));
+        }
+
+        @Override
+        public void sendLocation(Long chatId, double latitude, double longitude) {
+            locations.add(new SentLocation(chatId, latitude, longitude));
+        }
     }
 
     record SentMessage(Long chatId, String text, String replyMarkupJson) {
+    }
+
+    record SentPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {
+    }
+
+    record SentMediaGroup(Long chatId, List<com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto> photos) {
+    }
+
+    record SentLocation(Long chatId, double latitude, double longitude) {
     }
 
     static final class FakeObjectStorageService implements ObjectStorageService {

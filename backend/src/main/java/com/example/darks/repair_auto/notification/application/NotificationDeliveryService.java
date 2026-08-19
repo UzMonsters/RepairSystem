@@ -14,22 +14,29 @@ public class NotificationDeliveryService {
     private final NotificationTemplateService templateService;
     private final TelegramBotClient customerTelegramBotClient;
     private final TelegramBotClient technicianTelegramBotClient;
+    private final TechnicianAssignmentNotificationService technicianAssignmentNotificationService;
 
     public NotificationDeliveryService(
             NotificationRecipientResolver recipientResolver,
             NotificationTemplateService templateService,
             @Qualifier("customerTelegramBotClient") TelegramBotClient customerTelegramBotClient,
-            @Qualifier("technicianTelegramBotClient") TelegramBotClient technicianTelegramBotClient) {
+            @Qualifier("technicianTelegramBotClient") TelegramBotClient technicianTelegramBotClient,
+            TechnicianAssignmentNotificationService technicianAssignmentNotificationService) {
         this.recipientResolver = recipientResolver;
         this.templateService = templateService;
         this.customerTelegramBotClient = customerTelegramBotClient;
         this.technicianTelegramBotClient = technicianTelegramBotClient;
+        this.technicianAssignmentNotificationService = technicianAssignmentNotificationService;
     }
 
     public NotificationDeliveryResult deliver(ClaimedNotification notification) {
         var recipient = recipientResolver.resolve(notification);
         if (recipient.isEmpty()) {
             return NotificationDeliveryResult.unavailable(NotificationFailureCategory.RECIPIENT_UNAVAILABLE);
+        }
+        if (notification.notificationType() == com.example.darks.repair_auto.notification.domain.NotificationType.TECHNICIAN_ASSIGNED
+                && notification.recipientType() == NotificationRecipientType.TECHNICIAN) {
+            return technicianAssignmentNotificationService.deliverAssignment(notification, recipient.get());
         }
         String text = templateService.renderTelegramText(new NotificationTemplateService.RenderedNotification(
                 recipient.get().language(),

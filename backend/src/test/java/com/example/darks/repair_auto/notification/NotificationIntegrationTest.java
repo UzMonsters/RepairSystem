@@ -889,8 +889,60 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         public InputStream downloadFile(String filePath, long maxSizeBytes) {
             throw new TelegramApiException("Unsupported in notification tests.");
         }
+
+        @Override
+        public void sendPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {
+            String failure = failures.poll();
+            if (failure != null) {
+                throw new TelegramApiException(failure);
+            }
+            photos.add(new SentPhoto(chatId, filename, photoBytes, caption));
+        }
+
+        @Override
+        public void sendMediaGroup(Long chatId, List<com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto> photos) {
+            String failure = failures.poll();
+            if (failure != null) {
+                throw new TelegramApiException(failure);
+            }
+            mediaGroups.add(new SentMediaGroup(chatId, photos));
+        }
+
+        @Override
+        public void sendLocation(Long chatId, double latitude, double longitude) {
+            String failure = failures.poll();
+            if (failure != null) {
+                throw new TelegramApiException(failure);
+            }
+            locations.add(new SentLocation(chatId, latitude, longitude));
+        }
+
+        List<SentPhoto> photos() {
+            return photos;
+        }
+
+        List<SentMediaGroup> mediaGroups() {
+            return mediaGroups;
+        }
+
+        List<SentLocation> locations() {
+            return locations;
+        }
+
+        private final List<SentPhoto> photos = new CopyOnWriteArrayList<>();
+        private final List<SentMediaGroup> mediaGroups = new CopyOnWriteArrayList<>();
+        private final List<SentLocation> locations = new CopyOnWriteArrayList<>();
     }
 
     record SentMessage(Long chatId, String text) {
+    }
+
+    record SentPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {
+    }
+
+    record SentMediaGroup(Long chatId, List<com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto> photos) {
+    }
+
+    record SentLocation(Long chatId, double latitude, double longitude) {
     }
 }
