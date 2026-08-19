@@ -25,6 +25,7 @@ import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRep
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
 import com.example.darks.repair_auto.repair.assignment.api.dto.AssignmentRequest;
 import com.example.darks.repair_auto.repair.assignment.api.dto.ReassignmentRequest;
+import com.example.darks.repair_auto.repair.assignment.api.dto.ScheduleRequest;
 import com.example.darks.repair_auto.repair.assignment.api.dto.UnassignmentRequest;
 import com.example.darks.repair_auto.repair.assignment.application.RepairAssignmentService;
 import com.example.darks.repair_auto.repair.assignment.domain.AssignmentStatus;
@@ -169,6 +170,41 @@ class RepairExecutionIntegrationTest extends PostgreSqlIntegrationTest {
                         .with(user(new AuthenticatedUser(manager))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+    }
+
+    @Test
+    void givenStatusHistoryWhenLanguageSelectedThenSystemReasonsAreLocalized() throws Exception {
+        Long requestId = createRequest("The appliance starts but does not complete the repair flow.");
+        repairAssignmentService.assign(
+                requestId,
+                new AssignmentRequest(technicianId, null),
+                new AuthenticatedUser(admin));
+        repairAssignmentService.schedule(
+                requestId,
+                new ScheduleRequest(OffsetDateTime.now(ZoneOffset.UTC).plusDays(2).withNano(0), false),
+                new AuthenticatedUser(admin));
+        repairAssignmentService.accept(requestId, new AuthenticatedUser(manager));
+        mockMvc.perform(post("/api/v1/requests/{requestId}/start", requestId)
+                        .with(user(new AuthenticatedUser(admin))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/requests/{requestId}/status-history", requestId)
+                        .with(user(new AuthenticatedUser(admin)))
+                        .header("Accept-Language", "uz"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].reason").value("Ta'mirlash boshlandi."))
+                .andExpect(jsonPath("$[1].reason").value("Jadval o'zgartirildi."))
+                .andExpect(jsonPath("$[2].reason").value("Texnik tayinlandi."))
+                .andExpect(jsonPath("$[3].reason").value("Ariza yaratildi."));
+
+        mockMvc.perform(get("/api/v1/requests/{requestId}/status-history", requestId)
+                        .with(user(new AuthenticatedUser(admin)))
+                        .header("Accept-Language", "ru"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].reason").value("Ремонт начат."))
+                .andExpect(jsonPath("$[1].reason").value("График изменен."))
+                .andExpect(jsonPath("$[2].reason").value("Техник назначен."))
+                .andExpect(jsonPath("$[3].reason").value("Заявка создана."));
     }
 
     @Test
