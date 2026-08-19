@@ -545,8 +545,8 @@
 }
 
 [data-theme="light"] .auth-logo {
-  background: var(--rs-primary);
-  color: #ffffff;
+  background: transparent;
+  border: 1px solid var(--rs-primary);
 }
 
 [data-theme="light"] .auth-card .btn-primary {
