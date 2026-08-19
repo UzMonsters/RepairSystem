@@ -129,9 +129,37 @@ public class NotificationOutbox {
             String renderedTitle,
             String renderedMessage,
             OffsetDateTime now) {
+        this(
+                eventKey,
+                notificationType,
+                NotificationChannel.TELEGRAM,
+                recipientType,
+                recipientId,
+                repairRequest,
+                templateKey,
+                payloadJson,
+                language,
+                renderedTitle,
+                renderedMessage,
+                now);
+    }
+
+    public NotificationOutbox(
+            String eventKey,
+            NotificationType notificationType,
+            NotificationChannel channel,
+            NotificationRecipientType recipientType,
+            Long recipientId,
+            RepairRequest repairRequest,
+            String templateKey,
+            String payloadJson,
+            String language,
+            String renderedTitle,
+            String renderedMessage,
+            OffsetDateTime now) {
         this.eventKey = eventKey;
         this.notificationType = notificationType;
-        this.channel = NotificationChannel.TELEGRAM;
+        this.channel = channel != null ? channel : NotificationChannel.TELEGRAM;
         this.recipientType = recipientType;
         this.recipientId = recipientId;
         this.repairRequest = repairRequest;

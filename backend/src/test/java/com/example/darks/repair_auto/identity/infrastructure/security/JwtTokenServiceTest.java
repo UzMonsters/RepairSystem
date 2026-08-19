@@ -1,17 +1,21 @@
 package com.example.darks.repair_auto.identity.infrastructure.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
-import com.example.darks.repair_auto.shared.config.AppProperties;
+import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
+import com.example.darks.repair_auto.shared.config.AppProperties;
+import com.example.darks.repair_auto.shared.error.BusinessException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
@@ -22,16 +26,92 @@ class JwtTokenServiceTest {
     private static final Instant NOW = Instant.parse("2026-01-01T00:00:00Z");
 
     @Test
-    void givenValidTokenWhenValidatedThenClaimsAreReturned() {
+    void givenValidStaffTokenWhenValidatedThenClaimsAreReturned() {
         User user = user();
         JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
 
         JwtTokenService.ValidatedAccessToken token = service.validate(service.issue(user));
 
+        assertThat(token.actorType()).isEqualTo(ActorType.STAFF);
+        assertThat(token.isStaff()).isTrue();
+        assertThat(token.actorId()).isEqualTo(user.getId());
         assertThat(token.userId()).isEqualTo(user.getId());
         assertThat(token.subject()).isEqualTo("admin@example.com");
         assertThat(token.role()).isEqualTo(UserRole.ADMIN);
         assertThat(token.authVersion()).isEqualTo(1L);
+    }
+
+    @Test
+    void givenLegacyStaffTokenWithoutActorTypeWhenValidatedThenItResolvesAsStaff() {
+        JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+        String legacyToken = legacyStaffToken(service, 99L, "legacy@example.com", UserRole.MANAGER, 2L);
+
+        JwtTokenService.ValidatedAccessToken token = service.validate(legacyToken);
+
+        assertThat(token.actorType()).isEqualTo(ActorType.STAFF);
+        assertThat(token.isStaff()).isTrue();
+        assertThat(token.userId()).isEqualTo(99L);
+        assertThat(token.actorId()).isEqualTo(99L);
+        assertThat(token.subject()).isEqualTo("legacy@example.com");
+        assertThat(token.role()).isEqualTo(UserRole.MANAGER);
+        assertThat(token.authVersion()).isEqualTo(2L);
+    }
+
+    @Test
+    void givenCustomerMobileTokenWhenIssuedThenValidatesCorrectly() {
+        JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+        String tokenString = service.issueMobile(ActorType.CUSTOMER, 123L, "+998901234567");
+
+        JwtTokenService.ValidatedAccessToken token = service.validate(tokenString);
+
+        assertThat(token.actorType()).isEqualTo(ActorType.CUSTOMER);
+        assertThat(token.isCustomer()).isTrue();
+        assertThat(token.isStaff()).isFalse();
+        assertThat(token.isTechnician()).isFalse();
+        assertThat(token.actorId()).isEqualTo(123L);
+        assertThat(token.userId()).isNull();
+        assertThat(token.role()).isNull();
+        assertThat(token.authVersion()).isNull();
+        assertThat(token.subject()).isEqualTo("+998901234567");
+    }
+
+    @Test
+    void givenTechnicianMobileTokenWhenIssuedThenValidatesCorrectly() {
+        JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+        String tokenString = service.issueMobile(ActorType.TECHNICIAN, 456L);
+
+        JwtTokenService.ValidatedAccessToken token = service.validate(tokenString);
+
+        assertThat(token.actorType()).isEqualTo(ActorType.TECHNICIAN);
+        assertThat(token.isTechnician()).isTrue();
+        assertThat(token.isCustomer()).isFalse();
+        assertThat(token.isStaff()).isFalse();
+        assertThat(token.actorId()).isEqualTo(456L);
+        assertThat(token.userId()).isNull();
+        assertThat(token.role()).isNull();
+        assertThat(token.authVersion()).isNull();
+        assertThat(token.subject()).isEqualTo("technician:456");
+    }
+
+    @Test
+    void givenStaffActorTypePassedToIssueMobileThenThrowsIllegalArgumentException() {
+        JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertThatThrownBy(() -> service.issueMobile(ActorType.STAFF, 1L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Mobile access tokens can only be issued for CUSTOMER or TECHNICIAN");
+    }
+
+    @Test
+    void givenNullOrNonPositiveActorIdToIssueMobileThenThrowsIllegalArgumentException() {
+        JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertThatThrownBy(() -> service.issueMobile(ActorType.CUSTOMER, null))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.issueMobile(ActorType.CUSTOMER, 0L))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.issueMobile(ActorType.CUSTOMER, -10L))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -41,9 +121,9 @@ class JwtTokenServiceTest {
         String tampered = token.substring(0, token.length() - 1)
                 + (token.endsWith("a") ? "b" : "a");
 
-        BusinessRuleException exception = catchThrowableOfType(
+        BusinessException exception = catchThrowableOfType(
                 () -> service.validate(tampered),
-                BusinessRuleException.class);
+                BusinessException.class);
 
         assertThat(exception.code()).isEqualTo("INVALID_ACCESS_TOKEN");
     }
@@ -53,9 +133,21 @@ class JwtTokenServiceTest {
         JwtTokenService issuer = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
         JwtTokenService validator = service("repair-auto", Clock.fixed(NOW.plus(Duration.ofMinutes(16)), ZoneOffset.UTC));
 
-        BusinessRuleException exception = catchThrowableOfType(
+        BusinessException exception = catchThrowableOfType(
                 () -> validator.validate(issuer.issue(user())),
-                BusinessRuleException.class);
+                BusinessException.class);
+
+        assertThat(exception.code()).isEqualTo("ACCESS_TOKEN_EXPIRED");
+    }
+
+    @Test
+    void givenExpiredMobileTokenWhenValidatedThenExpiredCodeIsReturned() {
+        JwtTokenService issuer = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+        JwtTokenService validator = service("repair-auto", Clock.fixed(NOW.plus(Duration.ofMinutes(16)), ZoneOffset.UTC));
+
+        BusinessException exception = catchThrowableOfType(
+                () -> validator.validate(issuer.issueMobile(ActorType.CUSTOMER, 12L)),
+                BusinessException.class);
 
         assertThat(exception.code()).isEqualTo("ACCESS_TOKEN_EXPIRED");
     }
@@ -65,9 +157,9 @@ class JwtTokenServiceTest {
         JwtTokenService issuer = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
         JwtTokenService validator = service("other-issuer", Clock.fixed(NOW, ZoneOffset.UTC));
 
-        BusinessRuleException exception = catchThrowableOfType(
+        BusinessException exception = catchThrowableOfType(
                 () -> validator.validate(issuer.issue(user())),
-                BusinessRuleException.class);
+                BusinessException.class);
 
         assertThat(exception.code()).isEqualTo("INVALID_ACCESS_TOKEN");
     }
@@ -79,11 +171,11 @@ class JwtTokenServiceTest {
         String malformed = tokenWithAuthVersion(service, "1");
         String outOfRange = tokenWithAuthVersion(service, 0);
 
-        assertThat(catchThrowableOfType(() -> service.validate(missing), BusinessRuleException.class).code())
+        assertThat(catchThrowableOfType(() -> service.validate(missing), BusinessException.class).code())
                 .isEqualTo("INVALID_ACCESS_TOKEN");
-        assertThat(catchThrowableOfType(() -> service.validate(malformed), BusinessRuleException.class).code())
+        assertThat(catchThrowableOfType(() -> service.validate(malformed), BusinessException.class).code())
                 .isEqualTo("INVALID_ACCESS_TOKEN");
-        assertThat(catchThrowableOfType(() -> service.validate(outOfRange), BusinessRuleException.class).code())
+        assertThat(catchThrowableOfType(() -> service.validate(outOfRange), BusinessException.class).code())
                 .isEqualTo("INVALID_ACCESS_TOKEN");
     }
 
@@ -118,9 +210,27 @@ class JwtTokenServiceTest {
         return user;
     }
 
+    private String legacyStaffToken(JwtTokenService service, Long userId, String email, UserRole role, long authVersion) {
+        Map<String, Object> header = new LinkedHashMap<>();
+        header.put("alg", "HS256");
+        header.put("typ", "JWT");
+        Map<String, Object> claims = new LinkedHashMap<>();
+        claims.put("iss", "repair-auto");
+        claims.put("sub", email);
+        claims.put("userId", userId);
+        claims.put("role", role.name());
+        claims.put("authVersion", authVersion);
+        claims.put("iat", NOW.getEpochSecond());
+        claims.put("exp", NOW.plus(Duration.ofMinutes(15)).getEpochSecond());
+        claims.put("jti", "legacy-test-jti");
+        claims.put("tokenType", "access");
+        String unsigned = encode(header) + "." + encode(claims);
+        return unsigned + "." + ReflectionTestUtils.invokeMethod(service, "sign", unsigned);
+    }
+
     private String tokenWithAuthVersion(JwtTokenService service, Object authVersion) {
         String[] parts = service.issue(user()).split("\\.");
-        java.util.Map<String, Object> claims = decode(parts[1]);
+        Map<String, Object> claims = decode(parts[1]);
         if (authVersion == null) {
             claims.remove("authVersion");
         } else {
@@ -130,7 +240,7 @@ class JwtTokenServiceTest {
         return unsigned + "." + ReflectionTestUtils.invokeMethod(service, "sign", unsigned);
     }
 
-    private java.util.Map<String, Object> decode(String encoded) {
+    private Map<String, Object> decode(String encoded) {
         try {
             return new ObjectMapper().readValue(
                     java.util.Base64.getUrlDecoder().decode(encoded),
@@ -141,7 +251,7 @@ class JwtTokenServiceTest {
         }
     }
 
-    private String encode(java.util.Map<String, Object> claims) {
+    private String encode(Map<String, Object> claims) {
         try {
             return java.util.Base64.getUrlEncoder().withoutPadding()
                     .encodeToString(new ObjectMapper().writeValueAsBytes(claims));

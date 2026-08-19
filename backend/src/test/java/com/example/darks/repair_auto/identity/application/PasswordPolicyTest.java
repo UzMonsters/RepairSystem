@@ -1,9 +1,10 @@
 package com.example.darks.repair_auto.identity.application;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
-import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.BusinessException;
 import org.junit.jupiter.api.Test;
 
 class PasswordPolicyTest {
@@ -18,19 +19,19 @@ class PasswordPolicyTest {
 
     @Test
     void givenWeakPasswordWhenValidatedThenStableErrorCodeIsReturned() {
-        BusinessRuleException exception = catchThrowableOfType(
+        BusinessException exception = catchThrowableOfType(
                 () -> passwordPolicy.validate("password", "user@example.com"),
-                BusinessRuleException.class);
+                BusinessException.class);
 
-        org.assertj.core.api.Assertions.assertThat(exception.code()).isEqualTo("PASSWORD_POLICY_VIOLATION");
+        assertThat(exception.code()).isEqualTo("PASSWORD_POLICY_VIOLATION");
     }
 
     @Test
     void givenPasswordEqualToEmailWhenValidatedThenStableErrorCodeIsReturned() {
-        BusinessRuleException exception = catchThrowableOfType(
+        BusinessException exception = catchThrowableOfType(
                 () -> passwordPolicy.validate("User1@Example.com", "user1@example.com"),
-                BusinessRuleException.class);
+                BusinessException.class);
 
-        org.assertj.core.api.Assertions.assertThat(exception.code()).isEqualTo("PASSWORD_POLICY_VIOLATION");
+        assertThat(exception.code()).isEqualTo("PASSWORD_POLICY_VIOLATION");
     }
 }

@@ -47,7 +47,6 @@ public class DashboardService {
     private final LocalizedValueResolver localizedValueResolver;
     private final Clock clock;
 
-    @Autowired
     public DashboardService(
             DashboardQueryRepository repository,
             DashboardTimeService timeService,
@@ -56,6 +55,7 @@ public class DashboardService {
         this(repository, timeService, effectiveLanguageResolver, localizedValueResolver, Clock.systemUTC());
     }
 
+    @Autowired
     public DashboardService(
             DashboardQueryRepository repository,
             DashboardTimeService timeService,

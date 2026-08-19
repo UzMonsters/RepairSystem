@@ -750,15 +750,25 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     @TestConfiguration
     static class TelegramTestConfiguration {
 
-        @Bean({
-                "fakeTelegramBotClient",
-                "customerTelegramBotClient",
-                "technicianTelegramBotClient",
-                "telegramBotClient"
-        })
+        @Bean
         @Primary
         FakeTelegramBotClient fakeTelegramBotClient() {
             return new FakeTelegramBotClient();
+        }
+
+        @Bean("customerTelegramBotClient")
+        TelegramBotClient customerTelegramBotClient(FakeTelegramBotClient fake) {
+            return fake;
+        }
+
+        @Bean("technicianTelegramBotClient")
+        TelegramBotClient technicianTelegramBotClient(FakeTelegramBotClient fake) {
+            return fake;
+        }
+
+        @Bean("telegramBotClient")
+        TelegramBotClient telegramBotClient(FakeTelegramBotClient fake) {
+            return fake;
         }
 
         @Bean

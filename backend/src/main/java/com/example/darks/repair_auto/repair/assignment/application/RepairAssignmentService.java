@@ -56,7 +56,6 @@ public class RepairAssignmentService {
     private final LocalizedValueResolver localizedValueResolver;
     private final Clock clock;
 
-    @Autowired
     public RepairAssignmentService(
             RepairAssignmentRepository repairAssignmentRepository,
             RepairRequestRepository repairRequestRepository,
@@ -80,7 +79,8 @@ public class RepairAssignmentService {
                 Clock.systemUTC());
     }
 
-    RepairAssignmentService(
+    @Autowired
+    public RepairAssignmentService(
             RepairAssignmentRepository repairAssignmentRepository,
             RepairRequestRepository repairRequestRepository,
             TechnicianRepository technicianRepository,

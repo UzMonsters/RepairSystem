@@ -11,5 +11,8 @@ public interface RepairRequestStatusHistoryRepository extends JpaRepository<Repa
     @EntityGraph(attributePaths = {"repairRequest", "changedByUser"})
     List<RepairRequestStatusHistory> findByRepairRequestIdOrderByChangedAtDescIdDesc(Long requestId);
 
+    @EntityGraph(attributePaths = {"repairRequest"})
+    List<RepairRequestStatusHistory> findByRepairRequestIdOrderByChangedAtAscIdAsc(Long requestId);
+
     long countByRepairRequestIdAndToStatus(Long requestId, RepairRequestStatus status);
 }

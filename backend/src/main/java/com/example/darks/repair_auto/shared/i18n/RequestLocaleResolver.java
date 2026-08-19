@@ -1,11 +1,17 @@
 package com.example.darks.repair_auto.shared.i18n;
 
+import com.example.darks.repair_auto.customer.domain.Customer;
+import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
+import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedMobileActor;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
 import com.example.darks.repair_auto.settings.domain.Language;
 import com.example.darks.repair_auto.settings.infrastructure.SystemSettingsRepository;
 import com.example.darks.repair_auto.settings.infrastructure.UserSettingsRepository;
+import com.example.darks.repair_auto.technician.domain.Technician;
+import com.example.darks.repair_auto.technician.infrastructure.TechnicianRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Enumeration;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -17,12 +23,25 @@ public class RequestLocaleResolver {
 
     private final UserSettingsRepository userSettingsRepository;
     private final SystemSettingsRepository systemSettingsRepository;
+    private final CustomerRepository customerRepository;
+    private final TechnicianRepository technicianRepository;
 
     public RequestLocaleResolver(
             UserSettingsRepository userSettingsRepository,
             SystemSettingsRepository systemSettingsRepository) {
+        this(userSettingsRepository, systemSettingsRepository, null, null);
+    }
+
+    @Autowired
+    public RequestLocaleResolver(
+            UserSettingsRepository userSettingsRepository,
+            SystemSettingsRepository systemSettingsRepository,
+            CustomerRepository customerRepository,
+            TechnicianRepository technicianRepository) {
         this.userSettingsRepository = userSettingsRepository;
         this.systemSettingsRepository = systemSettingsRepository;
+        this.customerRepository = customerRepository;
+        this.technicianRepository = technicianRepository;
     }
 
     public SupportedLanguage resolveLanguage() {
@@ -36,10 +55,10 @@ public class RequestLocaleResolver {
             return fromHeader;
         }
 
-        // 2. Authenticated user's saved language
-        SupportedLanguage fromUser = resolveFromAuthenticatedUser();
-        if (fromUser != null) {
-            return fromUser;
+        // 2. Authenticated actor's saved language (Staff User or Mobile Customer/Technician)
+        SupportedLanguage fromActor = resolveFromAuthenticatedActor();
+        if (fromActor != null) {
+            return fromActor;
         }
 
         // 3. System default language
@@ -76,15 +95,33 @@ public class RequestLocaleResolver {
         return null;
     }
 
-    private SupportedLanguage resolveFromAuthenticatedUser() {
+    private SupportedLanguage resolveFromAuthenticatedActor() {
         try {
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.getPrincipal() instanceof AuthenticatedUser user) {
-                Language lang = userSettingsRepository.findByUserId(user.id())
-                        .map(s -> s.getLanguage())
-                        .orElse(null);
-                if (lang != null) {
-                    return SupportedLanguage.fromLanguage(lang);
+            if (auth == null || !auth.isAuthenticated()) {
+                return null;
+            }
+            Object principal = auth.getPrincipal();
+            if (principal instanceof AuthenticatedUser user) {
+                if (userSettingsRepository != null) {
+                    Language lang = userSettingsRepository.findByUserId(user.id())
+                            .map(s -> s.getLanguage())
+                            .orElse(null);
+                    if (lang != null) {
+                        return SupportedLanguage.fromLanguage(lang);
+                    }
+                }
+            } else if (principal instanceof AuthenticatedMobileActor actor) {
+                if (actor.isCustomer() && customerRepository != null) {
+                    return customerRepository.findById(actor.actorId())
+                            .map(Customer::getPreferredLanguage)
+                            .map(SupportedLanguage::fromLanguageCode)
+                            .orElse(null);
+                } else if (actor.isTechnician() && technicianRepository != null) {
+                    return technicianRepository.findById(actor.actorId())
+                            .map(Technician::getPreferredLanguage)
+                            .map(SupportedLanguage::fromLanguageCode)
+                            .orElse(null);
                 }
             }
         } catch (Exception ignored) {
@@ -95,11 +132,13 @@ public class RequestLocaleResolver {
 
     private SupportedLanguage resolveFromSystemSettings() {
         try {
-            Language lang = systemSettingsRepository.findById(1L)
-                    .map(s -> s.getDefaultLanguage())
-                    .orElse(null);
-            if (lang != null) {
-                return SupportedLanguage.fromLanguage(lang);
+            if (systemSettingsRepository != null) {
+                Language lang = systemSettingsRepository.findById(1L)
+                        .map(s -> s.getDefaultLanguage())
+                        .orElse(null);
+                if (lang != null) {
+                    return SupportedLanguage.fromLanguage(lang);
+                }
             }
         } catch (Exception ignored) {
             // Fall back cleanly if DB unavailable during early startup/health checks

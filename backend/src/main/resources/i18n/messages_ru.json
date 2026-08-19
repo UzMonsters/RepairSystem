@@ -27,7 +27,16 @@
     "password-reuse-not-allowed": "Новый пароль должен отличаться от текущего.",
     "password-policy-violation": "Пароль не соответствует требованиям безопасности.",
     "password-confirmation-mismatch": "Подтверждение пароля не совпадает.",
-    "new-password-same-as-current": "Новый пароль не может совпадать с текущим."
+    "new-password-same-as-current": "Новый пароль не может совпадать с текущим.",
+    "telegram-auth-invalid": "Токен аутентификации Telegram недействителен.",
+    "telegram-auth-expired": "Срок действия токена аутентификации Telegram истек.",
+    "telegram-auth-audience-invalid": "Токен аутентификации Telegram предназначен для другого приложения.",
+    "telegram-account-not-linked": "Аккаунт Telegram не привязан к учетной записи RepairAuto.",
+    "account-inactive": "Учетная запись неактивна. Пожалуйста, обратитесь в службу поддержки.",
+    "mobile-refresh-token-invalid": "Мобильный refresh токен недействителен.",
+    "mobile-refresh-token-expired": "Срок действия мобильного refresh токена истек.",
+    "mobile-refresh-token-reused": "Обнаружено повторное использование refresh токена. Сессия отозвана.",
+    "throttled": "Слишком много неудачных попыток аутентификации. Попробуйте позже."
   },
   "user": {
     "not-found": "Пользователь не найден.",
@@ -70,6 +79,24 @@
       "invalid-location": "Недопустимое местоположение заявки на ремонт.",
       "invalid-preferred-visit-time": "Недопустимое предпочитаемое время визита.",
       "invalid-date-range": "Недопустимый диапазон дат заявки."
+    },
+    "status": {
+      "new": "Новая",
+      "assigned": "Мастер назначен",
+      "scheduled": "Запланировано",
+      "in-progress": "В процессе",
+      "waiting-for-parts": "Ожидание запчастей",
+      "completed": "Завершено",
+      "cancelled": "Отменено"
+    },
+    "assignment-status": {
+      "pending": "Ожидает подтверждения",
+      "accepted": "Принято",
+      "rejected": "Отклонено",
+      "unassigned": "Снято",
+      "reassigned": "Переназначено",
+      "completed": "Завершено",
+      "cancelled": "Отменено"
     },
     "assignment": {
       "active-not-found": "Активное назначение не найдено.",
@@ -155,7 +182,29 @@
       "required": "Отсутствует обязательный параметр запроса '{0}'.",
       "invalid-type": "Недопустимый тип значения для параметра '{0}'."
     },
-    "method-not-supported": "HTTP метод не поддерживается для этого эндпоинта.",
-    "media-type-not-supported": "Тип содержимого запроса не поддерживается."
+    "method-not-supported": "HTTP-метод не поддерживается для этого эндпоинта.",
+    "media-type-not-supported": "Тип медиа в запросе не поддерживается."
+  },
+  "dashboard": {
+    "period-invalid": "Указан неверный период для дашборда.",
+    "category-limit-invalid": "Указан неверный лимит популярных категорий."
+  },
+  "notification": {
+    "not-found": "Уведомление не найдено.",
+    "invalid-date-range": "Дата createdFrom должна быть раньше или равна createdTo.",
+    "already-delivered": "Доставленные уведомления нельзя повторить.",
+    "retry-not-allowed": "Повторить можно только неудавшиеся или пропущенные уведомления."
+  },
+  "review": {
+    "not-found": "Отзыв не найден.",
+    "not-eligible": "Заявка на ремонт не подлежит отзыву.",
+    "request-not-owned": "Заявка на ремонт не принадлежит данному клиенту.",
+    "request-not-completed": "Отзыв можно оставить только для завершенных заявок.",
+    "already-exists": "Для данной заявки отзыв уже был оставлен.",
+    "customer-inactive": "Клиент не может оставлять отзывы.",
+    "technician-not-resolved": "Не удалось определить завершенное назначение мастера.",
+    "rating-invalid": "Оценка должна быть от 1 до 5.",
+    "comment-too-long": "Комментарий к отзыву слишком длинный.",
+    "invalid-date-range": "submittedFrom должно быть раньше submittedTo."
   }
 }

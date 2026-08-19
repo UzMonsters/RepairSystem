@@ -42,7 +42,7 @@ public class RepairRequestController {
         this.repairRequestService = repairRequestService;
     }
 
-    @GetMapping("/api/v1/requests")
+    @GetMapping({"/api/v1/requests", "/api/v1/repair-requests"})
     @Operation(
             summary = "List repair requests",
             description = """
@@ -93,7 +93,7 @@ public class RepairRequestController {
                 RepairRequestPageRequest.toPageable(page, size, sort));
     }
 
-    @GetMapping("/api/v1/requests/{id}")
+    @GetMapping({"/api/v1/requests/{id}", "/api/v1/repair-requests/{id}"})
     @Operation(summary = "Get repair request details", description = "Requires ADMIN or MANAGER.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Repair request returned"),
@@ -105,7 +105,7 @@ public class RepairRequestController {
         return repairRequestService.get(id);
     }
 
-    @PostMapping("/api/v1/requests")
+    @PostMapping({"/api/v1/requests", "/api/v1/repair-requests"})
     @Operation(
             summary = "Create repair request",
             description = """
@@ -126,7 +126,7 @@ public class RepairRequestController {
         return repairRequestService.create(request, user);
     }
 
-    @PutMapping("/api/v1/requests/{id}")
+    @PutMapping({"/api/v1/requests/{id}", "/api/v1/repair-requests/{id}"})
     @Operation(
             summary = "Update repair request intake",
             description = "Requires ADMIN or MANAGER. Only NEW requests are editable; status and source remain unchanged.")
@@ -144,7 +144,7 @@ public class RepairRequestController {
         return repairRequestService.update(id, request);
     }
 
-    @GetMapping("/api/v1/customers/{customerId}/requests")
+    @GetMapping({"/api/v1/customers/{customerId}/requests", "/api/v1/customers/{customerId}/repair-requests"})
     @Operation(summary = "List a customer's repair history", description = "Requires ADMIN or MANAGER.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Customer repair history returned"),

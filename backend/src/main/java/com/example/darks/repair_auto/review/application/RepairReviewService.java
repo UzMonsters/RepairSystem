@@ -86,12 +86,37 @@ public class RepairReviewService {
             int rating,
             String comment,
             LanguageCode submittedLanguage) {
-        validateRating(rating);
-        String safeComment = validateComment(comment);
         Customer customer = customerRepository.findByTelegramUserId(telegramUserId)
                 .filter(found -> found.isActive()
                         && found.getTelegramChatId() != null
                         && found.getTelegramChatId().equals(telegramChatId))
+                .orElseThrow(() -> new BusinessRuleException(
+                        "REVIEW_CUSTOMER_INACTIVE",
+                        "Customer cannot submit reviews.",
+                        403));
+        RepairReview review = submitReview(
+                customer.getId(),
+                repairRequestId,
+                rating,
+                comment,
+                ReviewSource.TELEGRAM,
+                submittedLanguage);
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
+        return ReviewMapper.response(review, lang, localizedValueResolver);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public RepairReview submitReview(
+            Long customerId,
+            Long repairRequestId,
+            int rating,
+            String comment,
+            ReviewSource source,
+            LanguageCode submittedLanguage) {
+        validateRating(rating);
+        String safeComment = validateComment(comment);
+        Customer customer = customerRepository.findById(customerId)
+                .filter(Customer::isActive)
                 .orElseThrow(() -> new BusinessRuleException(
                         "REVIEW_CUSTOMER_INACTIVE",
                         "Customer cannot submit reviews.",
@@ -105,7 +130,7 @@ public class RepairReviewService {
             throw new BusinessRuleException(
                     "REVIEW_REQUEST_NOT_OWNED",
                     "Review request does not belong to this customer.",
-                    403);
+                    404);
         }
         if (request.getStatus() != RepairRequestStatus.COMPLETED) {
             throw new BusinessRuleException(
@@ -123,17 +148,15 @@ public class RepairReviewService {
                         "Completed technician assignment could not be resolved.",
                         409));
         try {
-            RepairReview review = reviewRepository.saveAndFlush(new RepairReview(
+            return reviewRepository.saveAndFlush(new RepairReview(
                     request,
                     customer,
                     completedAssignment.getTechnician(),
                     rating,
                     safeComment,
-                    ReviewSource.TELEGRAM,
+                    source == null ? ReviewSource.MOBILE : source,
                     submittedLanguage == null ? LanguageCode.UZ : submittedLanguage,
                     now()));
-            Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
-            return ReviewMapper.response(review, lang, localizedValueResolver);
         } catch (DataIntegrityViolationException exception) {
             throw alreadyExists();
         }

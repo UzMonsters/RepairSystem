@@ -8,9 +8,8 @@ import com.example.darks.repair_auto.customer.api.dto.CustomerUpdateRequest;
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.domain.CustomerRegistrationSource;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
-import com.example.darks.repair_auto.shared.error.BusinessException;
-import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import com.example.darks.repair_auto.shared.phone.PhoneNumberNormalizer;
@@ -32,10 +31,20 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final PhoneNumberNormalizer phoneNumberNormalizer;
+    private final com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService;
 
-    public CustomerService(CustomerRepository customerRepository, PhoneNumberNormalizer phoneNumberNormalizer) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public CustomerService(
+            CustomerRepository customerRepository,
+            PhoneNumberNormalizer phoneNumberNormalizer,
+            com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService) {
         this.customerRepository = customerRepository;
         this.phoneNumberNormalizer = phoneNumberNormalizer;
+        this.actorAccessLifecycleService = actorAccessLifecycleService;
+    }
+
+    public CustomerService(CustomerRepository customerRepository, PhoneNumberNormalizer phoneNumberNormalizer) {
+        this(customerRepository, phoneNumberNormalizer, null);
     }
 
     @Transactional(readOnly = true)
@@ -100,7 +109,11 @@ public class CustomerService {
     @Transactional
     public CustomerDetailResponse changeActivation(Long id, boolean active, String reason) {
         Customer customer = customerRepository.findByIdForUpdate(id).orElseThrow(this::notFound);
+        boolean deactivated = customer.isActive() && !active;
         customer.setActive(active, now());
+        if (deactivated && actorAccessLifecycleService != null) {
+            actorAccessLifecycleService.onCustomerDeactivated(id);
+        }
         LOGGER.info(
                 "Customer event operation=customer_activation_changed result=success customerId={} active={} reason={}",
                 id,
@@ -198,24 +211,24 @@ public class CustomerService {
         return customerRepository.findById(id).orElseThrow(this::notFound);
     }
 
-    private BusinessException notFound() {
-        return new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND);
+    private BusinessRuleException notFound() {
+        return new BusinessRuleException(ErrorCode.CUSTOMER_NOT_FOUND);
     }
 
-    private BusinessException customerConflict(DataIntegrityViolationException exception) {
+    private BusinessRuleException customerConflict(DataIntegrityViolationException exception) {
         String message = exception.getMostSpecificCause() != null ? exception.getMostSpecificCause().getMessage() : "";
         if (message != null && message.contains("telegram_user_id")) {
-            return new BusinessException(ErrorCode.CUSTOMER_TELEGRAM_ID_ALREADY_EXISTS);
+            return new BusinessRuleException(ErrorCode.CUSTOMER_TELEGRAM_ID_ALREADY_EXISTS);
         }
-        return new BusinessException(ErrorCode.CUSTOMER_PHONE_ALREADY_EXISTS);
+        return new BusinessRuleException(ErrorCode.CUSTOMER_PHONE_ALREADY_EXISTS);
     }
 
-    private BusinessException telegramLinkConflict() {
-        return new BusinessException(ErrorCode.CUSTOMER_TELEGRAM_ID_ALREADY_EXISTS);
+    private BusinessRuleException telegramLinkConflict() {
+        return new BusinessRuleException(ErrorCode.CUSTOMER_TELEGRAM_ID_ALREADY_EXISTS);
     }
 
-    private BusinessException archivedCustomer() {
-        return new BusinessException(ErrorCode.CUSTOMER_INACTIVE);
+    private BusinessRuleException archivedCustomer() {
+        return new BusinessRuleException("TELEGRAM_CUSTOMER_ARCHIVED", "Archived customer profile cannot be linked.", 409);
     }
 
     private OffsetDateTime now() {

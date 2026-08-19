@@ -30,12 +30,22 @@ public class TechnicianService {
 
     private final TechnicianRepository technicianRepository;
     private final PhoneNumberNormalizer phoneNumberNormalizer;
+    private final com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public TechnicianService(
+            TechnicianRepository technicianRepository,
+            PhoneNumberNormalizer phoneNumberNormalizer,
+            com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService) {
+        this.technicianRepository = technicianRepository;
+        this.phoneNumberNormalizer = phoneNumberNormalizer;
+        this.actorAccessLifecycleService = actorAccessLifecycleService;
+    }
 
     public TechnicianService(
             TechnicianRepository technicianRepository,
             PhoneNumberNormalizer phoneNumberNormalizer) {
-        this.technicianRepository = technicianRepository;
-        this.phoneNumberNormalizer = phoneNumberNormalizer;
+        this(technicianRepository, phoneNumberNormalizer, null);
     }
 
     @Transactional(readOnly = true)
@@ -105,7 +115,11 @@ public class TechnicianService {
     @Transactional
     public TechnicianDetailResponse changeActivation(Long id, boolean active, String reason) {
         Technician technician = technicianRepository.findByIdForUpdate(id).orElseThrow(this::notFound);
+        boolean deactivated = technician.isActive() && !active;
         technician.setActive(active, now());
+        if (deactivated && actorAccessLifecycleService != null) {
+            actorAccessLifecycleService.onTechnicianDeactivated(id);
+        }
         LOGGER.info(
                 "Technician event operation=technician_activation_changed result=success technicianId={} active={} reason={}",
                 id,
@@ -124,16 +138,16 @@ public class TechnicianService {
         }
     }
 
-    private BusinessException notFound() {
-        return new BusinessException(ErrorCode.TECHNICIAN_NOT_FOUND);
+    private BusinessRuleException notFound() {
+        return new BusinessRuleException(ErrorCode.TECHNICIAN_NOT_FOUND);
     }
 
-    private BusinessException technicianConflict(DataIntegrityViolationException exception) {
+    private BusinessRuleException technicianConflict(DataIntegrityViolationException exception) {
         String message = exception.getMostSpecificCause() != null ? exception.getMostSpecificCause().getMessage() : "";
         if (message != null && message.contains("telegram_user_id")) {
-            return new BusinessException(ErrorCode.TECHNICIAN_TELEGRAM_ID_ALREADY_EXISTS);
+            return new BusinessRuleException(ErrorCode.TECHNICIAN_TELEGRAM_ID_ALREADY_EXISTS);
         }
-        return new BusinessException(ErrorCode.TECHNICIAN_PHONE_ALREADY_EXISTS);
+        return new BusinessRuleException(ErrorCode.TECHNICIAN_PHONE_ALREADY_EXISTS);
     }
 
     private OffsetDateTime now() {

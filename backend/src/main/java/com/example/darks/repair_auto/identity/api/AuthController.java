@@ -22,7 +22,6 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -53,7 +52,7 @@ public class AuthController {
             LoginResponse response = authenticationService.login(
                     request.email(),
                     request.password(),
-                    request.rememberMe(),
+                    request.isRememberMe(),
                     clientIp,
                     userAgent(servletRequest));
             authThrottleService.recordLoginSuccess(request.email(), clientIp);
@@ -113,7 +112,10 @@ public class AuthController {
         return UserMapper.details(userRepository.findById(user.id()).orElseThrow());
     }
 
-    @PostMapping("/change-password")
+    @RequestMapping(
+            path = {"/password", "/change-password"},
+            method = {org.springframework.web.bind.annotation.RequestMethod.POST, org.springframework.web.bind.annotation.RequestMethod.PATCH}
+    )
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Change own password")
     @ApiResponses({
@@ -124,7 +126,8 @@ public class AuthController {
     public ResponseEntity<Void> changePassword(
             @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody PasswordChangeRequest request) {
-        authenticationService.changePassword(user.id(), request.oldPassword(), request.newPassword(), request.confirmPassword());
+        String confirm = request.confirmPassword() != null ? request.confirmPassword() : request.newPassword();
+        authenticationService.changePassword(user.id(), request.oldPassword(), request.newPassword(), confirm);
         return ResponseEntity.noContent().build();
     }
 

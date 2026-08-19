@@ -9,21 +9,18 @@ import java.util.Enumeration;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.annotation.RequestScope;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Component
-@RequestScope
 public class EffectiveLanguageResolver {
 
-    private final HttpServletRequest request;
     private final UserSettingsRepository userSettingsRepository;
     private final SystemSettingsRepository systemSettingsRepository;
 
     public EffectiveLanguageResolver(
-            HttpServletRequest request,
             UserSettingsRepository userSettingsRepository,
             SystemSettingsRepository systemSettingsRepository) {
-        this.request = request;
         this.userSettingsRepository = userSettingsRepository;
         this.systemSettingsRepository = systemSettingsRepository;
     }
@@ -52,43 +49,66 @@ public class EffectiveLanguageResolver {
     }
 
     private Language resolveFromAcceptLanguageHeader() {
+        HttpServletRequest request = getCurrentRequest();
         if (request == null) {
             return null;
         }
-        Enumeration<String> headers = request.getHeaders("Accept-Language");
-        if (headers == null) {
-            return null;
-        }
-        while (headers.hasMoreElements()) {
-            String headerValue = headers.nextElement();
-            if (headerValue != null && !headerValue.isBlank()) {
-                // Split by comma for multi-language headers like "ru, uz;q=0.9, en;q=0.8"
-                String[] parts = headerValue.split(",");
-                for (String part : parts) {
-                    String code = part.split(";")[0].trim();
-                    Language lang = Language.fromString(code);
-                    if (lang != null) {
-                        return lang;
+        try {
+            Enumeration<String> headers = request.getHeaders("Accept-Language");
+            if (headers == null) {
+                return null;
+            }
+            while (headers.hasMoreElements()) {
+                String headerValue = headers.nextElement();
+                if (headerValue != null && !headerValue.isBlank()) {
+                    // Split by comma for multi-language headers like "ru, uz;q=0.9, en;q=0.8"
+                    String[] parts = headerValue.split(",");
+                    for (String part : parts) {
+                        String code = part.split(";")[0].trim();
+                        Language lang = Language.fromString(code);
+                        if (lang != null) {
+                            return lang;
+                        }
                     }
                 }
             }
+        } catch (Exception ignored) {
+            // Gracefully ignore header parsing issues
         }
         return null;
     }
 
     private Language resolveFromAuthenticatedUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof AuthenticatedUser user) {
-            return userSettingsRepository.findByUserId(user.id())
-                    .map(s -> s.getLanguage())
-                    .orElse(null);
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof AuthenticatedUser user) {
+                return userSettingsRepository.findByUserId(user.id())
+                        .map(s -> s.getLanguage())
+                        .orElse(null);
+            }
+        } catch (Exception ignored) {
+            // Ignore security context lookup errors outside request threads
         }
         return null;
     }
 
     private Language resolveFromSystemSettings() {
-        return systemSettingsRepository.findById(1L)
-                .map(s -> s.getDefaultLanguage())
-                .orElse(null);
+        try {
+            return systemSettingsRepository.findById(1L)
+                    .map(s -> s.getDefaultLanguage())
+                    .orElse(null);
+        } catch (Exception ignored) {
+            // Fall back cleanly if DB unavailable during early startup/health checks
+        }
+        return null;
+    }
+
+    private HttpServletRequest getCurrentRequest() {
+        try {
+            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            return attributes != null ? attributes.getRequest() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }

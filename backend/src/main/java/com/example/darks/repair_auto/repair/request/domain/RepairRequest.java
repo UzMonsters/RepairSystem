@@ -149,6 +149,36 @@ public class RepairRequest {
         return repairRequest;
     }
 
+    public static RepairRequest mobile(
+            String requestNumber,
+            Customer customer,
+            RepairCategory category,
+            String description,
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            RepairRequestPriority priority,
+            OffsetDateTime customerPreferredVisitAt,
+            String sourceReference,
+            OffsetDateTime now) {
+        RepairRequest repairRequest = new RepairRequest(
+                requestNumber,
+                customer,
+                category,
+                description,
+                address,
+                latitude,
+                longitude,
+                priority,
+                customerPreferredVisitAt,
+                null,
+                null,
+                now);
+        repairRequest.source = RepairRequestSource.MOBILE;
+        repairRequest.sourceReference = sourceReference;
+        return repairRequest;
+    }
+
     public Long getId() {
         return id;
     }

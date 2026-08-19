@@ -471,7 +471,7 @@ class RepairExecutionIntegrationTest extends PostgreSqlIntegrationTest {
                 requestId,
                 new AssignmentRequest(
                         technicianId,
-                        scheduled ? OffsetDateTime.parse("2026-08-05T10:00:00+05:00") : null),
+                        scheduled ? OffsetDateTime.now(ZoneOffset.UTC).plusDays(2).withNano(0) : null),
                 new AuthenticatedUser(admin));
         repairAssignmentService.accept(requestId, new AuthenticatedUser(manager));
         return requestId;

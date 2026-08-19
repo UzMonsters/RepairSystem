@@ -24,6 +24,12 @@ public interface RepairRequestRepository
     @EntityGraph(attributePaths = {"customer", "category", "createdByUser"})
     Optional<RepairRequest> findWithRelationsById(Long id);
 
+    @EntityGraph(attributePaths = {"customer", "category", "createdByUser"})
+    Optional<RepairRequest> findByIdAndCustomerId(Long id, Long customerId);
+
+    @EntityGraph(attributePaths = {"customer", "category", "createdByUser"})
+    Page<RepairRequest> findByCustomerId(Long customerId, Pageable pageable);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select r from RepairRequest r

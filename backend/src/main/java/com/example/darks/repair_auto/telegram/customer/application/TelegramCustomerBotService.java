@@ -311,7 +311,7 @@ public class TelegramCustomerBotService {
             send(session, "updated", keyboards.removeReplyKeyboard());
             showMenu(session);
         } catch (BusinessRuleException exception) {
-            if ("TELEGRAM_CUSTOMER_ARCHIVED".equals(exception.code())) {
+            if ("TELEGRAM_CUSTOMER_ARCHIVED".equals(exception.code()) || "CUSTOMER_INACTIVE".equals(exception.code())) {
                 send(session, "archived_customer", null);
             } else {
                 send(session, "link_conflict", null);

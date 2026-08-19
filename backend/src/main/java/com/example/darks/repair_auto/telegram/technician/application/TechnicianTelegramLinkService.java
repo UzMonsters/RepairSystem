@@ -1,5 +1,7 @@
 package com.example.darks.repair_auto.telegram.technician.application;
 
+import com.example.darks.repair_auto.identity.application.MobileRefreshSessionService;
+import com.example.darks.repair_auto.identity.domain.MobileRefreshRevocationReason;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
@@ -39,6 +41,8 @@ public class TechnicianTelegramLinkService {
     private final TelegramTechnicianSessionRepository sessionRepository;
     private final TelegramUserContextRepository contextRepository;
     private final TelegramProperties properties;
+    private final MobileRefreshSessionService mobileRefreshSessionService;
+    private final com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService;
     private final Clock clock;
 
     @Autowired
@@ -48,8 +52,42 @@ public class TechnicianTelegramLinkService {
             TelegramTechnicianLinkTokenRepository tokenRepository,
             TelegramTechnicianSessionRepository sessionRepository,
             TelegramUserContextRepository contextRepository,
-            TelegramProperties properties) {
-        this(technicianRepository, userRepository, tokenRepository, sessionRepository, contextRepository, properties, Clock.systemUTC());
+            TelegramProperties properties,
+            MobileRefreshSessionService mobileRefreshSessionService,
+            com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService) {
+        this(technicianRepository, userRepository, tokenRepository, sessionRepository, contextRepository, properties, mobileRefreshSessionService, actorAccessLifecycleService, Clock.systemUTC());
+    }
+
+    public TechnicianTelegramLinkService(
+            TechnicianRepository technicianRepository,
+            UserRepository userRepository,
+            TelegramTechnicianLinkTokenRepository tokenRepository,
+            TelegramTechnicianSessionRepository sessionRepository,
+            TelegramUserContextRepository contextRepository,
+            TelegramProperties properties,
+            MobileRefreshSessionService mobileRefreshSessionService) {
+        this(technicianRepository, userRepository, tokenRepository, sessionRepository, contextRepository, properties, mobileRefreshSessionService, null, Clock.systemUTC());
+    }
+
+    TechnicianTelegramLinkService(
+            TechnicianRepository technicianRepository,
+            UserRepository userRepository,
+            TelegramTechnicianLinkTokenRepository tokenRepository,
+            TelegramTechnicianSessionRepository sessionRepository,
+            TelegramUserContextRepository contextRepository,
+            TelegramProperties properties,
+            MobileRefreshSessionService mobileRefreshSessionService,
+            com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService,
+            Clock clock) {
+        this.technicianRepository = technicianRepository;
+        this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
+        this.sessionRepository = sessionRepository;
+        this.contextRepository = contextRepository;
+        this.properties = properties;
+        this.mobileRefreshSessionService = mobileRefreshSessionService;
+        this.actorAccessLifecycleService = actorAccessLifecycleService;
+        this.clock = clock;
     }
 
     TechnicianTelegramLinkService(
@@ -60,13 +98,7 @@ public class TechnicianTelegramLinkService {
             TelegramUserContextRepository contextRepository,
             TelegramProperties properties,
             Clock clock) {
-        this.technicianRepository = technicianRepository;
-        this.userRepository = userRepository;
-        this.tokenRepository = tokenRepository;
-        this.sessionRepository = sessionRepository;
-        this.contextRepository = contextRepository;
-        this.properties = properties;
-        this.clock = clock;
+        this(technicianRepository, userRepository, tokenRepository, sessionRepository, contextRepository, properties, null, null, clock);
     }
 
     @Transactional
@@ -98,6 +130,13 @@ public class TechnicianTelegramLinkService {
                 .ifPresent(token -> token.revoked(now));
         sessionRepository.findByTechnicianId(technicianId).forEach(session -> session.unlink(now));
         technician.unlinkTelegram(now);
+        if (actorAccessLifecycleService != null) {
+            actorAccessLifecycleService.onTechnicianTelegramIdentityChanged(technicianId);
+        } else if (mobileRefreshSessionService != null) {
+            mobileRefreshSessionService.revokeAllForTechnician(
+                    technicianId,
+                    MobileRefreshRevocationReason.TELEGRAM_IDENTITY_CHANGED);
+        }
     }
 
     @Transactional(noRollbackFor = BusinessRuleException.class)

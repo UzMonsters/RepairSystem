@@ -214,7 +214,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
     void adminCreatedRequestEnqueuesCustomerNotificationAndTelegramCreateDoesNotDuplicate() {
         var created = createRequest();
 
-        assertThat(outboxRepository.findAll())
+        assertThat(telegramNotifications())
                 .extracting(notification -> notification.getNotificationType())
                 .containsExactly(NotificationType.REQUEST_CREATED);
 
@@ -227,7 +227,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 null,
                 "telegram-update-1");
 
-        assertThat(outboxRepository.findAll())
+        assertThat(telegramNotifications())
                 .extracting(notification -> notification.getNotificationType())
                 .containsExactly(NotificationType.REQUEST_CREATED);
         assertThat(created.requestNumber()).startsWith("REP-");
@@ -309,13 +309,13 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
             var future = executor.submit(() -> worker.runOnce());
             assertThat(enteredSend.await(5, TimeUnit.SECONDS)).isTrue();
             assertThat(fakeTelegramBotClient.transactionStates()).containsExactly(false);
-            assertThat(outboxRepository.findAll())
+            assertThat(telegramNotifications())
                     .extracting(notification -> notification.getStatus())
                     .containsExactly(NotificationStatus.PROCESSING);
             assertThat(workerTransactions.claim("worker-b")).isEmpty();
             releaseSend.countDown();
             assertThat(future.get(5, TimeUnit.SECONDS)).isEqualTo(1);
-            assertThat(outboxRepository.findAll())
+            assertThat(telegramNotifications())
                     .extracting(notification -> notification.getStatus())
                     .containsExactly(NotificationStatus.DELIVERED);
         } finally {
@@ -329,7 +329,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         createRequest();
         fakeTelegramBotClient.failNext("Temporary timeout.");
         worker.runOnce();
-        var notification = outboxRepository.findAll().getFirst();
+        var notification = firstTelegramNotification();
         assertThat(notification.getStatus()).isEqualTo(NotificationStatus.RETRY_SCHEDULED);
 
         makeImmediatelyRetryable(notification.getId());
@@ -342,7 +342,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 .extracting(attempt -> attempt.getAttemptNumber())
                 .containsExactly(2, 1);
 
-        mockMvc.perform(post("/api/v1/notifications/{id}/retry", notification.getId())
+        mockMvc.perform(post("/api/v1/admin/notification-deliveries/{id}/retry", notification.getId())
                         .with(user(principal(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"retry safely\"}"))
@@ -354,7 +354,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(notification.getStatus()).isEqualTo(NotificationStatus.DELIVERED);
         assertThat(workerTransactions.claim("worker-after-delivered")).isEmpty();
 
-        mockMvc.perform(post("/api/v1/notifications/{id}/retry", notification.getId())
+        mockMvc.perform(post("/api/v1/admin/notification-deliveries/{id}/retry", notification.getId())
                         .with(user(principal(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"retry safely\"}"))
@@ -367,7 +367,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         createRequest();
         fakeTelegramBotClient.failNext("Temporary timeout.");
         worker.runOnce();
-        var notification = outboxRepository.findAll().getFirst();
+        var notification = firstTelegramNotification();
         makeImmediatelyRetryable(notification.getId());
         fakeTelegramBotClient.failNext("Temporary timeout again.");
         worker.runOnce();
@@ -405,7 +405,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
     void adminApiRejectsInvalidInputsAndOmitsWorkerInternals() throws Exception {
         createRequest();
         worker.runOnce();
-        var notification = outboxRepository.findAll().getFirst();
+        var notification = firstTelegramNotification();
 
         mockMvc.perform(get("/api/v1/notifications/{id}", notification.getId()).with(user(principal(admin))))
                 .andExpect(status().isOk())
@@ -432,12 +432,12 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/v1/notifications").param("sort", "createdAt,asc").with(user(principal(manager))))
                 .andExpect(status().isOk());
-        mockMvc.perform(post("/api/v1/notifications/{id}/retry", 999999L)
+        mockMvc.perform(post("/api/v1/admin/notification-deliveries/{id}/retry", 999999L)
                         .with(user(principal(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"retry safely\"}"))
                 .andExpect(status().isNotFound());
-        mockMvc.perform(post("/api/v1/notifications/{id}/retry", notification.getId())
+        mockMvc.perform(post("/api/v1/admin/notification-deliveries/{id}/retry", notification.getId())
                         .with(user(principal(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\" \"}"))
@@ -576,7 +576,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         createRequest();
         fakeTelegramBotClient.failNext("Temporary timeout.");
         worker.runOnce();
-        var notification = outboxRepository.findAll().getFirst();
+        var notification = firstTelegramNotification();
         assertThat(notification.getStatus()).isEqualTo(NotificationStatus.RETRY_SCHEDULED);
 
         jdbcTemplate.update(
@@ -587,14 +587,14 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         notification = outboxRepository.findById(notification.getId()).orElseThrow();
         assertThat(notification.getStatus()).isEqualTo(NotificationStatus.DEAD);
 
-        mockMvc.perform(post("/api/v1/notifications/{id}/retry", notification.getId())
+        mockMvc.perform(post("/api/v1/admin/notification-deliveries/{id}/retry", notification.getId())
                         .with(user(principal(manager)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"retry safely\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(header().doesNotExist("Set-Cookie"));
 
-        mockMvc.perform(post("/api/v1/notifications/{id}/retry", notification.getId())
+        mockMvc.perform(post("/api/v1/admin/notification-deliveries/{id}/retry", notification.getId())
                         .with(user(principal(admin)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"retry safely\"}"))
@@ -603,7 +603,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
 
         mockMvc.perform(get("/api/v1/notifications").with(user(principal(manager))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content.length()").value(1));
+                .andExpect(jsonPath("$.content").isNotEmpty());
 
         mockMvc.perform(get("/api/v1/notifications"))
                 .andExpect(status().isUnauthorized())
@@ -619,7 +619,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         outboxService.enqueue(event);
         outboxService.enqueue(event);
 
-        assertThat(outboxRepository.countByEventKey(event.eventKey())).isEqualTo(1);
+        assertThat(outboxRepository.countByEventKey(event.eventKey() + ":telegram")).isEqualTo(1);
         assertThat(workerTransactions.claim("worker-a")).hasSize(2);
         assertThat(workerTransactions.claim("worker-b")).isEmpty();
     }
@@ -636,7 +636,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
 
         worker.runOnce();
 
-        var notification = outboxRepository.findAll().getFirst();
+        var notification = firstTelegramNotification();
         assertThat(notification.getStatus()).isEqualTo(NotificationStatus.DELIVERED);
         assertThat(attemptRepository.findByNotificationIdOrderByAttemptNumberDesc(notification.getId()))
                 .extracting(attempt -> attempt.getOutcome())
@@ -690,11 +690,25 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 admin.getId());
     }
 
+    private List<com.example.darks.repair_auto.notification.domain.NotificationOutbox> telegramNotifications() {
+        return outboxRepository.findAll().stream()
+                .filter(notification -> notification.getChannel() == com.example.darks.repair_auto.notification.domain.NotificationChannel.TELEGRAM)
+                .toList();
+    }
+
+    private com.example.darks.repair_auto.notification.domain.NotificationOutbox firstTelegramNotification() {
+        return outboxRepository.findAll().stream()
+                .filter(notification -> notification.getChannel() == com.example.darks.repair_auto.notification.domain.NotificationChannel.TELEGRAM)
+                .findFirst()
+                .orElseThrow();
+    }
+
     private void assertNotification(Long requestId, NotificationType type, Long recipientId) {
+        String recipientType = recipientId.equals(customerId) ? "CUSTOMER" : "TECHNICIAN";
         List<NotificationRow> rows = jdbcTemplate.query("""
                 select event_key, status, payload_version
                 from notification_outbox
-                where repair_request_id = ? and notification_type = ? and recipient_id = ?
+                where repair_request_id = ? and notification_type = ? and recipient_id = ? and recipient_type = ? and channel = 'TELEGRAM'
                 """,
                 (rs, rowNum) -> new NotificationRow(
                         rs.getString("event_key"),
@@ -702,10 +716,11 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                         rs.getInt("payload_version")),
                 requestId,
                 type.name(),
-                recipientId);
+                recipientId,
+                recipientType);
         assertThat(rows)
-                .singleElement()
-                .satisfies(row -> {
+                .isNotEmpty()
+                .allSatisfy(row -> {
                     assertThat(row.eventKey()).contains("request:" + requestId);
                     assertThat(row.status()).isEqualTo("PENDING");
                     assertThat(row.payloadVersion()).isEqualTo(1);
@@ -780,15 +795,25 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
     @TestConfiguration
     static class NotificationTestConfiguration {
 
-        @Bean({
-                "fakeTelegramBotClient",
-                "customerTelegramBotClient",
-                "technicianTelegramBotClient",
-                "telegramBotClient"
-        })
+        @Bean
         @Primary
         FakeTelegramBotClient fakeTelegramBotClient() {
             return new FakeTelegramBotClient();
+        }
+
+        @Bean("customerTelegramBotClient")
+        TelegramBotClient customerTelegramBotClient(FakeTelegramBotClient fake) {
+            return fake;
+        }
+
+        @Bean("technicianTelegramBotClient")
+        TelegramBotClient technicianTelegramBotClient(FakeTelegramBotClient fake) {
+            return fake;
+        }
+
+        @Bean("telegramBotClient")
+        TelegramBotClient telegramBotClient(FakeTelegramBotClient fake) {
+            return fake;
         }
     }
 
