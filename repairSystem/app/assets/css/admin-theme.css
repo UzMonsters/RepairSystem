@@ -843,7 +843,7 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
 .notification-tabs .nav-link.active {
   color: #fff !important;
   background: var(--rs-primary) !important;
-  border-color: var(--bs-primary);
+  border-color: var(--rs-primary);
   box-shadow: 0 4px 12px rgba(203, 60, 255, .2);
 }
 
