@@ -6,9 +6,10 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +30,17 @@ public class FirebasePushConfiguration {
         LOGGER.info("Initializing Firebase App for project: {}", properties.projectId());
         GoogleCredentials credentials;
         if (properties.credentialsPath() != null && !properties.credentialsPath().isBlank()) {
+            Path credentialsPath = resolveCredentialsPath(properties.credentialsPath(), "APP_FIREBASE_CREDENTIALS_PATH");
             LOGGER.info("Loading Google credentials from configured path");
-            try (InputStream is = new FileInputStream(properties.credentialsPath())) {
+            try (InputStream is = Files.newInputStream(credentialsPath)) {
+                credentials = GoogleCredentials.fromStream(is);
+            }
+        } else if (System.getenv("GOOGLE_APPLICATION_CREDENTIALS") != null
+                && !System.getenv("GOOGLE_APPLICATION_CREDENTIALS").isBlank()) {
+            String googleApplicationCredentials = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+            Path credentialsPath = resolveCredentialsPath(googleApplicationCredentials, "GOOGLE_APPLICATION_CREDENTIALS");
+            LOGGER.info("Loading Google credentials from GOOGLE_APPLICATION_CREDENTIALS");
+            try (InputStream is = Files.newInputStream(credentialsPath)) {
                 credentials = GoogleCredentials.fromStream(is);
             }
         } else {
@@ -51,6 +61,15 @@ public class FirebasePushConfiguration {
             return FirebaseApp.initializeApp(builder.build());
         }
         return FirebaseApp.getInstance();
+    }
+
+    private Path resolveCredentialsPath(String configuredPath, String sourceName) {
+        return FirebaseCredentialPathResolver.resolveReadablePath(configuredPath)
+                .orElseThrow(() -> new IllegalStateException(sourceName
+                        + " points to an unreadable Firebase credential file. Checked: "
+                        + FirebaseCredentialPathResolver.describeSearch(configuredPath)
+                        + ". On Render, mount the service-account JSON as a secret file and set "
+                        + sourceName + " to /etc/secrets/<filename>, or set APP_FIREBASE_ENABLED=false."));
     }
 
     @Bean

@@ -1,8 +1,8 @@
 package com.example.darks.repair_auto.notification.push.config;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -43,41 +43,17 @@ public class FirebasePushStartupValidator {
 
         String credentialSource;
         if (properties.credentialsPath() != null && !properties.credentialsPath().isBlank()) {
-            File credFile = new File(properties.credentialsPath());
-            if (!credFile.exists() || !credFile.canRead()) {
-                String error = "Firebase credentialsPath is configured but file cannot be read: " + properties.credentialsPath();
-                LOGGER.error(error);
-                this.valid = false;
-                this.validationError = error;
-                throw new IllegalStateException(error);
-            }
-            try (InputStream is = new FileInputStream(credFile)) {
-                if (is.read() == -1) {
-                    String error = "Firebase credentialsPath file is empty: " + properties.credentialsPath();
-                    LOGGER.error(error);
-                    this.valid = false;
-                    this.validationError = error;
-                    throw new IllegalStateException(error);
-                }
-            } catch (Exception ex) {
-                String error = "Failed to read Firebase credentialsPath file: " + ex.getMessage();
-                LOGGER.error(error);
-                this.valid = false;
-                this.validationError = error;
-                throw new IllegalStateException(error, ex);
-            }
+            Path credFile = requireReadableCredentialFile(
+                    properties.credentialsPath(),
+                    "Firebase credentialsPath is configured but file cannot be read");
+            assertNonEmptyCredentialFile(credFile, "Firebase credentialsPath file is empty");
             credentialSource = "CONFIGURED_FILE";
         } else {
             String gac = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
             if (gac != null && !gac.isBlank()) {
-                File gacFile = new File(gac);
-                if (!gacFile.exists() || !gacFile.canRead()) {
-                    String error = "GOOGLE_APPLICATION_CREDENTIALS environment variable points to unreadable file: " + gac;
-                    LOGGER.error(error);
-                    this.valid = false;
-                    this.validationError = error;
-                    throw new IllegalStateException(error);
-                }
+                requireReadableCredentialFile(
+                        gac,
+                        "GOOGLE_APPLICATION_CREDENTIALS environment variable points to unreadable file");
                 credentialSource = "GOOGLE_APPLICATION_CREDENTIALS_ENV";
             } else {
                 credentialSource = "APPLICATION_DEFAULT_CREDENTIALS";
@@ -96,5 +72,37 @@ public class FirebasePushStartupValidator {
 
     public String getValidationError() {
         return validationError;
+    }
+
+    private Path requireReadableCredentialFile(String configuredPath, String message) {
+        return FirebaseCredentialPathResolver.resolveReadablePath(configuredPath)
+                .orElseThrow(() -> failValidation(message + ": "
+                        + FirebaseCredentialPathResolver.describeSearch(configuredPath)));
+    }
+
+    private void assertNonEmptyCredentialFile(Path credentialFile, String message) {
+        try (InputStream is = Files.newInputStream(credentialFile)) {
+            if (is.read() == -1) {
+                throw failValidation(message + ": " + credentialFile);
+            }
+        } catch (IllegalStateException exception) {
+            throw exception;
+        } catch (Exception ex) {
+            throw failValidation("Failed to read Firebase credential file: " + ex.getMessage(), ex);
+        }
+    }
+
+    private IllegalStateException failValidation(String error) {
+        LOGGER.error(error);
+        this.valid = false;
+        this.validationError = error;
+        return new IllegalStateException(error);
+    }
+
+    private IllegalStateException failValidation(String error, Exception cause) {
+        LOGGER.error(error);
+        this.valid = false;
+        this.validationError = error;
+        return new IllegalStateException(error, cause);
     }
 }
