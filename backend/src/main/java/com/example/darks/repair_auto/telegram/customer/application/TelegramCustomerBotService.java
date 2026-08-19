@@ -519,6 +519,7 @@ public class TelegramCustomerBotService {
             sendCreated(session, false);
             return;
         }
+        String sourceReference = confirmationSourceReference(session, callback);
         RepairRequest request = repairRequestService.telegramCreate(
                 session.getCustomerId(),
                 session.getDraftCategoryId(),
@@ -526,7 +527,7 @@ public class TelegramCustomerBotService {
                 session.getDraftAddress(),
                 session.getDraftLatitude(),
                 session.getDraftLongitude(),
-                "telegram-confirm-" + callback.id());
+                sourceReference);
         session.createdRequest(request, now());
         boolean photoFailed = photoService.attachProblemPhotos(
                 request.getId(),
@@ -535,6 +536,16 @@ public class TelegramCustomerBotService {
         session.clearDraft(now());
         session.state(TelegramCustomerSessionState.MAIN_MENU, now());
         sendCreated(session, photoFailed);
+    }
+
+    private String confirmationSourceReference(
+            TelegramCustomerSession session,
+            TelegramUpdatePayload.TelegramCallbackQuery callback) {
+        Long messageId = callback.message() == null ? null : callback.message().messageId();
+        if (messageId != null) {
+            return "telegram-confirm-%d-%d".formatted(session.getTelegramChatId(), messageId);
+        }
+        return "telegram-confirm-%s".formatted(callback.id());
     }
 
     private void showHistory(TelegramCustomerSession session, int page) {
