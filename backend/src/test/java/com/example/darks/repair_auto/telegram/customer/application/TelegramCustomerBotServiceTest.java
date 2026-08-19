@@ -233,6 +233,40 @@ class TelegramCustomerBotServiceTest {
     }
 
     @Test
+    void givenDuplicatePhotoSentThenDuplicateMessageIsShownWithoutIncreasingCount() {
+        TelegramCustomerSession session = linkedSession(20420L, 24420L);
+        session.language(LanguageCode.UZ, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.state(TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(20420L)).thenReturn(Optional.of(session));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(photo(220L, 20420L, 24420L, "duplicate-photo", 1024L));
+        service.handle(photo(221L, 20420L, 24420L, "duplicate-photo", 1024L));
+
+        assertThat(botClient.last().text())
+                .contains("Bu foto allaqachon biriktirilgan")
+                .contains("1/3")
+                .doesNotContain("foto qabul qilindi");
+        assertThat(botClient.last().replyMarkupJson()).contains("photo:skip");
+        assertThat(session.photoFileIds()).containsExactly("duplicate-photo");
+    }
+
+    @Test
     void givenRegisteredCustomerWhenHistoryShownThenCreatedDateIsCompact() {
         TelegramCustomerSession session = linkedSession(21021L, 25021L);
         TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
