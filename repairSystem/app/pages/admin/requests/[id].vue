@@ -98,6 +98,12 @@ const categoryName = computed(() => {
 
 const customerName = computed(() => request.value?.customer?.fullName || '-')
 const customerPhone = computed(() => request.value?.customer?.phone || '-')
+const locationAddress = computed(() => request.value?.location?.address || request.value?.address || '-')
+const locationCoordinates = computed(() => {
+  const latitude = request.value?.location?.latitude ?? request.value?.latitude
+  const longitude = request.value?.location?.longitude ?? request.value?.longitude
+  return latitude != null && longitude != null ? `${latitude}, ${longitude}` : '-'
+})
 const assignedTechnician = computed(() => request.value?.currentAssignment?.technician ?? null)
 const isAssignmentPending = computed(() =>
   request.value?.status === 'ASSIGNED' && request.value?.currentAssignment?.status === 'PENDING'
@@ -381,8 +387,20 @@ function can(action: string) {
                     {{ t('address') }}
                   </dt>
                   <dd class="col-sm-8">
-                    {{ request.address || '-' }}
+                    {{ locationAddress }}
                   </dd>
+                  <template v-if="locationCoordinates !== '-'">
+                    <dt class="col-sm-4">
+                      {{ t('coordinates') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      <a
+                        :href="`https://www.google.com/maps?q=${locationCoordinates}`"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >{{ locationCoordinates }}</a>
+                    </dd>
+                  </template>
                   <dt class="col-sm-4">
                     {{ t('customerPreferredVisitAt') }}
                   </dt>

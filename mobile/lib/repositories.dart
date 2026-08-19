@@ -54,19 +54,30 @@ class CustomerRepository {
     required String description,
     required int categoryId,
     String? address,
+    double? latitude,
+    double? longitude,
+    String? locationSource,
     String? idempotencyKey,
-  }) => api.post(
-    '/me/repair-requests',
-    body: {
-      'description': description,
-      'categoryId': categoryId,
+  }) {
+    final location = <String, dynamic>{
       'address': ?address,
-    },
-    headers: {
-      'Idempotency-Key':
-          idempotencyKey ?? DateTime.now().microsecondsSinceEpoch.toString(),
-    },
-  );
+      'latitude': ?latitude,
+      'longitude': ?longitude,
+      'source': ?locationSource,
+    };
+    return api.post(
+      '/me/repair-requests',
+      body: {
+        'description': description,
+        'categoryId': categoryId,
+        if (location.isNotEmpty) 'location': location,
+      },
+      headers: {
+        'Idempotency-Key':
+            idempotencyKey ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      },
+    );
+  }
   Future<dynamic> uploadPhoto(int id, File file) => api.upload(
     '/me/repair-requests/$id/attachments',
     file,

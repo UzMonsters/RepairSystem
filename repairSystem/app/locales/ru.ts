@@ -86,6 +86,7 @@ const ru = {
   'description': 'Описание',
   'details': 'Детали',
   'address': 'Адрес',
+  'coordinates': 'Координаты',
   'customerPreferredVisitAt': 'Желаемое время клиента',
   'lastUpdated': 'Последнее обновление',
   'assignedTechnician': 'Назначенный техник',

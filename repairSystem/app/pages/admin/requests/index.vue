@@ -281,23 +281,6 @@ const execRequired = computed(() => execAction.value !== 'resume')
               </button>
             </div>
             <select
-              v-model="status"
-              class="form-select form-select-sm"
-              style="max-width: 180px;"
-              @change="applyFilters"
-            >
-              <option value="">
-                {{ t('allStatuses') }}
-              </option>
-              <option
-                v-for="s in requestStatuses"
-                :key="s.value"
-                :value="s.value"
-              >
-                {{ t(`status.${s.value}`) }}
-              </option>
-            </select>
-            <select
               v-model="priority"
               class="form-select form-select-sm"
               style="max-width: 140px;"

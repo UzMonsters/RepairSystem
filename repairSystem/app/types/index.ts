@@ -9,6 +9,7 @@ export type RequestStatus
 
 export type RequestPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 export type RequestSource = 'ADMIN' | 'TELEGRAM'
+export type RequestLocationSource = 'TELEGRAM' | 'DEVICE_GPS' | 'MAP_PIN' | 'MANUAL'
 export type LanguageCode = 'EN' | 'RU' | 'UZ'
 export type UserDateFormat = 'DD_MM_YYYY' | 'DD_SLASH_MM_SLASH_YYYY' | 'YYYY_MM_DD'
 export type UserTimeFormat = 'HOUR_24' | 'HOUR_12'
@@ -232,6 +233,14 @@ export interface RepairRequest {
   source: RequestSource
   description?: string
   address?: string
+  latitude?: number
+  longitude?: number
+  location?: {
+    address?: string
+    latitude?: number
+    longitude?: number
+    source?: RequestLocationSource
+  }
   customerPreferredVisitAt?: string
   customerFullName?: string
   customer?: RepairRequestCustomerSummary

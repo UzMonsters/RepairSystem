@@ -49,6 +49,28 @@ class Actor {
   );
 }
 
+class RequestLocation {
+  const RequestLocation({
+    this.address,
+    this.latitude,
+    this.longitude,
+    this.source,
+  });
+
+  final String? address;
+  final double? latitude;
+  final double? longitude;
+  final String? source;
+
+  factory RequestLocation.fromJson(Map<dynamic, dynamic> json) =>
+      RequestLocation(
+        address: json['address']?.toString(),
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+        source: json['source']?.toString(),
+      );
+}
+
 class RequestItem {
   const RequestItem({
     required this.id,
@@ -58,6 +80,7 @@ class RequestItem {
     this.statusLabel,
     this.categoryName,
     this.address,
+    this.location,
     this.createdAt,
     this.customerFullName,
   });
@@ -68,6 +91,7 @@ class RequestItem {
   final String? statusLabel;
   final String? categoryName;
   final String? address;
+  final RequestLocation? location;
   final String? createdAt;
   final String? customerFullName;
   factory RequestItem.fromJson(Map<String, dynamic> json) {
@@ -85,6 +109,7 @@ class RequestItem {
           json['requestStatusLabel']?.toString(),
       categoryName: category?['name']?.toString(),
       address: json['address']?.toString() ?? location?['address']?.toString(),
+      location: location == null ? null : RequestLocation.fromJson(location),
       createdAt: json['createdAt']?.toString(),
       customerFullName:
           json['customerFullName']?.toString() ??
@@ -134,6 +159,7 @@ class Job extends RequestItem {
     super.statusLabel,
     super.categoryName,
     super.address,
+    super.location,
     super.createdAt,
     super.customerFullName,
     this.availableActions = const [],
@@ -154,6 +180,7 @@ class Job extends RequestItem {
           json['requestStatusLabel']?.toString(),
       categoryName: category?['name']?.toString(),
       address: json['address']?.toString() ?? location?['address']?.toString(),
+      location: location == null ? null : RequestLocation.fromJson(location),
       createdAt: json['createdAt']?.toString(),
       customerFullName: customer?['fullName']?.toString(),
       availableActions: (json['availableActions'] as List? ?? [])

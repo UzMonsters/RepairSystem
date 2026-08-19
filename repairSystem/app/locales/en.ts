@@ -86,6 +86,7 @@ const en = {
   'description': 'Description',
   'details': 'Details',
   'address': 'Address',
+  'coordinates': 'Coordinates',
   'customerPreferredVisitAt': 'Customer Preferred Visit Time',
   'lastUpdated': 'Last Updated',
   'assignedTechnician': 'Assigned Technician',

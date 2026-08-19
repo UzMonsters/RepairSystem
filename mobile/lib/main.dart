@@ -252,6 +252,7 @@ class CustomerRequests extends StatefulWidget {
 class _CustomerRequestsState extends State<CustomerRequests> {
   late Future<PageResponse<RequestItem>> future;
   final description = TextEditingController();
+  final address = TextEditingController();
 
   @override
   void initState() {
@@ -262,6 +263,7 @@ class _CustomerRequestsState extends State<CustomerRequests> {
   @override
   void dispose() {
     description.dispose();
+    address.dispose();
     super.dispose();
   }
 
@@ -270,8 +272,12 @@ class _CustomerRequestsState extends State<CustomerRequests> {
     await widget.repo.createRequest(
       description: description.text.trim(),
       categoryId: 1,
+      address: address.text.trim().isEmpty ? null : address.text.trim(),
+      locationSource:
+          address.text.trim().isEmpty ? null : 'MANUAL',
     );
     description.clear();
+    address.clear();
     setState(() => future = widget.repo.requests());
   }
 
@@ -298,6 +304,16 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                   decoration: const InputDecoration(
                     labelText: 'Problem description',
                     border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: address,
+                  maxLength: 500,
+                  decoration: const InputDecoration(
+                    labelText: 'Address (optional)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.location_on_outlined),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -396,6 +412,15 @@ class _RequestDetailsState extends State<RequestDetails> {
           ListTile(
             leading: const Icon(Icons.location_on_outlined),
             title: Text(widget.item.address!),
+          ),
+        if (widget.item.location?.latitude != null &&
+            widget.item.location?.longitude != null)
+          ListTile(
+            leading: const Icon(Icons.pin_drop_outlined),
+            title: Text(
+              '${widget.item.location!.latitude}, '
+              '${widget.item.location!.longitude}',
+            ),
           ),
         const SizedBox(height: 16),
         OutlinedButton.icon(

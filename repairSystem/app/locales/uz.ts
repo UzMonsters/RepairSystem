@@ -86,6 +86,7 @@ const uz = {
   'description': 'Tavsif',
   'details': 'Tafsilotlar',
   'address': 'Manzil',
+  'coordinates': 'Koordinatalar',
   'customerPreferredVisitAt': 'Mijozning istalgan vaqti',
   'lastUpdated': 'Oxirgi yangilanish',
   'assignedTechnician': 'Tayinlangan texnik',
