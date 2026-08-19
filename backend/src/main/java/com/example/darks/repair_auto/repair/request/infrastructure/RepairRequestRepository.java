@@ -22,13 +22,38 @@ public interface RepairRequestRepository
     Page<RepairRequest> findAll(Specification<RepairRequest> specification, Pageable pageable);
 
     @EntityGraph(attributePaths = {"customer", "category", "createdByUser"})
-    Optional<RepairRequest> findWithRelationsById(Long id);
+    @Query("""
+            select r from RepairRequest r
+            join fetch r.customer
+            join fetch r.category
+            left join fetch r.createdByUser
+            where r.id = :id
+              and r.deletedAt is null
+            """)
+    Optional<RepairRequest> findWithRelationsById(@Param("id") Long id);
 
     @EntityGraph(attributePaths = {"customer", "category", "createdByUser"})
-    Optional<RepairRequest> findByIdAndCustomerId(Long id, Long customerId);
+    @Query("""
+            select r from RepairRequest r
+            join fetch r.customer
+            join fetch r.category
+            left join fetch r.createdByUser
+            where r.id = :id
+              and r.customer.id = :customerId
+              and r.deletedAt is null
+            """)
+    Optional<RepairRequest> findByIdAndCustomerId(@Param("id") Long id, @Param("customerId") Long customerId);
 
-    @EntityGraph(attributePaths = {"customer", "category", "createdByUser"})
-    Page<RepairRequest> findByCustomerId(Long customerId, Pageable pageable);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select r from RepairRequest r
+            join fetch r.customer
+            join fetch r.category
+            left join fetch r.createdByUser
+            where r.id = :id
+              and r.deletedAt is null
+            """)
+    Optional<RepairRequest> findByIdForUpdate(@Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -38,7 +63,7 @@ public interface RepairRequestRepository
             left join fetch r.createdByUser
             where r.id = :id
             """)
-    Optional<RepairRequest> findByIdForUpdate(@Param("id") Long id);
+    Optional<RepairRequest> findAnyByIdForUpdate(@Param("id") Long id);
 
     Optional<RepairRequest> findBySourceReference(String sourceReference);
 
@@ -47,6 +72,7 @@ public interface RepairRequestRepository
             select r from RepairRequest r
             where r.customer.id = :customerId
               and r.status = com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus.COMPLETED
+              and r.deletedAt is null
               and not exists (
                   select review.id from RepairReview review
                   where review.repairRequest.id = r.id
