@@ -187,6 +187,52 @@ class TelegramCustomerBotServiceTest {
     }
 
     @Test
+    void givenThreePhotosSentThenAutoAdvancesToLocationAndFourthPhotoIsRejected() {
+        TelegramCustomerSession session = linkedSession(20320L, 24320L);
+        session.language(LanguageCode.UZ, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.state(TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(20320L)).thenReturn(Optional.of(session));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        // Photo 1
+        service.handle(photo(216L, 20320L, 24320L, "photo-1", 1024L));
+        assertThat(botClient.last().text()).contains("1/3 foto qabul qilindi");
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP);
+
+        // Photo 2
+        service.handle(photo(217L, 20320L, 24320L, "photo-2", 1024L));
+        assertThat(botClient.last().text()).contains("2/3 foto qabul qilindi");
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP);
+
+        // Photo 3 -> auto advance
+        service.handle(photo(218L, 20320L, 24320L, "photo-3", 1024L));
+        assertThat(botClient.messages()).anyMatch(m -> m.text().contains("3/3 foto qabul qilindi"));
+        assertThat(botClient.last().text()).contains("Geolokatsiya yoki manzil yuboring");
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_LOCATION);
+        assertThat(session.photoFileIds()).containsExactly("photo-1", "photo-2", "photo-3");
+
+        // Photo 4 -> rejected
+        service.handle(photo(219L, 20320L, 24320L, "photo-4", 1024L));
+        assertThat(botClient.last().text()).contains("Maksimal 3 ta foto qabul qilinadi");
+        assertThat(session.photoFileIds()).containsExactly("photo-1", "photo-2", "photo-3");
+    }
+
+    @Test
     void givenRegisteredCustomerWhenHistoryShownThenCreatedDateIsCompact() {
         TelegramCustomerSession session = linkedSession(21021L, 25021L);
         TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
@@ -303,6 +349,10 @@ class TelegramCustomerBotServiceTest {
 
         private final List<SentMessage> messages = new ArrayList<>();
 
+        List<SentMessage> messages() {
+            return messages;
+        }
+
         SentMessage last() {
             return messages.getLast();
         }
@@ -318,7 +368,7 @@ class TelegramCustomerBotServiceTest {
 
         @Override
         public TelegramFileMetadata getFile(String fileId) {
-            return new TelegramFileMetadata(fileId, "photos/" + fileId + ".jpg", 0);
+            return new TelegramFileMetadata(fileId, "photos/" + fileId + ".jpg", 1024L);
         }
 
         @Override
