@@ -56,6 +56,7 @@ const assignForm = ref<number | ''>('')
 const savingAssign = ref(false)
 const message = ref('')
 const actionError = ref('')
+const deletingRequest = ref(false)
 
 const scheduleForm = ref('')
 const savingSchedule = ref(false)
@@ -67,8 +68,27 @@ async function refreshRequestData() {
 }
 
 const errorMessage = computed(() => {
+  if (getApiErrorCode(error.value) === 'REPAIR_REQUEST_NOT_FOUND') return t('requestAlreadyDeleted')
   return getApiErrorMessage(error.value, 'Failed to load request.')
 })
+
+async function deleteRequest() {
+  deletingRequest.value = true
+  actionError.value = ''
+  try {
+    await apiFetch(`/requests/${id}`, { method: 'DELETE' })
+    await navigateTo('/admin/requests')
+  } catch (e) {
+    if (getApiErrorCode(e) === 'REPAIR_REQUEST_NOT_FOUND') {
+      actionError.value = t('requestAlreadyDeleted')
+      await navigateTo('/admin/requests')
+    } else {
+      actionError.value = getApiErrorMessage(e, 'Failed to delete request.')
+    }
+  } finally {
+    deletingRequest.value = false
+  }
+}
 
 const categoryName = computed(() => {
   const c = request.value?.category
@@ -562,6 +582,14 @@ function can(action: string) {
               </div>
               <div class="card-body d-flex flex-column gap-2">
                 <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  :disabled="deletingRequest"
+                  @click="showModal('request-delete-modal')"
+                >
+                  <i class="bi bi-trash me-2" />{{ t('deleteRequest') }}
+                </button>
+                <button
                   v-if="can('diagnosis')"
                   type="button"
                   class="btn btn-outline-info"
@@ -950,6 +978,37 @@ function can(action: string) {
           @click="runExec"
         >
           {{ savingExec ? t('saving') : t('save') }}
+        </button>
+      </template>
+    </AppModal>
+
+    <AppModal
+      id="request-delete-modal"
+      :title="t('deleteRequest')"
+      size="sm"
+    >
+      <p class="mb-0">
+        {{ t('confirmDeleteRequest') }}
+      </p>
+      <template #footer>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger"
+          :disabled="deletingRequest"
+          @click="deleteRequest"
+        >
+          <span
+            v-if="deletingRequest"
+            class="spinner-border spinner-border-sm me-2"
+          />
+          {{ t('delete') }}
         </button>
       </template>
     </AppModal>

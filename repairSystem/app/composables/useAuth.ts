@@ -3,6 +3,8 @@ import type { AuthUser } from '~/types'
 type TokenResponse = {
   accessTokenExpiresIn?: number
   refreshTokenExpiresIn?: number
+  expiresIn?: number
+  refreshExpiresIn?: number
   rememberMe?: boolean
 }
 
@@ -102,6 +104,11 @@ export function useAuth() {
 
   async function logout() {
     try {
+      await useWebPush().unregister()
+    } catch {
+      // Push cleanup must not prevent session logout.
+    }
+    try {
       await $fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
@@ -109,6 +116,13 @@ export function useAuth() {
     } catch {
       // Local navigation still clears the in-memory profile if the backend is unavailable.
     }
+    user.value = null
+    clearAvatarObjectUrl()
+    await navigateTo('/admin/login')
+  }
+
+  async function logoutAll() {
+    await apiFetch('/auth/logout-all', { method: 'POST' })
     user.value = null
     clearAvatarObjectUrl()
     await navigateTo('/admin/login')
@@ -158,6 +172,7 @@ export function useAuth() {
     loadAvatar,
     refreshSession,
     logout,
+    logoutAll,
     updateProfile,
     uploadAvatar,
     deleteAvatar,

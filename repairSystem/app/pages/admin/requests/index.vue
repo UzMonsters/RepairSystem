@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { requestPriorities, requestStatuses } from '~/lib/statuses'
 import type { Category, Page, RepairRequest, Technician } from '~/types'
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
 
 const { t } = useLocale()
@@ -100,6 +100,12 @@ function sortIcon(field: string) {
     : 'bi-arrow-down-up'
 }
 
+function selectStatus(nextStatus: string) {
+  status.value = nextStatus
+  page.value = 1
+  refresh()
+}
+
 const errorMessage = computed(() => {
   return getApiErrorMessage(error.value, 'Unknown error.')
 })
@@ -138,6 +144,35 @@ const savingExec = ref(false)
 const execError = ref('')
 
 const actionError = ref('')
+const deleteRequestId = ref<number | null>(null)
+const deletingRequest = ref(false)
+
+function openDeleteModal(request: RepairRequest) {
+  deleteRequestId.value = request.id
+  showModal('request-delete-modal')
+}
+
+async function deleteRequest() {
+  if (deleteRequestId.value == null) return
+  deletingRequest.value = true
+  actionError.value = ''
+  try {
+    await apiFetch(`/requests/${deleteRequestId.value}`, { method: 'DELETE' })
+    hideModal('request-delete-modal')
+    deleteRequestId.value = null
+    await refresh()
+  } catch (e) {
+    if (getApiErrorCode(e) === 'REPAIR_REQUEST_NOT_FOUND') {
+      actionError.value = t('requestAlreadyDeleted')
+      hideModal('request-delete-modal')
+      await refresh()
+    } else {
+      actionError.value = getApiErrorMessage(e, 'Failed to delete request.')
+    }
+  } finally {
+    deletingRequest.value = false
+  }
+}
 
 async function acceptAssignment(r: RepairRequest) {
   actionError.value = ''
@@ -202,6 +237,26 @@ const execRequired = computed(() => execAction.value !== 'resume')
   >
     <div class="card">
       <div class="card-header">
+        <div class="request-status-tabs nav nav-pills mb-3">
+          <button
+            type="button"
+            class="nav-link"
+            :class="{ active: !status }"
+            @click="selectStatus('')"
+          >
+            {{ t('all') }}
+          </button>
+          <button
+            v-for="s in requestStatuses"
+            :key="s.value"
+            type="button"
+            class="nav-link"
+            :class="{ active: status === s.value }"
+            @click="selectStatus(s.value)"
+          >
+            {{ t(`status.${s.value}`) }}
+          </button>
+        </div>
         <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
           <h3 class="card-title mb-0">
             {{ t('allRequests') }}
@@ -478,6 +533,18 @@ const execRequired = computed(() => execAction.value !== 'resume')
                         <i class="bi bi-x-circle me-2" />{{ t('cancelRequest') }}
                       </a>
                     </li>
+                    <li>
+                      <hr class="dropdown-divider">
+                    </li>
+                    <li>
+                      <a
+                        href="#"
+                        class="dropdown-item text-danger"
+                        @click.prevent="openDeleteModal(r)"
+                      >
+                        <i class="bi bi-trash me-2" />{{ t('deleteRequest') }}
+                      </a>
+                    </li>
                   </ul>
                 </div>
               </td>
@@ -590,6 +657,37 @@ const execRequired = computed(() => execAction.value !== 'resume')
           @click="runExec"
         >
           {{ savingExec ? t('saving') : t('save') }}
+        </button>
+      </template>
+    </AppModal>
+
+    <AppModal
+      id="request-delete-modal"
+      :title="t('deleteRequest')"
+      size="sm"
+    >
+      <p class="mb-0">
+        {{ t('confirmDeleteRequest') }}
+      </p>
+      <template #footer>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          {{ t('cancel') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-danger"
+          :disabled="deletingRequest"
+          @click="deleteRequest"
+        >
+          <span
+            v-if="deletingRequest"
+            class="spinner-border spinner-border-sm me-2"
+          />
+          {{ t('delete') }}
         </button>
       </template>
     </AppModal>

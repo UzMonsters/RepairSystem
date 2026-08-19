@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorMessage } from '~/utils/api'
 
-const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword, logout, avatarObjectUrl } = useAuth()
+const { user, updateProfile, uploadAvatar, deleteAvatar, changePassword, logout, logoutAll, avatarObjectUrl } = useAuth()
 const { t } = useLocale()
 
 const loadingProfile = ref(false)
@@ -22,6 +22,13 @@ const passwordForm = ref({
 const avatarPreviewUrl = ref<string | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const avatarSrc = computed(() => avatarPreviewUrl.value || avatarObjectUrl.value || undefined)
+const profileInitials = computed(() => (user.value?.fullName || 'Administrator')
+  .split(/\s+/)
+  .filter(Boolean)
+  .map(part => part[0])
+  .join('')
+  .slice(0, 2)
+  .toUpperCase())
 
 async function handleFileSelect(e: Event) {
   const target = e.target as HTMLInputElement
@@ -159,7 +166,9 @@ async function handlePasswordSubmit() {
                 <div
                   v-else
                   class="d-flex align-items-center justify-content-center rounded-circle bg-secondary text-white shadow"
-                />
+                >
+                  <span class="fw-semibold fs-4">{{ profileInitials }}</span>
+                </div>
                 <label
                   class="profile-avatar-action profile-avatar-upload"
                   :class="{ disabled: loadingAvatar }"
@@ -251,6 +260,14 @@ async function handlePasswordSubmit() {
             </form>
           </div>
         </div>
+        <button
+          type="button"
+          class="btn btn-outline-danger"
+          @click="logoutAll"
+        >
+          <i class="bi bi-box-arrow-right me-2" />
+          {{ t('logoutAllDevices') || 'Log out all devices' }}
+        </button>
       </div>
     </div>
   </AppContent>

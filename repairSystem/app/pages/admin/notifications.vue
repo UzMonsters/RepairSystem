@@ -7,14 +7,14 @@ const { t } = useLocale()
 const page = ref(1)
 const size = ref(10)
 const status = ref('')
-const sortField = ref('createdAt')
-const sortDirection = ref<'asc' | 'desc'>('desc')
+const readTab = ref<'all' | 'unread' | 'read'>('all')
+const readIds = ref<number[]>([])
 
 const query = computed(() => ({
   page: page.value - 1,
   size: size.value,
   deliveryStatus: status.value || undefined,
-  sort: `${sortField.value},${sortDirection.value}`
+  sort: 'createdAt,desc'
 }))
 
 const { data, pending, error, refresh } = await useAsyncData('notifications', () =>
@@ -42,7 +42,19 @@ onBeforeUnmount(() => {
   if (errorToastTimer) clearTimeout(errorToastTimer)
 })
 
+onMounted(() => {
+  try {
+    readIds.value = JSON.parse(localStorage.getItem('repair_notification_read_ids') || '[]')
+  } catch {
+    readIds.value = []
+  }
+})
+
 const rows = computed(() => data.value?.content ?? [])
+const visibleRows = computed(() => rows.value.filter((notification) => {
+  const isRead = readIds.value.includes(notification.id)
+  return readTab.value === 'all' || (readTab.value === 'read' ? isRead : !isRead)
+}))
 const totalElements = computed(() => data.value?.totalElements ?? 0)
 const totalPages = computed(() => data.value?.totalPages ?? 1)
 
@@ -62,27 +74,15 @@ function changeSize(s: number) {
   refresh()
 }
 
-function toggleSort(field: string) {
-  if (sortField.value === field) sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
-  else {
-    sortField.value = field
-    sortDirection.value = 'asc'
-  }
-  page.value = 1
-  refresh()
-}
-
-function sortIcon(field: string) {
-  return sortField.value === field
-    ? sortDirection.value === 'asc' ? 'bi-arrow-up' : 'bi-arrow-down'
-    : 'bi-arrow-down-up'
-}
-
 function formatDate(value?: string) {
   return formatApiDate(value, true)
 }
 
 function openNotification(notification: NotificationSummary) {
+  if (!readIds.value.includes(notification.id)) {
+    readIds.value = [...readIds.value, notification.id]
+    localStorage.setItem('repair_notification_read_ids', JSON.stringify(readIds.value))
+  }
   if (notification.repairRequest?.id) {
     navigateTo(`/admin/requests/${notification.repairRequest.id}`)
   }
@@ -108,6 +108,22 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
     </Teleport>
     <div class="card">
       <div class="card-header">
+        <div class="notification-tabs nav nav-pills mb-3">
+          <button
+            v-for="tab in [
+              { value: 'all', label: t('all') },
+              { value: 'unread', label: t('unread') },
+              { value: 'read', label: t('read') }
+            ]"
+            :key="tab.value"
+            type="button"
+            class="nav-link"
+            :class="{ active: readTab === tab.value }"
+            @click="readTab = tab.value as 'all' | 'unread' | 'read'"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
         <div class="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
           <h3 class="card-title mb-0">
             {{ t('notifications') }}
@@ -132,7 +148,7 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
         </div>
       </div>
 
-      <div class="card-body table-responsive p-0">
+      <div class="card-body p-0">
         <div
           v-if="error"
           class="alert alert-danger m-3"
@@ -147,91 +163,48 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
           </button>
         </div>
 
-        <table
-          v-else
-          class="table table-hover align-middle mb-0"
+        <div
+          v-else-if="pending"
+          class="text-center py-4"
         >
-          <thead>
-            <tr>
-              <th
-                v-for="column in [
-                  { label: t('title'), field: 'notificationType' },
-                  { label: t('message'), field: 'createdAt' },
-                  { label: t('recipient'), field: 'id' },
-                  { label: t('channel'), field: 'notificationType' },
-                  { label: t('deliveryStatus'), field: 'status' },
-                  { label: t('created'), field: 'createdAt' }
-                ]"
-                :key="column.label"
-              >
-                <button
-                  type="button"
-                  class="table-sort-button"
-                  @click.stop="toggleSort(column.field)"
-                >
-                  {{ column.label }}
-                  <i
-                    class="bi ms-1"
-                    :class="sortIcon(column.field)"
-                    aria-hidden="true"
-                  />
-                </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="pending">
-              <td
-                colspan="6"
-                class="text-center py-4"
-              >
-                <div class="spinner-border spinner-border-sm text-primary" />
-              </td>
-            </tr>
-            <tr v-else-if="!rows.length">
-              <td
-                colspan="6"
-                class="text-center py-4"
-              >
-                <div class="empty-state">
-                  <i class="bi bi-bell" />
-                  <p>{{ t('noNotifications') }}</p>
-                </div>
-              </td>
-            </tr>
-            <tr
-              v-for="n in rows"
-              :key="n.id"
-              class="table-row-link"
-              :class="{ 'is-disabled': !n.repairRequest?.id }"
-              :tabindex="n.repairRequest?.id ? 0 : -1"
-              @click="openNotification(n)"
-              @keydown.enter="openNotification(n)"
-            >
-              <td class="fw-semibold">
-                {{ n.title || '-' }}
-              </td>
-              <td>
-                {{ n.message || '-' }}
-              </td>
-              <td>
-                {{ n.recipient?.name || n.recipient?.type || '-' }}
-              </td>
-              <td>{{ n.channel || '-' }}</td>
-              <td>
-                <span
-                  class="status-chip"
-                  :class="n.deliveryStatus === 'DELIVERED' ? 'status-completed' : n.deliveryStatus === 'FAILED' || n.deliveryStatus === 'SKIPPED' ? 'status-cancelled' : 'status-assigned'"
-                >
-                  <span class="status-dot" />{{ n.deliveryStatus }}
-                </span>
-              </td>
-              <td class="text-nowrap">
-                {{ formatDate(n.createdAt) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+          <div class="spinner-border spinner-border-sm text-primary" />
+        </div>
+        <div
+          v-else-if="!visibleRows.length"
+          class="empty-state py-5"
+        >
+          <i class="bi bi-bell" />
+          <p>{{ t('noNotifications') }}</p>
+        </div>
+        <div
+          v-else
+          class="notification-list"
+        >
+          <button
+            v-for="n in visibleRows"
+            :key="n.id"
+            type="button"
+            class="notification-list-item w-100 text-start border-0"
+            :class="{ 'notification-unread': !readIds.includes(n.id) }"
+            @click="openNotification(n)"
+          >
+            <span class="notification-list-icon rounded-circle">
+              <i class="bi bi-bell" />
+            </span>
+            <span class="notification-list-content">
+              <span class="d-flex justify-content-between gap-3">
+                <strong>{{ n.title || '-' }}</strong>
+                <small class="text-muted text-nowrap">{{ formatDate(n.createdAt) }}</small>
+              </span>
+              <span class="text-muted d-block">{{ n.message || '-' }}</span>
+              <span class="small text-muted">{{ n.recipient?.name || n.recipient?.type || '-' }} · {{ n.channel || '-' }}</span>
+            </span>
+            <span
+              v-if="!readIds.includes(n.id)"
+              class="notification-unread-dot"
+            />
+          </button>
+        </div>
       </div>
 
       <AppPagination

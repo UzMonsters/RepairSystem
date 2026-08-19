@@ -280,6 +280,9 @@ export interface DashboardStatusLabel {
   labelEn: string
   labelRu: string
   labelUz: string
+  en?: string
+  ru?: string
+  uz?: string
 }
 
 export interface DashboardStatusDistributionItem {

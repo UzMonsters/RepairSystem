@@ -8,6 +8,8 @@ type TokenPayload = {
   refreshToken?: string
   accessTokenExpiresIn?: number
   refreshTokenExpiresIn?: number
+  expiresIn?: number
+  refreshExpiresIn?: number
   rememberMe?: boolean
 }
 
@@ -31,11 +33,15 @@ export function getRefreshToken(event: H3Event) {
 
 export function storeAuthCookies(event: H3Event, payload: TokenPayload) {
   if (payload.accessToken) {
-    const maxAge = payload.rememberMe ? payload.accessTokenExpiresIn : undefined
+    const maxAge = payload.rememberMe
+      ? payload.accessTokenExpiresIn ?? payload.expiresIn
+      : undefined
     setCookie(event, ACCESS_COOKIE, payload.accessToken, cookieOptions(maxAge))
   }
   if (payload.refreshToken) {
-    const maxAge = payload.rememberMe ? payload.refreshTokenExpiresIn : undefined
+    const maxAge = payload.rememberMe
+      ? payload.refreshTokenExpiresIn ?? payload.refreshExpiresIn
+      : undefined
     setCookie(event, REFRESH_COOKIE, payload.refreshToken, cookieOptions(maxAge))
   }
 }

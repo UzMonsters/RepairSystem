@@ -45,11 +45,11 @@ const stats = computed(() => [
 ])
 
 const statusSummary = computed(() => [
-  { label: t('status.NEW'), value: data.value?.newToday ?? 0, badge: 'status-new' },
-  { label: t('status.IN_PROGRESS'), value: data.value?.inProgress ?? 0, badge: 'status-in-progress' },
-  { label: t('status.WAITING_FOR_PARTS'), value: data.value?.waitingForParts ?? 0, badge: 'status-waiting' },
-  { label: t('status.COMPLETED'), value: data.value?.completedTotal ?? 0, badge: 'status-completed' },
-  { label: t('status.CANCELLED'), value: data.value?.cancelledTotal ?? 0, badge: 'status-cancelled' }
+  { status: 'NEW', label: t('status.NEW'), value: data.value?.newToday ?? 0, badge: 'status-new' },
+  { status: 'IN_PROGRESS', label: t('status.IN_PROGRESS'), value: data.value?.inProgress ?? 0, badge: 'status-in-progress' },
+  { status: 'WAITING_FOR_PARTS', label: t('status.WAITING_FOR_PARTS'), value: data.value?.waitingForParts ?? 0, badge: 'status-waiting' },
+  { status: 'COMPLETED', label: t('status.COMPLETED'), value: data.value?.completedTotal ?? 0, badge: 'status-completed' },
+  { status: 'CANCELLED', label: t('status.CANCELLED'), value: data.value?.cancelledTotal ?? 0, badge: 'status-cancelled' }
 ])
 
 const errorMessage = computed(() => {
@@ -63,6 +63,10 @@ function categoryName(c?: RepairRequest['category']) {
 
 function formatTime(value?: string) {
   return formatDate(value, true)
+}
+
+function openStatus(status: string) {
+  navigateTo({ path: '/admin/requests', query: { status } })
 }
 </script>
 
@@ -182,6 +186,10 @@ function formatTime(value?: string) {
                 v-for="s in statusSummary"
                 :key="s.label"
                 class="status-summary-item"
+                role="button"
+                tabindex="0"
+                @click="openStatus(s.status)"
+                @keydown.enter="openStatus(s.status)"
               >
                 <span class="status-summary-label">{{ s.label }}</span>
                 <span class="status-summary-value">{{ s.value }}</span>

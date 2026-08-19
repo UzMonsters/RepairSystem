@@ -7,14 +7,14 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mobile/main.dart';
+import 'package:repair_mobile/main.dart';
 
 void main() {
   testWidgets('shows the login screen', (WidgetTester tester) async {
-    await tester.pumpWidget(const RepairApp());
+    await tester.pumpWidget(const RepairAutoApp());
 
-    expect(find.text('РемСервис'), findsOneWidget);
-    expect(find.text('Демонстрационный режим'), findsOneWidget);
-    expect(find.text('Войти'), findsOneWidget);
+    expect(find.text('RepairAuto'), findsOneWidget);
+    expect(find.text('Telegram idToken'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
   });
 }
