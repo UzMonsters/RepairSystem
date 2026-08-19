@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
@@ -17,6 +18,7 @@ import com.example.darks.repair_auto.repair.request.application.RepairRequestSer
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestSource;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
+import com.example.darks.repair_auto.repair.request.domain.RepairRequest;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
 import com.example.darks.repair_auto.review.application.RepairReviewService;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
@@ -267,6 +269,54 @@ class TelegramCustomerBotServiceTest {
     }
 
     @Test
+    void givenConfirmCallbackThenSourceReferenceUsesConfirmationMessageId() {
+        TelegramCustomerSession session = linkedSession(20520L, 24520L);
+        session.state(TelegramCustomerSessionState.CONFIRMING_REQUEST, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.draftCategory(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.draftDescription("Washer leaks water badly", OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.draftAddress("Tashkent", OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairRequestService repairRequests = mock(RepairRequestService.class);
+        RepairRequest request = mock(RepairRequest.class);
+        when(request.getId()).thenReturn(909L);
+        when(sessions.findByTelegramUserIdForUpdate(20520L)).thenReturn(Optional.of(session));
+        when(repairRequests.telegramCreate(
+                eq(77L),
+                eq(123L),
+                eq("Washer leaks water badly"),
+                eq("Tashkent"),
+                any(),
+                any(),
+                eq("telegram-confirm-24520-9001")))
+                .thenReturn(request);
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                repairRequests,
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                new RecordingTelegramBotClient(),
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(callback(230L, 20520L, 24520L, 9001L, "cb-confirm-one", "confirm:create"));
+
+        verify(repairRequests).telegramCreate(
+                eq(77L),
+                eq(123L),
+                eq("Washer leaks water badly"),
+                eq("Tashkent"),
+                any(),
+                any(),
+                eq("telegram-confirm-24520-9001"));
+    }
+
+    @Test
     void givenRegisteredCustomerWhenHistoryShownThenCreatedDateIsCompact() {
         TelegramCustomerSession session = linkedSession(21021L, 25021L);
         TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
@@ -377,6 +427,30 @@ class TelegramCustomerBotServiceTest {
                                 new TelegramUpdatePayload.TelegramPhotoSize("small", "small-unique", 20, 20, 1L),
                                 new TelegramUpdatePayload.TelegramPhotoSize(fileId, fileId + "-unique", 800, 600, size))),
                 null);
+    }
+
+    private TelegramUpdatePayload callback(
+            Long updateId,
+            Long userId,
+            Long chatId,
+            Long messageId,
+            String callbackId,
+            String data) {
+        return new TelegramUpdatePayload(
+                updateId,
+                null,
+                new TelegramUpdatePayload.TelegramCallbackQuery(
+                        callbackId,
+                        new TelegramUpdatePayload.TelegramUser(userId, "Test", null),
+                        new TelegramUpdatePayload.TelegramMessage(
+                                messageId,
+                                null,
+                                new TelegramUpdatePayload.TelegramChat(chatId, "private"),
+                                null,
+                                null,
+                                null,
+                                null),
+                        data));
     }
 
     private static final class RecordingTelegramBotClient implements TelegramBotClient {

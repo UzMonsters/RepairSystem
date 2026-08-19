@@ -227,7 +227,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(request.getStatus()).isEqualTo(RepairRequestStatus.NEW);
         assertThat(request.getSource()).isEqualTo(RepairRequestSource.TELEGRAM);
         assertThat(request.getCreatedByUser()).isNull();
-        assertThat(request.getSourceReference()).isEqualTo("telegram-confirm-cb-confirm");
+        assertThat(request.getSourceReference()).isEqualTo("telegram-confirm-7003-41");
         assertThat(customerTelegramUserId(request.getId())).isEqualTo(3003);
         assertThat(attachmentRepository.findAll()).hasSize(1);
         var attachment = attachmentRepository.findAll().getFirst();
