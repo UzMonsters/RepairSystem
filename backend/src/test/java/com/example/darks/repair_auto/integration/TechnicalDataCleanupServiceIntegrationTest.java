@@ -111,11 +111,11 @@ class TechnicalDataCleanupServiceIntegrationTest extends PostgreSqlIntegrationTe
     private Long request(Long userId, Long customerId, Long categoryId) {
         return jdbcTemplate.queryForObject("""
                 insert into repair_requests (
-                    request_number, customer_id, category_id, description, address, priority,
+                    request_number, customer_id, category_id, description, location_address, location_source, priority,
                     status, source, created_by_user_id, created_at, updated_at
                 ) values (
                     'REP-CLEAN-001', ?, ?, 'Cleanup integration seeded request.',
-                    'Tashkent', 'NORMAL', 'NEW', 'ADMIN', ?, now(), now()
+                    'Tashkent', 'MANUAL', 'NORMAL', 'NEW', 'ADMIN', ?, now(), now()
                 )
                 returning id
                 """, Long.class, customerId, categoryId, userId);

@@ -127,6 +127,7 @@ class CustomerRepairRequestFacadeTest {
         CustomerRepairRequestCreateRequest request = new CustomerRepairRequestCreateRequest(
                 4L,
                 "Air conditioner is making noise",
+                null,
                 "Chilanzar 9, Tashkent",
                 new BigDecimal("41.275412"),
                 new BigDecimal("69.204511"));
@@ -139,9 +140,10 @@ class CustomerRepairRequestFacadeTest {
                 "Chilanzar 9, Tashkent",
                 new BigDecimal("41.275412"),
                 new BigDecimal("69.204511"),
+                com.example.darks.repair_auto.repair.request.domain.RequestLocationSource.DEVICE_GPS,
                 RepairRequestPriority.NORMAL,
                 null,
-                "mobile:customer:42:k-123",
+                null,
                 admin,
                 NOW);
         ReflectionTestUtils.setField(saved, "id", 1001L);
@@ -150,9 +152,7 @@ class CustomerRepairRequestFacadeTest {
                 eq(42L),
                 eq(4L),
                 eq("Air conditioner is making noise"),
-                eq("Chilanzar 9, Tashkent"),
-                eq(new BigDecimal("41.275412")),
-                eq(new BigDecimal("69.204511")),
+                eq(request.resolvedLocation()),
                 eq("mobile:customer:42:k-123"))).thenReturn(saved);
 
         CustomerRepairRequestDetailResponse response = facade.createRequest(actor, "k-123", request);
@@ -173,6 +173,7 @@ class CustomerRepairRequestFacadeTest {
                 category,
                 "Problem description",
                 "Tashkent",
+                null,
                 null,
                 null,
                 RepairRequestPriority.NORMAL,
@@ -204,6 +205,7 @@ class CustomerRepairRequestFacadeTest {
                 "Tashkent",
                 new BigDecimal("41.2"),
                 new BigDecimal("69.2"),
+                com.example.darks.repair_auto.repair.request.domain.RequestLocationSource.DEVICE_GPS,
                 RepairRequestPriority.NORMAL,
                 null,
                 null,
@@ -242,6 +244,7 @@ class CustomerRepairRequestFacadeTest {
                 "Tashkent",
                 null,
                 null,
+                null,
                 RepairRequestPriority.NORMAL,
                 null,
                 null,
@@ -270,7 +273,7 @@ class CustomerRepairRequestFacadeTest {
     void givenCustomerActor_whenSubmitReview_thenDelegatesToReviewService() {
         AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.CUSTOMER, 42L, "+998901234567", true);
         RepairRequest req = new RepairRequest(
-                "REQ-2026-000042", customer, category, "Problem", "Tashkent", null, null, RepairRequestPriority.NORMAL, null, null, admin, NOW);
+                "REQ-2026-000042", customer, category, "Problem", "Tashkent", null, null, null, RepairRequestPriority.NORMAL, null, null, admin, NOW);
         req.markCompleted(NOW);
         ReflectionTestUtils.setField(req, "id", 1001L);
 
@@ -300,6 +303,7 @@ class CustomerRepairRequestFacadeTest {
                 category,
                 "Problem description",
                 "Tashkent",
+                null,
                 null,
                 null,
                 RepairRequestPriority.NORMAL,

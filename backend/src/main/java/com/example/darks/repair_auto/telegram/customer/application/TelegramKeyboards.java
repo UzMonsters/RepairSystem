@@ -32,6 +32,16 @@ public class TelegramKeyboards {
         return inline(List.of(List.of(button(messages.get(language, "skip"), "photo:skip"))));
     }
 
+    public String location(TelegramMessages messages, LanguageCode language) {
+        String sendCurrentText = messages.get(language, "request.location.send_current");
+        String enterAddressText = messages.get(language, "request.location.enter_address");
+        String skipText = messages.get(language, "request.location.skip");
+        return "{\"keyboard\":["
+                + "[{\"text\":\"" + json(sendCurrentText) + "\",\"request_location\":true}],"
+                + "[{\"text\":\"" + json(enterAddressText) + "\"},{\"text\":\"" + json(skipText) + "\"}]"
+                + "],\"resize_keyboard\":true,\"one_time_keyboard\":true}";
+    }
+
     public String contact(TelegramMessages messages, LanguageCode language) {
         return "{\"keyboard\":[[{\"text\":\""
                 + json(messages.get(language, "share_contact_button"))

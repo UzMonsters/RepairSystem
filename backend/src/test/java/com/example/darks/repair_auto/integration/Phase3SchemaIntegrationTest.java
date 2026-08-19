@@ -25,7 +25,8 @@ class Phase3SchemaIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(constraintExists("repair_requests", "repair_requests_status_check")).isTrue();
         assertThat(constraintExists("repair_requests", "repair_requests_priority_check")).isTrue();
         assertThat(constraintExists("repair_requests", "repair_requests_source_check")).isTrue();
-        assertThat(constraintExists("repair_requests", "repair_requests_coordinate_pair_check")).isTrue();
+        assertThat(constraintExists("repair_requests", "repair_requests_location_coordinate_pair_check")).isTrue();
+        assertThat(constraintExists("repair_requests", "repair_requests_location_source_check")).isTrue();
         assertThat(indexExists("idx_repair_requests_customer_id")).isTrue();
         assertThat(indexExists("idx_repair_requests_created_at")).isTrue();
     }

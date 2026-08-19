@@ -257,7 +257,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(telegramBotClient.messages())
                 .filteredOn(m -> m.chatId().equals(7103L))
                 .anyMatch(m -> m.text().contains("3/3 foto qabul qilindi"));
-        assertThat(telegramBotClient.lastText()).contains("Geolokatsiya yoki manzil yuboring");
+        assertThat(telegramBotClient.lastText()).contains("Geolokatsiyani yuboring");
 
         // Fourth photo should be rejected
         send(photo(51, 3103, 7103, "photo-multi-4", JPEG.length));
@@ -277,6 +277,45 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(attachments).allMatch(a -> a.getUploadedByCustomer().getId().equals(requestCustomerId(request.getId())));
         assertThat(attachments).extracting("originalFileName")
                 .containsExactlyInAnyOrder("telegram-photo-1.jpg", "telegram-photo-2.jpg", "telegram-photo-3.jpg");
+    }
+
+    @Test
+    void givenTelegramWizardWithAddressThenRequestIsCreatedWithManualAddress() throws Exception {
+        register(3203, 7203, "+998903334477", "Address Bot", LanguageCode.UZ);
+        send(callback(55, 3203, 7203, "cb-create-addr", "menu:create"));
+        send(callback(56, 3203, 7203, "cb-cat-addr", "cat:" + categoryId));
+        send(update(57, 3203, 7203, "Kir yuvish mashinasi ishlamayapti"));
+        send(callback(58, 3203, 7203, "cb-skip-photo", "photo:skip"));
+        send(update(59, 3203, 7203, "⌨️ Manzil kiritish"));
+        send(update(60, 3203, 7203, "Chilanzar 9, 14-uy, 22-xonadon, Toshkent"));
+        send(callback(61, 3203, 7203, "cb-confirm-addr", "confirm:create"));
+
+        var requests = requestRepository.findAll();
+        assertThat(requests).hasSize(1);
+        var request = requests.getFirst();
+        assertThat(request.getLocationAddress()).isEqualTo("Chilanzar 9, 14-uy, 22-xonadon, Toshkent");
+        assertThat(request.getLocationLatitude()).isNull();
+        assertThat(request.getLocationLongitude()).isNull();
+        assertThat(request.getLocationSource()).isEqualTo(com.example.darks.repair_auto.repair.request.domain.RequestLocationSource.TELEGRAM);
+    }
+
+    @Test
+    void givenTelegramWizardWithSkipLocationThenRequestIsCreatedWithNullLocation() throws Exception {
+        register(3303, 7303, "+998903334488", "Skip Bot", LanguageCode.UZ);
+        send(callback(65, 3303, 7303, "cb-create-skip", "menu:create"));
+        send(callback(66, 3303, 7303, "cb-cat-skip", "cat:" + categoryId));
+        send(update(67, 3303, 7303, "Muzlatgich sovutmayapti"));
+        send(callback(68, 3303, 7303, "cb-skip-photo", "photo:skip"));
+        send(update(69, 3303, 7303, "⏭ O'tkazib yuborish"));
+        send(callback(70, 3303, 7303, "cb-confirm-skip", "confirm:create"));
+
+        var requests = requestRepository.findAll();
+        assertThat(requests).hasSize(1);
+        var request = requests.getFirst();
+        assertThat(request.getLocationAddress()).isNull();
+        assertThat(request.getLocationLatitude()).isNull();
+        assertThat(request.getLocationLongitude()).isNull();
+        assertThat(request.getLocationSource()).isNull();
     }
 
     @Test
@@ -317,7 +356,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(callback(82, 6006, 10006, "cb-cat-concurrent", "cat:" + categoryId));
         send(update(83, 6006, 10006, "Concurrent duplicate confirmation text"));
         send(callback(84, 6006, 10006, "cb-skip-concurrent", "photo:skip"));
-        send(update(85, 6006, 10006, "Tashkent concurrent address"));
+        send(location(85, 6006, 10006, "41.311081", "69.240562"));
 
         List<Object> results = runConcurrently(
                 () -> {
@@ -345,7 +384,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(callback(92, 7007, 11007, "cb-cat-inactive", "cat:" + categoryId));
         send(update(93, 7007, 11007, "Inactive category confirmation text"));
         send(callback(94, 7007, 11007, "cb-skip-inactive", "photo:skip"));
-        send(update(95, 7007, 11007, "Tashkent inactive category address"));
+        send(location(95, 7007, 11007, "41.311081", "69.240562"));
         categoryService.changeActivation(categoryId, false, "Archived between selection and confirmation.");
 
         send(callback(96, 7007, 11007, "cb-confirm-inactive", "confirm:create"));
@@ -489,7 +528,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(photo(154, 12012, 16012, "duplicate-photo-id", JPEG.length));
         send(photo(154, 12012, 16012, "duplicate-photo-id", JPEG.length));
         send(callback(155, 12012, 16012, "cb-skip-photo-dup", "photo:skip"));
-        send(update(156, 12012, 16012, "Tashkent duplicate photo address"));
+        send(location(156, 12012, 16012, "41.311081", "69.240562"));
         send(callback(157, 12012, 16012, "cb-confirm-photo-dup", "confirm:create"));
 
         assertThat(requestRepository.findAll()).hasSize(1);
@@ -504,10 +543,10 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(callback(161, 13013, 17013, "cb-create-photo-fail", "menu:create"));
         send(callback(162, 13013, 17013, "cb-cat-photo-fail", "cat:" + categoryId));
         send(update(163, 13013, 17013, "Photo failure request description"));
-        telegramBotClient.failFile("failing-photo-id");
         send(photo(164, 13013, 17013, "failing-photo-id", JPEG.length));
+        telegramBotClient.failFile("failing-photo-id");
         send(callback(165, 13013, 17013, "cb-skip-photo-fail", "photo:skip"));
-        send(update(166, 13013, 17013, "Tashkent photo failure address"));
+        send(location(166, 13013, 17013, "41.311081", "69.240562"));
         send(callback(167, 13013, 17013, "cb-confirm-photo-fail", "confirm:create"));
 
         assertThat(requestRepository.findAll()).hasSize(1);
@@ -617,7 +656,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(callback(base + 1, userId, chatId, "cb-cat-" + base, "cat:" + categoryId));
         send(update(base + 2, userId, chatId, description + " with enough text"));
         send(callback(base + 3, userId, chatId, "cb-skip-" + base, "photo:skip"));
-        send(update(base + 4, userId, chatId, "Tashkent, customer address"));
+        send(location(base + 4, userId, chatId, "41.311081", "69.240562"));
         send(callback(base + 5, userId, chatId, "cb-confirm-" + base, "confirm:create"));
         return jdbcTemplate.queryForObject("""
                 select r.id from repair_requests r
@@ -647,9 +686,9 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
                 """, Long.class, "Review Technician " + unique, String.format("+99893%07d", unique));
         Long requestId = jdbcTemplate.queryForObject("""
                 insert into repair_requests (
-                    request_number, customer_id, category_id, description, address, priority,
+                    request_number, customer_id, category_id, description, location_address, location_source, priority,
                     status, source, created_by_user_id, source_reference, created_at, updated_at
-                ) values (?, ?, ?, 'Completed request for review flow.', 'Tashkent',
+                ) values (?, ?, ?, 'Completed request for review flow.', 'Tashkent', 'TELEGRAM',
                     'NORMAL', 'COMPLETED', 'TELEGRAM', null, ?, now(), now())
                 returning id
                 """, Long.class, "REP-REVIEW-" + unique, customerId, categoryId, "review-seed-" + unique);

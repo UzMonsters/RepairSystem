@@ -112,7 +112,7 @@ class TechnicianJobFacadeTest {
     @Test
     void givenTechnicianActor_whenListActiveJobs_thenReturnsPageOfSummaries() {
         AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 17L, "+998901112233", true);
-        RepairRequest req = new RepairRequest("REQ-2026-000042", customer, category, "Problem", "Chilanzar", null, null, RepairRequestPriority.NORMAL, null, null, admin, NOW);
+        RepairRequest req = new RepairRequest("REQ-2026-000042", customer, category, "Problem", "Chilanzar", null, null, null, RepairRequestPriority.NORMAL, null, null, admin, NOW);
         ReflectionTestUtils.setField(req, "id", 42L);
 
         RepairAssignment assignment = new RepairAssignment(req, technician, NOW.plusDays(1), admin, NOW);
@@ -133,7 +133,7 @@ class TechnicianJobFacadeTest {
     @Test
     void givenTechnicianActor_whenGetJobDetail_thenReturnsTechnicianSafeDetail() {
         AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 17L, "+998901112233", true);
-        RepairRequest req = new RepairRequest("REQ-2026-000042", customer, category, "Problem description", "Chilanzar 9", new BigDecimal("41.2"), new BigDecimal("69.2"), RepairRequestPriority.NORMAL, null, null, admin, NOW);
+        RepairRequest req = new RepairRequest("REQ-2026-000042", customer, category, "Problem description", "Chilanzar 9", new BigDecimal("41.2"), new BigDecimal("69.2"), com.example.darks.repair_auto.repair.request.domain.RequestLocationSource.DEVICE_GPS, RepairRequestPriority.NORMAL, null, null, admin, NOW);
         req.markInProgress(NOW);
         ReflectionTestUtils.setField(req, "id", 42L);
 
@@ -167,7 +167,7 @@ class TechnicianJobFacadeTest {
     @Test
     void givenTechnicianActor_whenGetSchedule_thenReturnsBoundedSchedule() {
         AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 17L, "+998901112233", true);
-        RepairRequest req = new RepairRequest("REQ-2026-000042", customer, category, "Problem", "Chilanzar", null, null, RepairRequestPriority.NORMAL, null, null, admin, NOW);
+        RepairRequest req = new RepairRequest("REQ-2026-000042", customer, category, "Problem", "Chilanzar", null, null, null, RepairRequestPriority.NORMAL, null, null, admin, NOW);
         ReflectionTestUtils.setField(req, "id", 42L);
 
         RepairAssignment assignment = new RepairAssignment(req, technician, NOW.plusDays(1), admin, NOW);
@@ -197,7 +197,7 @@ class TechnicianJobFacadeTest {
     @Test
     void givenTechnicianActor_whenAcceptAssignment_thenDelegatesToService() {
         AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 17L, "+998901112233", true);
-        RepairRequest req = new RepairRequest("REQ-2026-000042", customer, category, "Problem", "Chilanzar", null, null, RepairRequestPriority.NORMAL, null, null, admin, NOW);
+        RepairRequest req = new RepairRequest("REQ-2026-000042", customer, category, "Problem", "Chilanzar", null, null, null, RepairRequestPriority.NORMAL, null, null, admin, NOW);
         ReflectionTestUtils.setField(req, "id", 42L);
 
         RepairAssignment assignment = new RepairAssignment(req, technician, NOW.plusDays(1), admin, NOW);

@@ -172,7 +172,7 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
                                 {"customerId":%d,"categoryId":%d,"description":"The appliance makes loud noise.","latitude":41.2856}
                                 """.formatted(customerId, categoryId)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REPAIR_REQUEST_LOCATION"));
+                .andExpect(jsonPath("$.code").value("REQUEST_LOCATION_COORDINATES_INCOMPLETE"));
 
         mockMvc.perform(post("/api/v1/requests")
                         .with(user(new AuthenticatedUser(admin)))
@@ -323,6 +323,209 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
         var deleted = repairRequestRepository.findById(created.id()).orElseThrow();
         assertThat(deleted.isDeleted()).isTrue();
         assertThat(deleted.getDeletedByUser().getId()).isEqualTo(admin.getId());
+    }
+
+    @Test
+    void givenLocationObject_whenCreateRepairRequest_thenLocationIsStoredAndReturned() throws Exception {
+        String body = """
+                {
+                  "customerId": %d,
+                  "categoryId": %d,
+                  "description": "Refrigerator is leaking coolant rapidly.",
+                  "location": {
+                    "latitude": 41.3110810,
+                    "longitude": 69.2405620,
+                    "address": "Mustaqillik Avenue 15, Tashkent",
+                    "source": "DEVICE_GPS"
+                  },
+                  "priority": "HIGH"
+                }
+                """.formatted(customerId, categoryId);
+
+        mockMvc.perform(post("/api/v1/requests")
+                        .with(user(new AuthenticatedUser(admin)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").isNumber());
+
+        var list = repairRequestRepository.findAll();
+        assertThat(list).hasSize(1);
+        var request = list.get(0);
+        assertThat(request.getLocationLatitude()).isEqualByComparingTo("41.3110810");
+        assertThat(request.getLocationLongitude()).isEqualByComparingTo("69.2405620");
+        assertThat(request.getLocationAddress()).isEqualTo("Mustaqillik Avenue 15, Tashkent");
+        assertThat(request.getLocationSource()).isEqualTo(com.example.darks.repair_auto.repair.request.domain.RequestLocationSource.DEVICE_GPS);
+
+        mockMvc.perform(get("/api/v1/requests/{id}", request.getId())
+                        .with(user(new AuthenticatedUser(admin))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.location.latitude").value(41.3110810))
+                .andExpect(jsonPath("$.location.longitude").value(69.2405620))
+                .andExpect(jsonPath("$.location.address").value("Mustaqillik Avenue 15, Tashkent"))
+                .andExpect(jsonPath("$.location.source").value("DEVICE_GPS"))
+                .andExpect(jsonPath("$.address").value("Mustaqillik Avenue 15, Tashkent"));
+    }
+
+    @Test
+    void givenCoordinatesOnlyWithoutAddress_whenCreateRepairRequest_thenLocationIsStoredWithDeviceGpsSource() throws Exception {
+        String body = """
+                {
+                  "customerId": %d,
+                  "categoryId": %d,
+                  "description": "Refrigerator is leaking coolant rapidly.",
+                  "location": {
+                    "latitude": 41.3110810,
+                    "longitude": 69.2405620
+                  }
+                }
+                """.formatted(customerId, categoryId);
+
+        mockMvc.perform(post("/api/v1/requests")
+                        .with(user(new AuthenticatedUser(admin)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        var request = repairRequestRepository.findAll().get(0);
+        assertThat(request.getLocationLatitude()).isEqualByComparingTo("41.3110810");
+        assertThat(request.getLocationLongitude()).isEqualByComparingTo("69.2405620");
+        assertThat(request.getLocationAddress()).isNull();
+        assertThat(request.getLocationSource()).isEqualTo(com.example.darks.repair_auto.repair.request.domain.RequestLocationSource.DEVICE_GPS);
+    }
+
+    @Test
+    void givenAddressOnlyWithoutCoordinates_whenCreateRepairRequest_thenLocationIsStoredWithManualSource() throws Exception {
+        String body = """
+                {
+                  "customerId": %d,
+                  "categoryId": %d,
+                  "description": "Refrigerator is leaking coolant rapidly.",
+                  "location": {
+                    "address": "Chilanzar 9, Tashkent"
+                  }
+                }
+                """.formatted(customerId, categoryId);
+
+        mockMvc.perform(post("/api/v1/requests")
+                        .with(user(new AuthenticatedUser(admin)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        var request = repairRequestRepository.findAll().get(0);
+        assertThat(request.getLocationLatitude()).isNull();
+        assertThat(request.getLocationLongitude()).isNull();
+        assertThat(request.getLocationAddress()).isEqualTo("Chilanzar 9, Tashkent");
+        assertThat(request.getLocationSource()).isEqualTo(com.example.darks.repair_auto.repair.request.domain.RequestLocationSource.MANUAL);
+    }
+
+    @Test
+    void givenNullLocation_whenCreateRepairRequest_thenLocationIsNull() throws Exception {
+        String body = """
+                {
+                  "customerId": %d,
+                  "categoryId": %d,
+                  "description": "Refrigerator is leaking coolant rapidly."
+                }
+                """.formatted(customerId, categoryId);
+
+        mockMvc.perform(post("/api/v1/requests")
+                        .with(user(new AuthenticatedUser(admin)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        var request = repairRequestRepository.findAll().get(0);
+        assertThat(request.getLocationLatitude()).isNull();
+        assertThat(request.getLocationLongitude()).isNull();
+        assertThat(request.getLocationAddress()).isNull();
+        assertThat(request.getLocationSource()).isNull();
+    }
+
+    @Test
+    void givenIncompleteCoordinates_whenCreateRepairRequest_thenReturnsBadRequest() throws Exception {
+        String body = """
+                {
+                  "customerId": %d,
+                  "categoryId": %d,
+                  "description": "Refrigerator is leaking coolant rapidly.",
+                  "location": {
+                    "latitude": 41.3110810
+                  }
+                }
+                """.formatted(customerId, categoryId);
+
+        mockMvc.perform(post("/api/v1/requests")
+                        .with(user(new AuthenticatedUser(admin)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REQUEST_LOCATION_COORDINATES_INCOMPLETE"));
+    }
+
+    @Test
+    void givenTelegramSourceViaRest_whenCreateRepairRequest_thenReturnsBadRequest() throws Exception {
+        String body = """
+                {
+                  "customerId": %d,
+                  "categoryId": %d,
+                  "description": "Refrigerator is leaking coolant rapidly.",
+                  "location": {
+                    "latitude": 41.3110810,
+                    "longitude": 69.2405620,
+                    "source": "TELEGRAM"
+                  }
+                }
+                """.formatted(customerId, categoryId);
+
+        mockMvc.perform(post("/api/v1/requests")
+                        .with(user(new AuthenticatedUser(admin)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("REQUEST_LOCATION_SOURCE_INVALID"));
+    }
+
+    @Test
+    void givenLocationObject_whenUpdateRepairRequest_thenLocationIsUpdated() throws Exception {
+        RepairRequestCreateResponse created = repairRequestService.create(
+                new RepairRequestCreateRequest(
+                        customerId,
+                        categoryId,
+                        "Initial description for intake",
+                        "Initial Address",
+                        new java.math.BigDecimal("41.0"),
+                        new java.math.BigDecimal("69.0"),
+                        RepairRequestPriority.NORMAL,
+                        null,
+                        null),
+                new AuthenticatedUser(admin));
+
+        String updateJson = """
+                {
+                  "customerId": %d,
+                  "categoryId": %d,
+                  "description": "Updated problem description",
+                  "location": {
+                    "latitude": 41.3500000,
+                    "longitude": 69.2800000,
+                    "address": "Updated Landmark 22",
+                    "source": "MAP_PIN"
+                  },
+                  "priority": "HIGH"
+                }
+                """.formatted(customerId, categoryId);
+
+        mockMvc.perform(put("/api/v1/requests/{id}", created.id())
+                        .with(user(new AuthenticatedUser(admin)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.location.latitude").value(41.3500000))
+                .andExpect(jsonPath("$.location.longitude").value(69.2800000))
+                .andExpect(jsonPath("$.location.address").value("Updated Landmark 22"))
+                .andExpect(jsonPath("$.location.source").value("MAP_PIN"));
     }
 
     private RepairRequestCreateRequest createRequest(

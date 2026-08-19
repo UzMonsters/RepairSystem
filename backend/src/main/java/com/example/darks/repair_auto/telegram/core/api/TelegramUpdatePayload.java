@@ -44,7 +44,16 @@ public record TelegramUpdatePayload(
     }
 
     public TelegramLocation location() {
-        return message == null ? null : message.location();
+        if (message == null) {
+            return null;
+        }
+        if (message.location() != null) {
+            return message.location();
+        }
+        if (message.venue() != null) {
+            return message.venue().location();
+        }
+        return null;
     }
 
     public List<TelegramPhotoSize> photo() {
@@ -63,7 +72,26 @@ public record TelegramUpdatePayload(
             String text,
             TelegramContact contact,
             TelegramLocation location,
+            TelegramVenue venue,
             List<TelegramPhotoSize> photo) {
+
+        public TelegramMessage(
+                Long messageId,
+                TelegramUser from,
+                TelegramChat chat,
+                String text,
+                TelegramContact contact,
+                TelegramLocation location,
+                List<TelegramPhotoSize> photo) {
+            this(messageId, from, chat, text, contact, location, null, photo);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record TelegramVenue(
+            TelegramLocation location,
+            String title,
+            String address) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

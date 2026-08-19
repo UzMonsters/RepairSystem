@@ -84,6 +84,11 @@ public enum ErrorCode {
     INVALID_REPAIR_REQUEST_STATUS(HttpStatus.CONFLICT, "repair.request.invalid-status"),
     INVALID_REPAIR_REQUEST_DESCRIPTION(HttpStatus.BAD_REQUEST, "repair.request.invalid-description"),
     INVALID_REPAIR_REQUEST_LOCATION(HttpStatus.BAD_REQUEST, "repair.request.invalid-location"),
+    REQUEST_LOCATION_LATITUDE_INVALID(HttpStatus.BAD_REQUEST, "repair.request.location-latitude-invalid"),
+    REQUEST_LOCATION_LONGITUDE_INVALID(HttpStatus.BAD_REQUEST, "repair.request.location-longitude-invalid"),
+    REQUEST_LOCATION_COORDINATES_INCOMPLETE(HttpStatus.BAD_REQUEST, "repair.request.location-coordinates-incomplete"),
+    REQUEST_LOCATION_ADDRESS_TOO_LONG(HttpStatus.BAD_REQUEST, "repair.request.location-address-too-long"),
+    REQUEST_LOCATION_SOURCE_INVALID(HttpStatus.BAD_REQUEST, "repair.request.location-source-invalid"),
     INVALID_PREFERRED_VISIT_TIME(HttpStatus.BAD_REQUEST, "repair.request.invalid-preferred-visit-time"),
     INVALID_REQUEST_DATE_RANGE(HttpStatus.BAD_REQUEST, "repair.request.invalid-date-range"),
 

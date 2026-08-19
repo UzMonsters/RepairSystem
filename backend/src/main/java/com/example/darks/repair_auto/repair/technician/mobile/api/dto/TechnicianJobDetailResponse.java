@@ -90,8 +90,14 @@ public record TechnicianJobDetailResponse(
             BigDecimal latitude,
 
             @Schema(description = "Longitude", example = "69.204511")
-            BigDecimal longitude
+            BigDecimal longitude,
+
+            @Schema(description = "Location acquisition source method", example = "DEVICE_GPS")
+            com.example.darks.repair_auto.repair.request.domain.RequestLocationSource source
     ) {
+        public LocationInfo(String address, BigDecimal latitude, BigDecimal longitude) {
+            this(address, latitude, longitude, null);
+        }
     }
 
     public record ScheduleInfo(

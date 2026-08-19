@@ -14,6 +14,7 @@ import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedMobileActor;
+import com.example.darks.repair_auto.repair.request.api.dto.RequestLocationRequest;
 import com.example.darks.repair_auto.notification.application.NotificationDeliveryResult;
 import com.example.darks.repair_auto.notification.application.NotificationRetryPolicy;
 import com.example.darks.repair_auto.notification.application.PushNotificationDispatchService;
@@ -161,8 +162,11 @@ class MobileBackendMasterE2ETest {
             ReflectionTestUtils.setField(createdRequest, "id", 5001L);
 
             when(repairRequestService.mobileCreate(
-                    eq(1001L), eq(10L), eq("Tormozdan g'alati ovoz kelyapti"),
-                    eq("Toshkent, Chilonzor"), any(), any(), any())).thenReturn(createdRequest);
+                    eq(1001L),
+                    eq(10L),
+                    eq("Tormozdan g'alati ovoz kelyapti"),
+                    any(RequestLocationRequest.class),
+                    eq("mobile:customer:1001:idem-1"))).thenReturn(createdRequest);
             when(requestRepository.findById(5001L)).thenReturn(Optional.of(createdRequest));
             when(requestRepository.findByIdAndCustomerId(5001L, 1001L)).thenReturn(Optional.of(createdRequest));
             when(requestRepository.findWithRelationsById(5001L)).thenReturn(Optional.of(createdRequest));

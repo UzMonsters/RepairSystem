@@ -77,6 +77,11 @@
       "invalid-status": "Ta'mirlash arizasi {0} holatida bo'lganda ushbu amalni bajarib bo'lmaydi.",
       "invalid-description": "Ta'mirlash arizasi tavsifi noto'g'ri.",
       "invalid-location": "Ta'mirlash arizasi manzili noto'g'ri.",
+      "location-latitude-invalid": "Kenglik -90 va 90 oralig'ida bo'lishi kerak.",
+      "location-longitude-invalid": "Uzunlik -180 va 180 oralig'ida bo'lishi kerak.",
+      "location-coordinates-incomplete": "Kenglik va uzunlik birga kiritilishi yoki ikkalasi ham bo'lmasligi kerak.",
+      "location-address-too-long": "Manzil ko'pi bilan 500 belgidan oshmasligi kerak.",
+      "location-source-invalid": "Joylashuv usuli noto'g'ri.",
       "invalid-preferred-visit-time": "Maqbul tashrif vaqti noto'g'ri.",
       "invalid-date-range": "So'rov sana oralig'i noto'g'ri."
     },
