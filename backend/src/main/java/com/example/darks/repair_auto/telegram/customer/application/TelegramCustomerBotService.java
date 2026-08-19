@@ -19,6 +19,7 @@ import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.telegram.core.api.TelegramUpdatePayload;
 import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient;
+import com.example.darks.repair_auto.telegram.core.application.TelegramFileMetadata;
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramProperties;
 import com.example.darks.repair_auto.telegram.customer.domain.TelegramCustomerSession;
 import com.example.darks.repair_auto.telegram.customer.domain.TelegramCustomerSessionState;
@@ -320,19 +321,71 @@ public class TelegramCustomerBotService {
     }
 
     private void handlePhoto(TelegramCustomerSession session, List<TelegramUpdatePayload.TelegramPhotoSize> photos) {
+        int max = properties.getMaxPendingPhotos();
+        if (session.photoFileIds().size() >= max) {
+            send(session,
+                    "max_photos_reached",
+                    session.getState() == TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP
+                            ? keyboards.photos(messages, session.getLanguage())
+                            : null,
+                    max);
+            return;
+        }
         if (session.getState() != TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP) {
             send(session, "invalid_action", mainKeyboard(session));
             return;
         }
-        photos.stream()
+        TelegramUpdatePayload.TelegramPhotoSize best = photos.stream()
                 .max(Comparator.comparingLong(this::photoWeight))
-                .map(TelegramUpdatePayload.TelegramPhotoSize::fileId)
-                .ifPresent(fileId -> session.addPhotoFileId(fileId, properties.getMaxPendingPhotos(), now()));
-        send(session,
-                "photo_received",
-                keyboards.photos(messages, session.getLanguage()),
-                session.photoFileIds().size(),
-                properties.getMaxPendingPhotos());
+                .orElse(null);
+        if (best == null || best.fileId() == null || best.fileId().isBlank()) {
+            send(session, "photo_invalid", keyboards.photos(messages, session.getLanguage()));
+            return;
+        }
+        int currentCount = session.photoFileIds().size();
+        if (session.photoFileIds().contains(best.fileId())) {
+            if (currentCount < max) {
+                send(session,
+                        "photo_received",
+                        keyboards.photos(messages, session.getLanguage()),
+                        currentCount,
+                        max);
+            } else {
+                send(session,
+                        "photo_received_max",
+                        null,
+                        currentCount,
+                        max);
+            }
+            return;
+        }
+        try {
+            TelegramFileMetadata metadata = botClient.getFile(best.fileId());
+            if (metadata == null || metadata.fileSize() <= 0) {
+                send(session, "photo_download_failed", keyboards.photos(messages, session.getLanguage()));
+                return;
+            }
+        } catch (RuntimeException exception) {
+            send(session, "photo_download_failed", keyboards.photos(messages, session.getLanguage()));
+            return;
+        }
+        session.addPhotoFileId(best.fileId(), max, now());
+        int acceptedCount = session.photoFileIds().size();
+        if (acceptedCount < max) {
+            send(session,
+                    "photo_received",
+                    keyboards.photos(messages, session.getLanguage()),
+                    acceptedCount,
+                    max);
+        } else {
+            send(session,
+                    "photo_received_max",
+                    null,
+                    acceptedCount,
+                    max);
+            session.state(TelegramCustomerSessionState.AWAITING_LOCATION, now());
+            send(session, "location_prompt", null);
+        }
     }
 
     private void handleLocation(TelegramCustomerSession session, TelegramUpdatePayload.TelegramLocation location) {

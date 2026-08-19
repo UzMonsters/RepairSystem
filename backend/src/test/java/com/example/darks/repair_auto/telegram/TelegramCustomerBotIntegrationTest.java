@@ -238,6 +238,48 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void givenThreePhotosSentWhenThirdPhotoArrivesThenAutoAdvancesToLocationAndPersistsThreeAttachments() throws Exception {
+        register(3103, 7103, "+998903334466", "Multi Photo Bot", LanguageCode.UZ);
+        send(callback(45, 3103, 7103, "cb-create-multi", "menu:create"));
+        send(callback(46, 3103, 7103, "cb-cat-multi", "cat:" + categoryId));
+        send(update(47, 3103, 7103, "Kir yuvish mashinasi nosoz"));
+
+        // Photo 1
+        send(photo(48, 3103, 7103, "photo-multi-1", JPEG.length));
+        assertThat(telegramBotClient.lastText()).contains("1/3 foto qabul qilindi");
+
+        // Photo 2
+        send(photo(49, 3103, 7103, "photo-multi-2", JPEG.length));
+        assertThat(telegramBotClient.lastText()).contains("2/3 foto qabul qilindi");
+
+        // Photo 3 -> auto-advances to location
+        send(photo(50, 3103, 7103, "photo-multi-3", JPEG.length));
+        assertThat(telegramBotClient.messages())
+                .filteredOn(m -> m.chatId().equals(7103L))
+                .anyMatch(m -> m.text().contains("3/3 foto qabul qilindi"));
+        assertThat(telegramBotClient.lastText()).contains("Geolokatsiya yoki manzil yuboring");
+
+        // Fourth photo should be rejected
+        send(photo(51, 3103, 7103, "photo-multi-4", JPEG.length));
+        assertThat(telegramBotClient.lastText()).contains("Maksimal 3 ta foto qabul qilinadi");
+
+        // Complete request creation
+        send(location(52, 3103, 7103, "41.311081", "69.240562"));
+        send(callback(53, 3103, 7103, "cb-confirm-multi", "confirm:create"));
+
+        var requests = requestRepository.findAll();
+        assertThat(requests).hasSize(1);
+        var request = requests.getFirst();
+
+        var attachments = attachmentRepository.findAll();
+        assertThat(attachments).hasSize(3);
+        assertThat(attachments).allMatch(a -> a.getStatus() == AttachmentStatus.AVAILABLE);
+        assertThat(attachments).allMatch(a -> a.getUploadedByCustomer().getId().equals(requestCustomerId(request.getId())));
+        assertThat(attachments).extracting("originalFileName")
+                .containsExactlyInAnyOrder("telegram-photo-1.jpg", "telegram-photo-2.jpg", "telegram-photo-3.jpg");
+    }
+
+    @Test
     void givenHistoryAndCrossCustomerCallbackThenOnlyOwnRequestIsShown() throws Exception {
         register(4004, 8004, "+998904445566", "Owner One");
         Long ownRequestId = createTelegramRequest(4004, 8004, 51, "Own request details");

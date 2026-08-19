@@ -34,21 +34,30 @@ public class TelegramCustomerPhotoService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public boolean attachProblemPhotos(Long requestId, Long customerId, List<String> fileIds) {
         boolean failed = false;
-        for (String fileId : fileIds) {
+        for (int i = 0; i < fileIds.size(); i++) {
+            String fileId = fileIds.get(i);
+            String fileName = fileIds.size() > 1 ? "telegram-photo-" + (i + 1) + ".jpg" : "telegram-photo.jpg";
             try {
                 TelegramFileMetadata metadata = botClient.getFile(fileId);
                 if (metadata.fileSize() <= 0) {
                     throw new TelegramApiException("Telegram file size is unavailable.");
                 }
                 try (InputStream inputStream = botClient.downloadFile(metadata.filePath(), metadata.fileSize())) {
-                    attachmentService.uploadFromCustomer(
+                    var response = attachmentService.uploadFromCustomer(
                             requestId,
                             AttachmentType.CUSTOMER_PROBLEM_PHOTO,
-                            "telegram-photo.jpg",
+                            fileName,
                             null,
                             metadata.fileSize(),
                             inputStream,
                             customerId);
+                    LOGGER.info(
+                            "Telegram customer photo attached: requestId={} customerId={} attachmentId={} index={}/{}",
+                            requestId,
+                            customerId,
+                            response.id(),
+                            i + 1,
+                            fileIds.size());
                 }
             } catch (BusinessRuleException exception) {
                 LOGGER.warn(
