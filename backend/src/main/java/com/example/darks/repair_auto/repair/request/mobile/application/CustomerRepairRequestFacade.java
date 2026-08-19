@@ -119,7 +119,9 @@ public class CustomerRepairRequestFacade {
         requireCustomer(actor);
 
         Specification<RepairRequest> spec = (root, query, cb) -> {
-            var predicate = cb.equal(root.get("customer").get("id"), actor.actorId());
+            var predicate = cb.and(
+                    cb.equal(root.get("customer").get("id"), actor.actorId()),
+                    cb.isNull(root.get("deletedAt")));
             if (status != null) {
                 predicate = cb.and(predicate, cb.equal(root.get("status"), status));
             }

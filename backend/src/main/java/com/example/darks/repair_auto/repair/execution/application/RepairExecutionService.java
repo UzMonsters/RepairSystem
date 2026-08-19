@@ -458,9 +458,7 @@ public class RepairExecutionService {
 
     @Transactional(readOnly = true)
     public RepairExecutionDetailResponse getExecution(Long requestId) {
-        if (!repairRequestRepository.existsById(requestId)) {
-            throw requestNotFound();
-        }
+        repairRequestRepository.findWithRelationsById(requestId).orElseThrow(this::requestNotFound);
         return RepairExecutionMapper.details(repairExecutionRepository
                 .findByRepairRequestId(requestId)
                 .orElseThrow(this::executionNotFound));
@@ -468,13 +466,81 @@ public class RepairExecutionService {
 
     @Transactional(readOnly = true)
     public List<RepairRequestStatusHistoryResponse> statusHistory(Long requestId) {
-        if (!repairRequestRepository.existsById(requestId)) {
-            throw requestNotFound();
-        }
+        repairRequestRepository.findWithRelationsById(requestId).orElseThrow(this::requestNotFound);
+        Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         return statusHistoryRepository.findByRepairRequestIdOrderByChangedAtDescIdDesc(requestId)
                 .stream()
-                .map(RepairExecutionMapper::history)
+                .map(history -> RepairExecutionMapper.history(history, localizedHistoryReason(history.getReason(), lang)))
                 .toList();
+    }
+
+    private String localizedHistoryReason(String reason, Language lang) {
+        if (reason == null || lang == null) {
+            return reason;
+        }
+        return switch (reason) {
+            case "Request created." -> switch (lang) {
+                case EN -> "Request created.";
+                case RU -> "Заявка создана.";
+                case UZ -> "Ariza yaratildi.";
+            };
+            case "Telegram request created." -> switch (lang) {
+                case EN -> "Telegram request created.";
+                case RU -> "Заявка создана через Telegram.";
+                case UZ -> "Ariza Telegram orqali yaratildi.";
+            };
+            case "Mobile request created." -> switch (lang) {
+                case EN -> "Mobile request created.";
+                case RU -> "Заявка создана через мобильное приложение.";
+                case UZ -> "Ariza mobil ilova orqali yaratildi.";
+            };
+            case "Technician assigned." -> switch (lang) {
+                case EN -> "Technician assigned.";
+                case RU -> "Техник назначен.";
+                case UZ -> "Texnik tayinlandi.";
+            };
+            case "Schedule changed." -> switch (lang) {
+                case EN -> "Schedule changed.";
+                case RU -> "График изменен.";
+                case UZ -> "Jadval o'zgartirildi.";
+            };
+            case "Repair work started." -> switch (lang) {
+                case EN -> "Repair work started.";
+                case RU -> "Ремонт начат.";
+                case UZ -> "Ta'mirlash boshlandi.";
+            };
+            case "Repair completed." -> switch (lang) {
+                case EN -> "Repair completed.";
+                case RU -> "Ремонт завершен.";
+                case UZ -> "Ta'mirlash yakunlandi.";
+            };
+            default -> localizedResumeReason(reason, lang);
+        };
+    }
+
+    private String localizedResumeReason(String reason, Language lang) {
+        String prefix = "Resumed from waiting for parts. Previous reason: ";
+        if (reason.startsWith(prefix)) {
+            String previousReason = reason.substring(prefix.length());
+            return switch (lang) {
+                case EN -> reason;
+                case RU -> "Ремонт возобновлен после ожидания запчастей. Предыдущая причина: " + previousReason;
+                case UZ -> "Ehtiyot qismlar kutilganidan keyin ta'mirlash davom ettirildi. Oldingi sabab: "
+                        + previousReason;
+            };
+        }
+        String marker = " Previous waiting reason: ";
+        int markerIndex = reason.indexOf(marker);
+        if (markerIndex >= 0) {
+            String note = reason.substring(0, markerIndex);
+            String previousReason = reason.substring(markerIndex + marker.length());
+            return switch (lang) {
+                case EN -> reason;
+                case RU -> note + " Предыдущая причина ожидания: " + previousReason;
+                case UZ -> note + " Oldingi kutish sababi: " + previousReason;
+            };
+        }
+        return reason;
     }
 
     private RepairRequestDetailResponse details(

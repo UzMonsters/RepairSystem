@@ -75,6 +75,13 @@ public class RepairRequest {
     @Column(name = "source_reference", unique = true, length = 120)
     private String sourceReference;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "deleted_by_user_id")
+    private User deletedByUser;
+
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -239,6 +246,18 @@ public class RepairRequest {
         return sourceReference;
     }
 
+    public User getDeletedByUser() {
+        return deletedByUser;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
@@ -307,6 +326,15 @@ public class RepairRequest {
 
     public void forceStatusForFixture(RepairRequestStatus status, OffsetDateTime now) {
         this.status = status;
+        this.updatedAt = now;
+    }
+
+    public void softDelete(User deletedBy, OffsetDateTime now) {
+        if (isDeleted()) {
+            return;
+        }
+        this.deletedByUser = deletedBy;
+        this.deletedAt = now;
         this.updatedAt = now;
     }
 }

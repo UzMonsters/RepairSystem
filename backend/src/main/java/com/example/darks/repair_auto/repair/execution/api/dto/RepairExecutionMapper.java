@@ -46,12 +46,18 @@ public final class RepairExecutionMapper {
     }
 
     public static RepairRequestStatusHistoryResponse history(RepairRequestStatusHistory history) {
+        return history(history, history.getReason());
+    }
+
+    public static RepairRequestStatusHistoryResponse history(
+            RepairRequestStatusHistory history,
+            String reason) {
         return new RepairRequestStatusHistoryResponse(
                 history.getId(),
                 history.getRepairRequest().getId(),
                 history.getFromStatus(),
                 history.getToStatus(),
-                history.getReason(),
+                reason,
                 user(history.getChangedByUser()),
                 history.getChangedAt());
     }
