@@ -3,14 +3,23 @@ package com.example.darks.repair_auto.telegram.core.infrastructure;
 import com.example.darks.repair_auto.telegram.core.application.TelegramApiException;
 import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient;
 import com.example.darks.repair_auto.telegram.core.application.TelegramFileMetadata;
+import com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -20,6 +29,7 @@ class HttpTelegramBotClient implements TelegramBotClient {
     private final TelegramProperties properties;
     private final TelegramProperties.Bot bot;
     private final RestClient restClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     HttpTelegramBotClient(TelegramProperties properties, TelegramProperties.Bot bot, RestClient restClient) {
         this.properties = properties;
@@ -93,6 +103,100 @@ class HttpTelegramBotClient implements TelegramBotClient {
             return new BoundedInputStream(resource.getInputStream(), maxSizeBytes);
         } catch (IOException | RestClientException exception) {
             throw new TelegramApiException("Telegram file download failed.", exception);
+        }
+    }
+
+    @Override
+    public void sendPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("chat_id", chatId);
+        final String fname = (filename != null && !filename.isBlank()) ? filename : "photo.jpg";
+        body.add("photo", new ByteArrayResource(photoBytes) {
+            @Override
+            public String getFilename() {
+                return fname;
+            }
+        });
+        if (caption != null && !caption.isBlank()) {
+            body.add("caption", caption);
+        }
+        try {
+            TelegramResponse<?> response = restClient.post()
+                    .uri(apiUri("sendPhoto"))
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .body(TelegramResponse.class);
+            validate(response);
+        } catch (RestClientException exception) {
+            throw new TelegramApiException("Telegram API request failed.", exception);
+        }
+    }
+
+    @Override
+    public void sendMediaGroup(Long chatId, List<TelegramMediaPhoto> photos) {
+        if (photos == null || photos.isEmpty()) {
+            return;
+        }
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("chat_id", chatId);
+
+        List<Map<String, Object>> mediaList = new ArrayList<>();
+        for (int i = 0; i < photos.size(); i++) {
+            TelegramMediaPhoto photo = photos.get(i);
+            String attachName = "photo_" + i;
+            Map<String, Object> mediaItem = new LinkedHashMap<>();
+            mediaItem.put("type", "photo");
+            mediaItem.put("media", "attach://" + attachName);
+            if (photo.caption() != null && !photo.caption().isBlank()) {
+                mediaItem.put("caption", photo.caption());
+            }
+            mediaList.add(mediaItem);
+
+            final String fname = (photo.filename() != null && !photo.filename().isBlank())
+                    ? photo.filename()
+                    : "photo_" + i + ".jpg";
+            body.add(attachName, new ByteArrayResource(photo.bytes()) {
+                @Override
+                public String getFilename() {
+                    return fname;
+                }
+            });
+        }
+
+        try {
+            String mediaJson = objectMapper.writeValueAsString(mediaList);
+            body.add("media", mediaJson);
+
+            TelegramResponse<?> response = restClient.post()
+                    .uri(apiUri("sendMediaGroup"))
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(body)
+                    .retrieve()
+                    .body(TelegramResponse.class);
+            validate(response);
+        } catch (JsonProcessingException | RestClientException exception) {
+            throw new TelegramApiException("Telegram API request failed.", exception);
+        }
+    }
+
+    @Override
+    public void sendLocation(Long chatId, double latitude, double longitude) {
+        Map<String, Object> body = Map.of(
+                "chat_id", chatId,
+                "latitude", latitude,
+                "longitude", longitude
+        );
+        try {
+            TelegramResponse<?> response = restClient.post()
+                    .uri(apiUri("sendLocation"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(TelegramResponse.class);
+            validate(response);
+        } catch (RestClientException exception) {
+            throw new TelegramApiException("Telegram API request failed.", exception);
         }
     }
 

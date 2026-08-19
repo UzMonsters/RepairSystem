@@ -912,6 +912,21 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         public InputStream downloadFile(String filePath, long maxSizeBytes) {
             return new ByteArrayInputStream(JPEG);
         }
+
+        @Override
+        public void sendPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {
+            messages.add(new SentMessage(chatId, "[photo:" + filename + "]", null));
+        }
+
+        @Override
+        public void sendMediaGroup(Long chatId, List<com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto> photos) {
+            messages.add(new SentMessage(chatId, "[mediaGroup:" + photos.size() + "]", null));
+        }
+
+        @Override
+        public void sendLocation(Long chatId, double latitude, double longitude) {
+            messages.add(new SentMessage(chatId, "[location:" + latitude + "," + longitude + "]", null));
+        }
     }
 
     record SentMessage(Long chatId, String text, String replyMarkupJson) {

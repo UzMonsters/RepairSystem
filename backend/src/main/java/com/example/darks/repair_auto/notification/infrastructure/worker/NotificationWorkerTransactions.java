@@ -82,7 +82,8 @@ public class NotificationWorkerTransactions {
                         notification.getPayloadVersion(),
                         notification.getLanguage(),
                         notification.getRenderedTitle(),
-                        notification.getRenderedMessage()))
+                        notification.getRenderedMessage(),
+                        notification.getRepairRequest() != null ? notification.getRepairRequest().getId() : null))
                 .toList();
     }
 

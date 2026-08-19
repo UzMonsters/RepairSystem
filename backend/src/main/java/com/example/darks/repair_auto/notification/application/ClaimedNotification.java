@@ -13,5 +13,21 @@ public record ClaimedNotification(
         int payloadVersion,
         String language,
         String renderedTitle,
-        String renderedMessage) {
+        String renderedMessage,
+        Long repairRequestId) {
+
+    public ClaimedNotification(
+            Long notificationId,
+            NotificationType notificationType,
+            NotificationRecipientType recipientType,
+            Long recipientId,
+            String templateKey,
+            String payloadJson,
+            int payloadVersion,
+            String language,
+            String renderedTitle,
+            String renderedMessage) {
+        this(notificationId, notificationType, recipientType, recipientId, templateKey,
+                payloadJson, payloadVersion, language, renderedTitle, renderedMessage, null);
+    }
 }
