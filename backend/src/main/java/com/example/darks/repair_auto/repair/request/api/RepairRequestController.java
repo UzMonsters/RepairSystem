@@ -20,8 +20,10 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -142,6 +145,23 @@ public class RepairRequestController {
             @PathVariable Long id,
             @Valid @RequestBody RepairRequestUpdateRequest request) {
         return repairRequestService.update(id, request);
+    }
+
+    @DeleteMapping({"/api/v1/requests/{id}", "/api/v1/repair-requests/{id}"})
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+            summary = "Soft delete repair request",
+            description = "Requires ADMIN or MANAGER. The request is hidden from normal lists and reads, but retained for audit.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Repair request soft deleted"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "ADMIN or MANAGER role required"),
+            @ApiResponse(responseCode = "404", description = "REPAIR_REQUEST_NOT_FOUND")
+    })
+    public void softDelete(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        repairRequestService.softDelete(id, user);
     }
 
     @GetMapping({"/api/v1/customers/{customerId}/requests", "/api/v1/customers/{customerId}/repair-requests"})

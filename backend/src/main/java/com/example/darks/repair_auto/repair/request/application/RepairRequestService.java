@@ -317,6 +317,17 @@ public class RepairRequestService {
         return RepairRequestMapper.details(repairRequestRepository.saveAndFlush(repairRequest), null, execution, lang, localizedValueResolver);
     }
 
+    @Transactional
+    public void softDelete(Long id, AuthenticatedUser user) {
+        RepairRequest repairRequest = repairRequestRepository.findAnyByIdForUpdate(id).orElseThrow(this::notFound);
+        if (repairRequest.isDeleted()) {
+            return;
+        }
+        User deletedBy = userRepository.findById(user.id()).orElseThrow(this::creatorNotFound);
+        repairRequest.softDelete(deletedBy, now());
+        repairRequestRepository.saveAndFlush(repairRequest);
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<RepairRequestSummaryResponse> customerHistory(
             Long customerId,
@@ -333,7 +344,7 @@ public class RepairRequestService {
 
     private Specification<RepairRequest> filters(RepairRequestQuery query, Long forcedCustomerId) {
         return (root, criteriaQuery, builder) -> {
-            var predicate = builder.conjunction();
+            var predicate = builder.isNull(root.get("deletedAt"));
             var customer = root.join("customer");
             var category = root.join("category");
             String search = blankToNull(query.search());

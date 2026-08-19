@@ -296,7 +296,7 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
-    void givenAnonymousOrDeleteWhenRequestsEndpointRequestedThenDeniedOrMethodNotAllowed() throws Exception {
+    void givenAnonymousOrDeleteWhenRequestsEndpointRequestedThenDeniedOrSoftDeleted() throws Exception {
         var created = repairRequestService.create(createRequest(customerId, categoryId, "AC does not cool the room", "Chilanzar", "NORMAL"), new AuthenticatedUser(admin));
 
         mockMvc.perform(get("/api/v1/requests"))
@@ -304,7 +304,25 @@ class RepairRequestIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(header().doesNotExist("Set-Cookie"));
 
         mockMvc.perform(delete("/api/v1/requests/{id}", created.id()).with(user(new AuthenticatedUser(admin))))
-                .andExpect(status().isMethodNotAllowed());
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/requests")
+                        .with(user(new AuthenticatedUser(admin))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+
+        mockMvc.perform(get("/api/v1/customers/{customerId}/requests", customerId)
+                        .with(user(new AuthenticatedUser(manager))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+
+        mockMvc.perform(get("/api/v1/requests/{id}", created.id()).with(user(new AuthenticatedUser(manager))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("REPAIR_REQUEST_NOT_FOUND"));
+
+        var deleted = repairRequestRepository.findById(created.id()).orElseThrow();
+        assertThat(deleted.isDeleted()).isTrue();
+        assertThat(deleted.getDeletedByUser().getId()).isEqualTo(admin.getId());
     }
 
     private RepairRequestCreateRequest createRequest(
