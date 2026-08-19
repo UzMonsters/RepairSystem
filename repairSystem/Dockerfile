@@ -1,5 +1,6 @@
 FROM node:22-alpine AS base
 RUN corepack enable
+ENV NODE_OPTIONS=--disable-warning=DEP0155
 
 FROM base AS build
 WORKDIR /app

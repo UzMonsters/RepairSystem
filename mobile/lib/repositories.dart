@@ -60,7 +60,7 @@ class CustomerRepository {
     body: {
       'description': description,
       'categoryId': categoryId,
-      if (address != null) 'address': address,
+      'address': ?address,
     },
     headers: {
       'Idempotency-Key':
@@ -129,7 +129,7 @@ class NotificationRepository {
       PageResponse.fromJson(
         await api.get(
           '/me/notifications',
-          query: {'page': 0, 'size': 20, if (unread != null) 'unread': unread},
+          query: {'page': 0, 'size': 20, 'unread': ?unread},
         ) as Map<String, dynamic>,
         NotificationItem.fromJson,
       );
@@ -159,9 +159,8 @@ class MobileProfileRepository {
         await api.patch(
           '/me',
           body: {
-            if (fullName != null) 'fullName': fullName,
-            if (preferredLanguage != null)
-              'preferredLanguage': preferredLanguage,
+            'fullName': ?fullName,
+            'preferredLanguage': ?preferredLanguage,
           },
         ) as Map<String, dynamic>,
       );

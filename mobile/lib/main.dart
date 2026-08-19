@@ -187,11 +187,12 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> logout() async {
     await widget.auth.logout();
-    if (mounted)
+    if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const RepairAutoApp()),
         (_) => false,
       );
+    }
   }
 
   @override
@@ -312,13 +313,15 @@ class _CustomerRequestsState extends State<CustomerRequests> {
         FutureBuilder<PageResponse<RequestItem>>(
           future: future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting)
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
-            if (snapshot.hasError)
+            }
+            if (snapshot.hasError) {
               return Text(
                 '${snapshot.error}',
                 style: const TextStyle(color: Colors.red),
               );
+            }
             final items = snapshot.data?.content ?? [];
             if (items.isEmpty) return const Center(child: Text('No requests'));
             return Column(
@@ -365,13 +368,15 @@ class _RequestDetailsState extends State<RequestDetails> {
     setState(() => uploading = true);
     try {
       await widget.repo.uploadPhoto(widget.item.id, File(picked.path));
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Photo uploaded')));
+      }
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('$error')));
+      }
     } finally {
       if (mounted) setState(() => uploading = false);
     }
@@ -403,9 +408,10 @@ class _RequestDetailsState extends State<RequestDetails> {
         FilledButton(
           onPressed: () async {
             await widget.repo.submitReview(widget.item.id, 5, '');
-            if (context.mounted)
+            if (context.mounted) {
               ScaffoldMessenger.of(context)
                   .showSnackBar(const SnackBar(content: Text('Review sent')));
+            }
           },
           child: const Text('Submit 5-star review'),
         ),
@@ -436,8 +442,9 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
     child: FutureBuilder<PageResponse<Job>>(
       future: future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting)
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
+        }
         if (snapshot.hasError) return Center(child: Text('${snapshot.error}'));
         final jobs = snapshot.data?.content ?? [];
         return ListView(
@@ -481,18 +488,20 @@ class JobActions extends StatelessWidget {
   Widget build(BuildContext context) => SafeArea(
     child: Wrap(
       children: job.availableActions.map((action) {
-        if (action == 'UPLOAD_DIAGNOSIS_PHOTO')
+        if (action == 'UPLOAD_DIAGNOSIS_PHOTO') {
           return ListTile(
             title: Text(action),
             leading: const Icon(Icons.photo_camera),
             onTap: () => uploadEvidence(context, 'DIAGNOSIS_PHOTO'),
           );
-        if (action == 'UPLOAD_COMPLETION_PHOTO')
+        }
+        if (action == 'UPLOAD_COMPLETION_PHOTO') {
           return ListTile(
             title: Text(action),
             leading: const Icon(Icons.photo_camera),
             onTap: () => uploadEvidence(context, 'COMPLETION_PHOTO'),
           );
+        }
         return ListTile(
           title: Text(action),
           leading: const Icon(Icons.play_arrow),
@@ -523,8 +532,9 @@ class NotificationsScreen extends StatelessWidget {
   ) => FutureBuilder<PageResponse<NotificationItem>>(
     future: repo.list(),
     builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting)
+      if (snapshot.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
+      }
       if (snapshot.hasError) return Center(child: Text('${snapshot.error}'));
       return RefreshIndicator(
         onRefresh: () async {
@@ -646,7 +656,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          value: language,
+          initialValue: language,
           decoration: const InputDecoration(
             labelText: 'Language',
             border: OutlineInputBorder(),
