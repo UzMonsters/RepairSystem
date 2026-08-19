@@ -344,19 +344,11 @@ public class TelegramCustomerBotService {
         }
         int currentCount = session.photoFileIds().size();
         if (session.photoFileIds().contains(best.fileId())) {
-            if (currentCount < max) {
-                send(session,
-                        "photo_received",
-                        keyboards.photos(messages, session.getLanguage()),
-                        currentCount,
-                        max);
-            } else {
-                send(session,
-                        "photo_received_max",
-                        null,
-                        currentCount,
-                        max);
-            }
+            send(session,
+                    "photo_duplicate",
+                    currentCount < max ? keyboards.photos(messages, session.getLanguage()) : null,
+                    currentCount,
+                    max);
             return;
         }
         try {
