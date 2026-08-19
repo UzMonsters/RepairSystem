@@ -98,9 +98,7 @@ public class CustomerRepairRequestFacade {
                 actor.actorId(),
                 request.categoryId(),
                 request.description(),
-                request.address(),
-                request.latitude(),
-                request.longitude(),
+                request.resolvedLocation(),
                 sourceReference);
 
         RepairAssignment assignment = repairAssignmentRepository
@@ -256,10 +254,13 @@ public class CustomerRepairRequestFacade {
                         request.getCategory().getId(),
                         localizeCategory(request.getCategory(), language)),
                 request.getDescription(),
-                new CustomerRepairRequestDetailResponse.LocationInfo(
-                        request.getAddress(),
-                        request.getLatitude(),
-                        request.getLongitude()),
+                (request.getLocationAddress() != null || request.getLocationLatitude() != null || request.getLocationLongitude() != null || request.getLocationSource() != null)
+                        ? new CustomerRepairRequestDetailResponse.LocationInfo(
+                                request.getLocationAddress(),
+                                request.getLocationLatitude(),
+                                request.getLocationLongitude(),
+                                request.getLocationSource())
+                        : null,
                 technicianSummary,
                 scheduleInfo,
                 reviewInfo,

@@ -224,7 +224,7 @@ class TelegramCustomerBotServiceTest {
         // Photo 3 -> auto advance
         service.handle(photo(218L, 20320L, 24320L, "photo-3", 1024L));
         assertThat(botClient.messages()).anyMatch(m -> m.text().contains("3/3 foto qabul qilindi"));
-        assertThat(botClient.last().text()).contains("Geolokatsiya yoki manzil yuboring");
+        assertThat(botClient.last().text()).contains("Geolokatsiyani yuboring");
         assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_LOCATION);
         assertThat(session.photoFileIds()).containsExactly("photo-1", "photo-2", "photo-3");
 

@@ -19,9 +19,11 @@ import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestDetailR
 import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestMapper;
 import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestSummaryResponse;
 import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestUpdateRequest;
+import com.example.darks.repair_auto.repair.request.api.dto.RequestLocationRequest;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequest;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
+import com.example.darks.repair_auto.repair.request.domain.RequestLocationSource;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestNumberGenerator;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
 import com.example.darks.repair_auto.shared.error.BusinessException;
@@ -70,6 +72,13 @@ public class RepairRequestService {
     private final EffectiveLanguageResolver effectiveLanguageResolver;
     private final LocalizedValueResolver localizedValueResolver;
     private final Clock clock;
+
+    public record ValidatedLocation(
+            String address,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            RequestLocationSource source
+    ) {}
 
     @Autowired
     public RepairRequestService(
@@ -140,20 +149,21 @@ public class RepairRequestService {
         Customer customer = activeCustomerForUpdate(request.customerId());
         RepairCategory category = activeCategoryForUpdate(request.categoryId());
         User createdBy = userRepository.findById(creator.id()).orElseThrow(this::creatorNotFound);
+        ValidatedLocation location = validateLocation(request.resolvedLocation(), null);
         RepairRequest repairRequest = new RepairRequest(
                 requestNumberGenerator.nextRequestNumber(),
                 customer,
                 category,
                 validateDescription(request.description()),
-                validateAddress(request.address()),
-                validateLatitude(request.latitude()),
-                validateLongitude(request.longitude()),
+                location.address(),
+                location.latitude(),
+                location.longitude(),
+                location.source(),
                 request.priority() == null ? RepairRequestPriority.NORMAL : request.priority(),
                 validatePreferredVisit(request.customerPreferredVisitAt(), now),
                 validateInternalNote(request.internalNote()),
                 createdBy,
                 now);
-        validateLocation(repairRequest.getAddress(), repairRequest.getLatitude(), repairRequest.getLongitude());
         RepairRequest saved = repairRequestRepository.saveAndFlush(repairRequest);
         var history = statusHistoryService.recordInitial(saved, "Request created.", createdBy, now);
         notificationOutboxService.enqueue(notificationEventFactory.customer(
@@ -172,6 +182,21 @@ public class RepairRequestService {
             BigDecimal latitude,
             BigDecimal longitude,
             String sourceReference) {
+        return telegramCreate(
+                customerId,
+                categoryId,
+                description,
+                new RequestLocationRequest(latitude, longitude, address, RequestLocationSource.TELEGRAM),
+                sourceReference);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public RepairRequest telegramCreate(
+            Long customerId,
+            Long categoryId,
+            String description,
+            RequestLocationRequest locationRequest,
+            String sourceReference) {
         String reference = validateSourceReference(sourceReference);
         Optional<RepairRequest> existing = repairRequestRepository.findBySourceReference(reference);
         if (existing.isPresent()) {
@@ -180,18 +205,15 @@ public class RepairRequestService {
         OffsetDateTime now = now();
         Customer customer = activeCustomerForUpdate(customerId);
         RepairCategory category = activeCategoryForUpdate(categoryId);
-        String validAddress = validateAddress(address);
-        BigDecimal validLatitude = validateLatitude(latitude);
-        BigDecimal validLongitude = validateLongitude(longitude);
-        validateLocation(validAddress, validLatitude, validLongitude);
+        ValidatedLocation location = validateLocation(locationRequest, RequestLocationSource.TELEGRAM);
         RepairRequest repairRequest = RepairRequest.telegram(
                 requestNumberGenerator.nextRequestNumber(),
                 customer,
                 category,
                 validateDescription(description),
-                validAddress,
-                validLatitude,
-                validLongitude,
+                location.address(),
+                location.latitude(),
+                location.longitude(),
                 RepairRequestPriority.NORMAL,
                 null,
                 reference,
@@ -218,6 +240,21 @@ public class RepairRequestService {
             BigDecimal latitude,
             BigDecimal longitude,
             String sourceReference) {
+        return mobileCreate(
+                customerId,
+                categoryId,
+                description,
+                new RequestLocationRequest(latitude, longitude, address, null),
+                sourceReference);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public RepairRequest mobileCreate(
+            Long customerId,
+            Long categoryId,
+            String description,
+            RequestLocationRequest locationRequest,
+            String sourceReference) {
         String reference = validateSourceReference(sourceReference);
         Optional<RepairRequest> existing = repairRequestRepository.findBySourceReference(reference);
         if (existing.isPresent()) {
@@ -230,18 +267,16 @@ public class RepairRequestService {
         OffsetDateTime now = now();
         Customer customer = activeCustomerForUpdate(customerId);
         RepairCategory category = activeCategoryForUpdate(categoryId);
-        String validAddress = validateAddress(address);
-        BigDecimal validLatitude = validateLatitude(latitude);
-        BigDecimal validLongitude = validateLongitude(longitude);
-        validateLocation(validAddress, validLatitude, validLongitude);
+        ValidatedLocation location = validateLocation(locationRequest, null);
         RepairRequest repairRequest = RepairRequest.mobile(
                 requestNumberGenerator.nextRequestNumber(),
                 customer,
                 category,
                 validateDescription(description),
-                validAddress,
-                validLatitude,
-                validLongitude,
+                location.address(),
+                location.latitude(),
+                location.longitude(),
+                location.source(),
                 RepairRequestPriority.NORMAL,
                 null,
                 reference,
@@ -250,9 +285,9 @@ public class RepairRequestService {
             RepairRequest saved = repairRequestRepository.saveAndFlush(repairRequest);
             var history = statusHistoryService.recordInitial(saved, "Mobile request created.", null, now);
             notificationOutboxService.enqueue(notificationEventFactory.customer(
-                    NotificationType.REQUEST_CREATED,
-                    saved,
-                    NotificationEventFactory.statusEventKeyPart(history.getId(), saved.getStatus())));
+                NotificationType.REQUEST_CREATED,
+                saved,
+                NotificationEventFactory.statusEventKeyPart(history.getId(), saved.getStatus())));
             return saved;
         } catch (org.springframework.dao.DataIntegrityViolationException exception) {
             return repairRequestRepository.findBySourceReference(reference)
@@ -297,17 +332,15 @@ public class RepairRequestService {
         OffsetDateTime now = now();
         Customer customer = activeCustomerForUpdate(request.customerId());
         RepairCategory category = activeCategoryForUpdate(request.categoryId());
-        String address = validateAddress(request.address());
-        BigDecimal latitude = validateLatitude(request.latitude());
-        BigDecimal longitude = validateLongitude(request.longitude());
-        validateLocation(address, latitude, longitude);
+        ValidatedLocation location = validateLocation(request.resolvedLocation(), null);
         repairRequest.updateIntake(
                 customer,
                 category,
                 validateDescription(request.description()),
-                address,
-                latitude,
-                longitude,
+                location.address(),
+                location.latitude(),
+                location.longitude(),
+                location.source(),
                 request.priority(),
                 validatePreferredVisit(request.customerPreferredVisitAt(), now),
                 validateInternalNote(request.internalNote()),
@@ -342,6 +375,56 @@ public class RepairRequestService {
                 .map(request -> RepairRequestMapper.summary(request, lang, localizedValueResolver)));
     }
 
+    public ValidatedLocation validateLocation(RequestLocationRequest locationRequest, RequestLocationSource enforcedSource) {
+        if (locationRequest == null) {
+            return new ValidatedLocation(null, null, null, null);
+        }
+
+        String address = blankToNull(locationRequest.address());
+        if (address != null && address.length() > MAX_ADDRESS_LENGTH) {
+            throw new BusinessException(ErrorCode.REQUEST_LOCATION_ADDRESS_TOO_LONG);
+        }
+
+        BigDecimal latitude = locationRequest.latitude();
+        if (latitude != null && (latitude.compareTo(BigDecimal.valueOf(-90)) < 0
+                || latitude.compareTo(BigDecimal.valueOf(90)) > 0)) {
+            throw new BusinessException(ErrorCode.REQUEST_LOCATION_LATITUDE_INVALID);
+        }
+
+        BigDecimal longitude = locationRequest.longitude();
+        if (longitude != null && (longitude.compareTo(BigDecimal.valueOf(-180)) < 0
+                || longitude.compareTo(BigDecimal.valueOf(180)) > 0)) {
+            throw new BusinessException(ErrorCode.REQUEST_LOCATION_LONGITUDE_INVALID);
+        }
+
+        if ((latitude == null) != (longitude == null)) {
+            throw new BusinessException(ErrorCode.REQUEST_LOCATION_COORDINATES_INCOMPLETE);
+        }
+
+        if (address == null && latitude == null) {
+            return new ValidatedLocation(null, null, null, null);
+        }
+
+        RequestLocationSource resolvedSource = enforcedSource;
+        if (resolvedSource == null) {
+            RequestLocationSource clientSource = locationRequest.source();
+            if (clientSource != null) {
+                if (clientSource == RequestLocationSource.TELEGRAM) {
+                    throw new BusinessException(ErrorCode.REQUEST_LOCATION_SOURCE_INVALID);
+                }
+                resolvedSource = clientSource;
+            } else {
+                if (latitude != null) {
+                    resolvedSource = RequestLocationSource.DEVICE_GPS;
+                } else if (address != null) {
+                    resolvedSource = RequestLocationSource.MANUAL;
+                }
+            }
+        }
+
+        return new ValidatedLocation(address, latitude, longitude, resolvedSource);
+    }
+
     private Specification<RepairRequest> filters(RepairRequestQuery query, Long forcedCustomerId) {
         return (root, criteriaQuery, builder) -> {
             var predicate = builder.isNull(root.get("deletedAt"));
@@ -362,7 +445,7 @@ public class RepairRequestService {
                                 ? builder.disjunction()
                                 : builder.equal(customer.get("phone"), normalizedSearchPhone),
                         builder.like(builder.lower(root.get("description")), pattern),
-                        builder.like(builder.lower(root.get("address")), pattern),
+                        builder.like(builder.lower(root.get("locationAddress")), pattern),
                         builder.like(builder.lower(category.get("nameEn")), pattern),
                         builder.like(builder.lower(category.get("nameRu")), pattern),
                         builder.like(builder.lower(category.get("nameUz")), pattern)));
@@ -443,39 +526,6 @@ public class RepairRequestService {
         return description;
     }
 
-    private String validateAddress(String value) {
-        String address = blankToNull(value);
-        if (address != null && address.length() > MAX_ADDRESS_LENGTH) {
-            throw invalidLocation("Address must be at most 500 characters.");
-        }
-        return address;
-    }
-
-    private BigDecimal validateLatitude(BigDecimal value) {
-        if (value != null && (value.compareTo(BigDecimal.valueOf(-90)) < 0
-                || value.compareTo(BigDecimal.valueOf(90)) > 0)) {
-            throw invalidLocation("Latitude must be between -90 and 90.");
-        }
-        return value;
-    }
-
-    private BigDecimal validateLongitude(BigDecimal value) {
-        if (value != null && (value.compareTo(BigDecimal.valueOf(-180)) < 0
-                || value.compareTo(BigDecimal.valueOf(180)) > 0)) {
-            throw invalidLocation("Longitude must be between -180 and 180.");
-        }
-        return value;
-    }
-
-    private void validateLocation(String address, BigDecimal latitude, BigDecimal longitude) {
-        if ((latitude == null) != (longitude == null)) {
-            throw invalidLocation("Latitude and longitude must be provided together.");
-        }
-        if (address == null && latitude == null) {
-            throw invalidLocation("Address or a latitude/longitude pair is required.");
-        }
-    }
-
     private OffsetDateTime validatePreferredVisit(OffsetDateTime value, OffsetDateTime now) {
         if (value != null && value.isBefore(now.minusMinutes(5))) {
             throw new BusinessRuleException(
@@ -523,10 +573,6 @@ public class RepairRequestService {
         } catch (BusinessRuleException exception) {
             return null;
         }
-    }
-
-    private BusinessRuleException invalidLocation(String message) {
-        return new BusinessRuleException("INVALID_REPAIR_REQUEST_LOCATION", message, 400);
     }
 
     private BusinessRuleException notFound() {

@@ -339,9 +339,9 @@ class DashboardIntegrationTest extends PostgreSqlIntegrationTest {
     private Long request(Long customerId, Long categoryId, String status, OffsetDateTime createdAt, String number) {
         return jdbcTemplate.queryForObject("""
                 insert into repair_requests (
-                    request_number, customer_id, category_id, description, address, priority,
+                    request_number, customer_id, category_id, description, location_address, location_source, priority,
                     status, source, created_by_user_id, created_at, updated_at
-                ) values (?, ?, ?, 'Dashboard seeded request.', 'Tashkent', 'NORMAL',
+                ) values (?, ?, ?, 'Dashboard seeded request.', 'Tashkent', 'MANUAL', 'NORMAL',
                     ?, 'ADMIN', ?, ?, ?)
                 returning id
                 """, Long.class, number, customerId, categoryId, status, admin.getId(), createdAt, createdAt);

@@ -42,7 +42,8 @@ public final class RepairRequestMapper {
                 request.getPriority(),
                 request.getSource(),
                 request.getDescription(),
-                request.getAddress(),
+                location(request),
+                request.getLocationAddress(),
                 request.getCustomerPreferredVisitAt(),
                 request.getCustomer() != null ? request.getCustomer().getFullName() : null,
                 category(request.getCategory(), language, resolver),
@@ -78,9 +79,10 @@ public final class RepairRequestMapper {
                 request.getPriority(),
                 request.getSource(),
                 request.getDescription(),
-                request.getAddress(),
-                request.getLatitude(),
-                request.getLongitude(),
+                location(request),
+                request.getLocationAddress(),
+                request.getLocationLatitude(),
+                request.getLocationLongitude(),
                 request.getCustomerPreferredVisitAt(),
                 request.getInternalNote(),
                 customer(request.getCustomer()),
@@ -90,6 +92,23 @@ public final class RepairRequestMapper {
                 user(request.getCreatedByUser()),
                 request.getCreatedAt(),
                 request.getUpdatedAt());
+    }
+
+    public static RequestLocationResponse location(RepairRequest request) {
+        if (request == null) {
+            return null;
+        }
+        if (request.getLocationAddress() == null
+                && request.getLocationLatitude() == null
+                && request.getLocationLongitude() == null
+                && request.getLocationSource() == null) {
+            return null;
+        }
+        return new RequestLocationResponse(
+                request.getLocationLatitude(),
+                request.getLocationLongitude(),
+                request.getLocationAddress(),
+                request.getLocationSource());
     }
 
     private static RepairRequestCustomerSummary customer(Customer customer) {

@@ -217,11 +217,8 @@ public class TelegramCustomerBotService {
                 session.state(TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP, now());
                 send(session, "photo_prompt", keyboards.photos(messages, session.getLanguage()));
             }
-            case AWAITING_LOCATION -> {
-                session.draftAddress(text, now());
-                session.state(TelegramCustomerSessionState.CONFIRMING_REQUEST, now());
-                sendConfirmation(session);
-            }
+            case AWAITING_LOCATION -> handleLocationStepText(session, text);
+            case AWAITING_LOCATION_ADDRESS -> handleLocationAddressText(session, text);
             case AWAITING_REVIEW_COMMENT -> handleReviewComment(session, text);
             default -> send(session, "invalid_action", mainKeyboard(session));
         }
@@ -376,12 +373,16 @@ public class TelegramCustomerBotService {
                     acceptedCount,
                     max);
             session.state(TelegramCustomerSessionState.AWAITING_LOCATION, now());
-            send(session, "location_prompt", null);
+            botClient.sendMessage(
+                    session.getTelegramChatId(),
+                    messages.get(session.getLanguage(), "request.location.title"),
+                    keyboards.location(messages, session.getLanguage()));
         }
     }
 
     private void handleLocation(TelegramCustomerSession session, TelegramUpdatePayload.TelegramLocation location) {
-        if (session.getState() != TelegramCustomerSessionState.AWAITING_LOCATION) {
+        if (session.getState() != TelegramCustomerSessionState.AWAITING_LOCATION
+                && session.getState() != TelegramCustomerSessionState.AWAITING_LOCATION_ADDRESS) {
             send(session, "invalid_action", mainKeyboard(session));
             return;
         }
@@ -415,7 +416,10 @@ public class TelegramCustomerBotService {
             chooseCategory(session, data);
         } else if (data.equals("photo:skip")) {
             session.state(TelegramCustomerSessionState.AWAITING_LOCATION, now());
-            send(session, "location_prompt", null);
+            botClient.sendMessage(
+                    session.getTelegramChatId(),
+                    messages.get(session.getLanguage(), "request.location.title"),
+                    keyboards.location(messages, session.getLanguage()));
         } else if (data.equals("confirm:create")) {
             confirmRequest(session, callback);
         } else if (data.equals("confirm:edit")) {
@@ -613,9 +617,14 @@ public class TelegramCustomerBotService {
     private void sendConfirmation(TelegramCustomerSession session) {
         RepairCategory category = categoryRepository.findById(session.getDraftCategoryId())
                 .orElseThrow(() -> new BusinessRuleException("INVALID_CATEGORY", "Invalid category.", 400));
-        String location = session.getDraftAddress() != null
-                ? session.getDraftAddress()
-                : session.getDraftLatitude() + ", " + session.getDraftLongitude();
+        String location;
+        if (session.getDraftAddress() != null && !session.getDraftAddress().isBlank()) {
+            location = session.getDraftAddress();
+        } else if (session.getDraftLatitude() != null && session.getDraftLongitude() != null) {
+            location = "📍 " + session.getDraftLatitude() + ", " + session.getDraftLongitude();
+        } else {
+            location = messages.get(session.getLanguage(), "request.location.not_provided");
+        }
         LanguageCode language = session.getLanguage();
         String text = messages.get(session.getLanguage(), "confirm_prompt")
                 + "\n" + field(language, "field.category", escape(keyboards.label(category, language)))
@@ -624,6 +633,76 @@ public class TelegramCustomerBotService {
                 + "\n" + field(language, "field.photos", String.valueOf(session.photoFileIds().size()))
                 + "\n" + field(language, "field.language", String.valueOf(language));
         botClient.sendMessage(session.getTelegramChatId(), text, keyboards.confirm(messages, session.getLanguage()));
+    }
+
+    private void handleLocationStepText(TelegramCustomerSession session, String text) {
+        if (isEnterAddressText(text)) {
+            session.state(TelegramCustomerSessionState.AWAITING_LOCATION_ADDRESS, now());
+            botClient.sendMessage(
+                    session.getTelegramChatId(),
+                    messages.get(session.getLanguage(), "request.location.address_prompt"),
+                    keyboards.removeReplyKeyboard());
+            return;
+        }
+        if (isSkipLocationText(text)) {
+            session.draftLocation(null, null, now());
+            session.draftAddress(null, now());
+            session.state(TelegramCustomerSessionState.CONFIRMING_REQUEST, now());
+            sendConfirmation(session);
+            return;
+        }
+        botClient.sendMessage(
+                session.getTelegramChatId(),
+                messages.get(session.getLanguage(), "request.location.invalid"),
+                keyboards.location(messages, session.getLanguage()));
+    }
+
+    private void handleLocationAddressText(TelegramCustomerSession session, String text) {
+        String trimmed = text == null ? null : text.trim();
+        if (trimmed == null || trimmed.isEmpty() || trimmed.length() > 500) {
+            botClient.sendMessage(session.getTelegramChatId(), messages.get(session.getLanguage(), "invalid_request_data"), null);
+            return;
+        }
+        session.draftAddress(trimmed, now());
+        session.state(TelegramCustomerSessionState.CONFIRMING_REQUEST, now());
+        sendConfirmation(session);
+    }
+
+    private boolean isEnterAddressText(String text) {
+        if (text == null) return false;
+        String trimmed = text.trim();
+        for (LanguageCode lang : LanguageCode.values()) {
+            if (trimmed.equals(messages.get(lang, "request.location.enter_address"))) {
+                return true;
+            }
+        }
+        return trimmed.equalsIgnoreCase("Enter address")
+                || trimmed.equalsIgnoreCase("Ввести адрес")
+                || trimmed.equalsIgnoreCase("Manzil kiritish")
+                || trimmed.contains("Enter address")
+                || trimmed.contains("Ввести адрес")
+                || trimmed.contains("Manzil kiritish")
+                || trimmed.equalsIgnoreCase("⌨️ Enter address")
+                || trimmed.equalsIgnoreCase("⌨️ Ввести адрес")
+                || trimmed.equalsIgnoreCase("⌨️ Manzil kiritish");
+    }
+
+    private boolean isSkipLocationText(String text) {
+        if (text == null) return false;
+        String trimmed = text.trim();
+        for (LanguageCode lang : LanguageCode.values()) {
+            if (trimmed.equals(messages.get(lang, "request.location.skip"))
+                    || trimmed.equals(messages.get(lang, "skip"))) {
+                return true;
+            }
+        }
+        return trimmed.equalsIgnoreCase("/skip")
+                || trimmed.equalsIgnoreCase("Skip")
+                || trimmed.equalsIgnoreCase("Пропустить")
+                || trimmed.equalsIgnoreCase("O'tkazib yuborish")
+                || trimmed.equalsIgnoreCase("⏭ Skip")
+                || trimmed.equalsIgnoreCase("⏭ Пропустить")
+                || trimmed.equalsIgnoreCase("⏭ O'tkazib yuborish");
     }
 
     private void showMenu(TelegramCustomerSession session) {
@@ -775,13 +854,27 @@ public class TelegramCustomerBotService {
     }
 
     private String detailsText(RepairRequestDetailResponse details, LanguageCode language) {
+        String locationDisplay;
+        if (details.location() != null) {
+            if (details.location().address() != null && !details.location().address().isBlank()) {
+                locationDisplay = details.location().address();
+            } else if (details.location().latitude() != null && details.location().longitude() != null) {
+                locationDisplay = "📍 " + details.location().latitude() + ", " + details.location().longitude();
+            } else {
+                locationDisplay = messages.get(language, "request.location.not_provided");
+            }
+        } else if (details.address() != null && !details.address().isBlank()) {
+            locationDisplay = details.address();
+        } else if (details.latitude() != null && details.longitude() != null) {
+            locationDisplay = "📍 " + details.latitude() + ", " + details.longitude();
+        } else {
+            locationDisplay = messages.get(language, "request.location.not_provided");
+        }
         return field(language, "field.category", escape(categoryLabel(details, language)))
                 + "\n" + field(language, "field.description", escape(details.description()))
                 + "\n" + field(language, "field.status", escape(messages.requestStatus(details.status(), language)))
                 + "\n" + field(language, "field.priority", escape(messages.requestPriority(details.priority(), language)))
-                + "\n" + field(language, "field.location", escape(details.address() == null
-                        ? details.latitude() + ", " + details.longitude()
-                        : details.address()))
+                + "\n" + field(language, "field.location", escape(locationDisplay))
                 + "\n" + field(language, "field.created", formatTelegramDate(details.createdAt()));
     }
 

@@ -77,6 +77,11 @@
       "invalid-status": "This action cannot be performed while the repair request is in status {0}.",
       "invalid-description": "Invalid repair request description.",
       "invalid-location": "Invalid repair request location.",
+      "location-latitude-invalid": "Latitude must be between -90 and 90.",
+      "location-longitude-invalid": "Longitude must be between -180 and 180.",
+      "location-coordinates-incomplete": "Latitude and longitude must either both exist or both be absent.",
+      "location-address-too-long": "Address must be at most 500 characters.",
+      "location-source-invalid": "Invalid location source method.",
       "invalid-preferred-visit-time": "Invalid preferred visit time.",
       "invalid-date-range": "Invalid request date range."
     },

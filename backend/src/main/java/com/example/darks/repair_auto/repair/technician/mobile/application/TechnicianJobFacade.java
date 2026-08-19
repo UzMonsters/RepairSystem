@@ -271,9 +271,10 @@ public class TechnicianJobFacade {
                         customer.getFullName(),
                         customer.getPhone()),
                 new TechnicianJobDetailResponse.LocationInfo(
-                        request.getAddress(),
-                        request.getLatitude(),
-                        request.getLongitude()),
+                        request.getLocationAddress(),
+                        request.getLocationLatitude(),
+                        request.getLocationLongitude(),
+                        request.getLocationSource()),
                 scheduleInfo,
                 executionInfo,
                 actionCapabilityService.resolveTechnicianActions(request, assignment, execution),

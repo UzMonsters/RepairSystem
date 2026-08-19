@@ -41,14 +41,18 @@ public class RepairRequest {
     @Column(nullable = false, length = 2000)
     private String description;
 
-    @Column(length = 500)
-    private String address;
+    @Column(name = "location_address", length = 500)
+    private String locationAddress;
 
-    @Column(precision = 9, scale = 6)
-    private BigDecimal latitude;
+    @Column(name = "location_latitude", precision = 10, scale = 7)
+    private BigDecimal locationLatitude;
 
-    @Column(precision = 10, scale = 6)
-    private BigDecimal longitude;
+    @Column(name = "location_longitude", precision = 10, scale = 7)
+    private BigDecimal locationLongitude;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "location_source", length = 30)
+    private RequestLocationSource locationSource;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -101,9 +105,10 @@ public class RepairRequest {
             Customer customer,
             RepairCategory category,
             String description,
-            String address,
-            BigDecimal latitude,
-            BigDecimal longitude,
+            String locationAddress,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
+            RequestLocationSource locationSource,
             RepairRequestPriority priority,
             OffsetDateTime customerPreferredVisitAt,
             String internalNote,
@@ -113,9 +118,10 @@ public class RepairRequest {
         this.customer = customer;
         this.category = category;
         this.description = description;
-        this.address = address;
-        this.latitude = latitude;
-        this.longitude = longitude;
+        this.locationAddress = locationAddress;
+        this.locationLatitude = locationLatitude;
+        this.locationLongitude = locationLongitude;
+        this.locationSource = locationSource;
         this.priority = priority == null ? RepairRequestPriority.NORMAL : priority;
         this.status = RepairRequestStatus.NEW;
         this.source = RepairRequestSource.ADMIN;
@@ -126,26 +132,59 @@ public class RepairRequest {
         this.updatedAt = now;
     }
 
+    public RepairRequest(
+            String requestNumber,
+            Customer customer,
+            RepairCategory category,
+            String description,
+            String locationAddress,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
+            RepairRequestPriority priority,
+            OffsetDateTime customerPreferredVisitAt,
+            String internalNote,
+            User createdByUser,
+            OffsetDateTime now) {
+        this(
+                requestNumber,
+                customer,
+                category,
+                description,
+                locationAddress,
+                locationLatitude,
+                locationLongitude,
+                null,
+                priority,
+                customerPreferredVisitAt,
+                internalNote,
+                createdByUser,
+                now);
+    }
+
     public static RepairRequest telegram(
             String requestNumber,
             Customer customer,
             RepairCategory category,
             String description,
-            String address,
-            BigDecimal latitude,
-            BigDecimal longitude,
+            String locationAddress,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
             RepairRequestPriority priority,
             OffsetDateTime customerPreferredVisitAt,
             String sourceReference,
             OffsetDateTime now) {
+        RequestLocationSource locationSource = (locationAddress != null || locationLatitude != null || locationLongitude != null)
+                ? RequestLocationSource.TELEGRAM
+                : null;
         RepairRequest repairRequest = new RepairRequest(
                 requestNumber,
                 customer,
                 category,
                 description,
-                address,
-                latitude,
-                longitude,
+                locationAddress,
+                locationLatitude,
+                locationLongitude,
+                locationSource,
                 priority,
                 customerPreferredVisitAt,
                 null,
@@ -161,9 +200,10 @@ public class RepairRequest {
             Customer customer,
             RepairCategory category,
             String description,
-            String address,
-            BigDecimal latitude,
-            BigDecimal longitude,
+            String locationAddress,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
+            RequestLocationSource locationSource,
             RepairRequestPriority priority,
             OffsetDateTime customerPreferredVisitAt,
             String sourceReference,
@@ -173,9 +213,10 @@ public class RepairRequest {
                 customer,
                 category,
                 description,
-                address,
-                latitude,
-                longitude,
+                locationAddress,
+                locationLatitude,
+                locationLongitude,
+                locationSource,
                 priority,
                 customerPreferredVisitAt,
                 null,
@@ -206,16 +247,32 @@ public class RepairRequest {
         return description;
     }
 
+    public String getLocationAddress() {
+        return locationAddress;
+    }
+
+    public BigDecimal getLocationLatitude() {
+        return locationLatitude;
+    }
+
+    public BigDecimal getLocationLongitude() {
+        return locationLongitude;
+    }
+
+    public RequestLocationSource getLocationSource() {
+        return locationSource;
+    }
+
     public String getAddress() {
-        return address;
+        return locationAddress;
     }
 
     public BigDecimal getLatitude() {
-        return latitude;
+        return locationLatitude;
     }
 
     public BigDecimal getLongitude() {
-        return longitude;
+        return locationLongitude;
     }
 
     public RepairRequestPriority getPriority() {
@@ -270,9 +327,10 @@ public class RepairRequest {
             Customer customer,
             RepairCategory category,
             String description,
-            String address,
-            BigDecimal latitude,
-            BigDecimal longitude,
+            String locationAddress,
+            BigDecimal locationLatitude,
+            BigDecimal locationLongitude,
+            RequestLocationSource locationSource,
             RepairRequestPriority priority,
             OffsetDateTime customerPreferredVisitAt,
             String internalNote,
@@ -280,9 +338,10 @@ public class RepairRequest {
         this.customer = customer;
         this.category = category;
         this.description = description;
-        this.address = address;
-        this.latitude = latitude;
-        this.longitude = longitude;
+        this.locationAddress = locationAddress;
+        this.locationLatitude = locationLatitude;
+        this.locationLongitude = locationLongitude;
+        this.locationSource = locationSource;
         this.priority = priority;
         this.customerPreferredVisitAt = customerPreferredVisitAt;
         this.internalNote = internalNote;
