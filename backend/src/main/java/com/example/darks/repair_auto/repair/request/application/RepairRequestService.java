@@ -10,6 +10,8 @@ import com.example.darks.repair_auto.identity.infrastructure.security.Authentica
 import com.example.darks.repair_auto.notification.application.NotificationEventFactory;
 import com.example.darks.repair_auto.notification.application.NotificationOutboxService;
 import com.example.darks.repair_auto.notification.domain.NotificationType;
+import com.example.darks.repair_auto.realtime.event.application.RequestCreatedDomainEvent;
+import com.example.darks.repair_auto.realtime.event.application.RequestUpdatedDomainEvent;
 import com.example.darks.repair_auto.repair.assignment.infrastructure.RepairAssignmentRepository;
 import com.example.darks.repair_auto.repair.execution.application.RepairStatusHistoryService;
 import com.example.darks.repair_auto.repair.execution.infrastructure.RepairExecutionRepository;
@@ -71,6 +73,7 @@ public class RepairRequestService {
     private final NotificationOutboxService notificationOutboxService;
     private final EffectiveLanguageResolver effectiveLanguageResolver;
     private final LocalizedValueResolver localizedValueResolver;
+    private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
     private final Clock clock;
 
     public record ValidatedLocation(
@@ -94,7 +97,8 @@ public class RepairRequestService {
             NotificationEventFactory notificationEventFactory,
             NotificationOutboxService notificationOutboxService,
             EffectiveLanguageResolver effectiveLanguageResolver,
-            LocalizedValueResolver localizedValueResolver) {
+            LocalizedValueResolver localizedValueResolver,
+            org.springframework.context.ApplicationEventPublisher applicationEventPublisher) {
         this(
                 repairRequestRepository,
                 customerRepository,
@@ -109,10 +113,11 @@ public class RepairRequestService {
                 notificationOutboxService,
                 effectiveLanguageResolver,
                 localizedValueResolver,
+                applicationEventPublisher,
                 Clock.systemUTC());
     }
 
-    RepairRequestService(
+    public RepairRequestService(
             RepairRequestRepository repairRequestRepository,
             CustomerRepository customerRepository,
             RepairCategoryRepository repairCategoryRepository,
@@ -127,6 +132,40 @@ public class RepairRequestService {
             EffectiveLanguageResolver effectiveLanguageResolver,
             LocalizedValueResolver localizedValueResolver,
             Clock clock) {
+        this(
+                repairRequestRepository,
+                customerRepository,
+                repairCategoryRepository,
+                userRepository,
+                repairAssignmentRepository,
+                repairExecutionRepository,
+                statusHistoryService,
+                requestNumberGenerator,
+                phoneNumberNormalizer,
+                notificationEventFactory,
+                notificationOutboxService,
+                effectiveLanguageResolver,
+                localizedValueResolver,
+                null,
+                clock);
+    }
+
+    public RepairRequestService(
+            RepairRequestRepository repairRequestRepository,
+            CustomerRepository customerRepository,
+            RepairCategoryRepository repairCategoryRepository,
+            UserRepository userRepository,
+            RepairAssignmentRepository repairAssignmentRepository,
+            RepairExecutionRepository repairExecutionRepository,
+            RepairStatusHistoryService statusHistoryService,
+            RepairRequestNumberGenerator requestNumberGenerator,
+            PhoneNumberNormalizer phoneNumberNormalizer,
+            NotificationEventFactory notificationEventFactory,
+            NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver,
+            org.springframework.context.ApplicationEventPublisher applicationEventPublisher,
+            Clock clock) {
         this.repairRequestRepository = repairRequestRepository;
         this.customerRepository = customerRepository;
         this.repairCategoryRepository = repairCategoryRepository;
@@ -140,6 +179,7 @@ public class RepairRequestService {
         this.notificationOutboxService = notificationOutboxService;
         this.effectiveLanguageResolver = effectiveLanguageResolver;
         this.localizedValueResolver = localizedValueResolver;
+        this.applicationEventPublisher = applicationEventPublisher;
         this.clock = clock;
     }
 
@@ -170,6 +210,10 @@ public class RepairRequestService {
                 NotificationType.REQUEST_CREATED,
                 saved,
                 NotificationEventFactory.statusEventKeyPart(history.getId(), saved.getStatus())));
+        publishDomainEvent(new RequestCreatedDomainEvent(
+                saved.getId(),
+                saved.getRequestNumber(),
+                saved.getCustomer().getId()));
         return RepairRequestMapper.created(saved);
     }
 
@@ -221,6 +265,10 @@ public class RepairRequestService {
         try {
             RepairRequest saved = repairRequestRepository.saveAndFlush(repairRequest);
             statusHistoryService.recordInitial(saved, "Telegram request created.", null, now);
+            publishDomainEvent(new RequestCreatedDomainEvent(
+                    saved.getId(),
+                    saved.getRequestNumber(),
+                    saved.getCustomer().getId()));
             return saved;
         } catch (org.springframework.dao.DataIntegrityViolationException exception) {
             return repairRequestRepository.findBySourceReference(reference)
@@ -288,6 +336,10 @@ public class RepairRequestService {
                 NotificationType.REQUEST_CREATED,
                 saved,
                 NotificationEventFactory.statusEventKeyPart(history.getId(), saved.getStatus())));
+            publishDomainEvent(new RequestCreatedDomainEvent(
+                    saved.getId(),
+                    saved.getRequestNumber(),
+                    saved.getCustomer().getId()));
             return saved;
         } catch (org.springframework.dao.DataIntegrityViolationException exception) {
             return repairRequestRepository.findBySourceReference(reference)
@@ -345,9 +397,20 @@ public class RepairRequestService {
                 validatePreferredVisit(request.customerPreferredVisitAt(), now),
                 validateInternalNote(request.internalNote()),
                 now);
+        RepairRequest saved = repairRequestRepository.saveAndFlush(repairRequest);
+        publishDomainEvent(new RequestUpdatedDomainEvent(
+                saved.getId(),
+                saved.getRequestNumber(),
+                saved.getCustomer().getId()));
         var execution = repairExecutionRepository.findByRepairRequestId(id).orElse(null);
         Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
-        return RepairRequestMapper.details(repairRequestRepository.saveAndFlush(repairRequest), null, execution, lang, localizedValueResolver);
+        return RepairRequestMapper.details(saved, null, execution, lang, localizedValueResolver);
+    }
+
+    private void publishDomainEvent(Object event) {
+        if (applicationEventPublisher != null) {
+            applicationEventPublisher.publishEvent(event);
+        }
     }
 
     @Transactional

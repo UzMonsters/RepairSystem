@@ -52,8 +52,46 @@ services:
         value: false
       - key: APP_STORAGE_ENABLED
         value: false
-      - key: APP_TELEGRAM_ENABLED
+      - key: APP_STORAGE_ENDPOINT
+        sync: false
+      - key: APP_STORAGE_REGION
+        value: us-east-1
+      - key: APP_STORAGE_BUCKET
+        sync: false
+      - key: APP_STORAGE_ACCESS_KEY
+        sync: false
+      - key: APP_STORAGE_SECRET_KEY
+        sync: false
+      - key: APP_STORAGE_PATH_STYLE
+        value: true
+      - key: APP_STORAGE_CREATE_BUCKET
         value: false
+      - key: APP_TELEGRAM_ENABLED
+        value: true
+      - key: APP_TELEGRAM_CUSTOMER_BOT_TOKEN
+        sync: false
+      - key: APP_TELEGRAM_CUSTOMER_WEBHOOK_SECRET
+        sync: false
+      - key: APP_TELEGRAM_CUSTOMER_BOT_USERNAME
+        value: repairauto_bot
+      - key: APP_TELEGRAM_TECHNICIAN_BOT_TOKEN
+        sync: false
+      - key: APP_TELEGRAM_TECHNICIAN_WEBHOOK_SECRET
+        sync: false
+      - key: APP_TELEGRAM_TECHNICIAN_BOT_USERNAME
+        value: repairauto_staff_bot
+      - key: APP_TELEGRAM_CUSTOMER_LOGIN_CLIENT_ID
+        sync: false
+      - key: APP_TELEGRAM_TECHNICIAN_LOGIN_CLIENT_ID
+        sync: false
+      - key: APP_FIREBASE_ENABLED
+        value: false
+      - key: APP_FIREBASE_PROJECT_ID
+        sync: false
+      - key: APP_FIREBASE_CREDENTIALS_PATH
+        sync: false
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        sync: false
 
   - type: web
     name: repair-system-frontend
