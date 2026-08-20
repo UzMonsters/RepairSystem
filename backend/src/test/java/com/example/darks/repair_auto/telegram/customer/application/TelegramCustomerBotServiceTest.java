@@ -230,7 +230,8 @@ class TelegramCustomerBotServiceTest {
 
         // Photo 4 -> rejected
         service.handle(photo(219L, 20320L, 24320L, "photo-4", 1024L));
-        assertThat(botClient.last().text()).contains("Maksimal 3 ta foto qabul qilinadi");
+        assertThat(botClient.last().text()).contains("Geolokatsiyani yuboring");
+        assertThat(botClient.deletedMessages()).contains(219L);
         assertThat(session.photoFileIds()).containsExactly("photo-1", "photo-2", "photo-3");
     }
 
@@ -456,6 +457,9 @@ class TelegramCustomerBotServiceTest {
     private static final class RecordingTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new ArrayList<>();
+        private final List<Long> deletedMessages = new ArrayList<>();
+        private final List<String> answeredCallbacks = new ArrayList<>();
+        private long nextMessageId = 3000L;
 
         List<SentMessage> messages() {
             return messages;
@@ -465,13 +469,37 @@ class TelegramCustomerBotServiceTest {
             return messages.getLast();
         }
 
+        List<Long> deletedMessages() {
+            return deletedMessages;
+        }
+
+        List<String> answeredCallbacks() {
+            return answeredCallbacks;
+        }
+
         @Override
-        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return nextMessageId++;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+            answeredCallbacks.add(callbackQueryId);
+        }
+
+        @Override
+        public void deleteMessage(Long chatId, Long messageId) {
+            deletedMessages.add(messageId);
+        }
+
+        @Override
+        public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+        }
+
+        @Override
+        public void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
         }
 
         @Override

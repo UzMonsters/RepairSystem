@@ -261,7 +261,8 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         // Fourth photo should be rejected
         send(photo(51, 3103, 7103, "photo-multi-4", JPEG.length));
-        assertThat(telegramBotClient.lastText()).contains("Maksimal 3 ta foto qabul qilinadi");
+        assertThat(telegramBotClient.lastText()).contains("Geolokatsiyani yuboring");
+        assertThat(telegramBotClient.deletedMessages()).contains(new DeletedMessage(7103L, 51L));
 
         // Complete request creation
         send(location(52, 3103, 7103, "41.311081", "69.240562"));
@@ -557,7 +558,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     @Test
     void givenProfilePhoneConflictThenSafeLocalizedResponseIsReturned() throws Exception {
         register(14014, 18014, "+998901414141", "Profile Owner", LanguageCode.EN);
-        register(14015, 18015, "+998901515151", "Phone Owner", LanguageCode.EN);
+        register(24015, 28015, "+998901515151", "Phone Owner", LanguageCode.EN);
 
         send(callback(171, 14014, 18014, "cb-profile", "menu:profile"));
         send(callback(172, 14014, 18014, "cb-profile-phone", "profile:phone"));
@@ -862,11 +863,18 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     static final class FakeTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new CopyOnWriteArrayList<>();
+        private final List<DeletedMessage> deletedMessages = new CopyOnWriteArrayList<>();
+        private final List<EditedReplyMarkup> editedReplyMarkups = new CopyOnWriteArrayList<>();
+        private final List<String> answeredCallbacks = new CopyOnWriteArrayList<>();
         private final List<String> failingFiles = new CopyOnWriteArrayList<>();
         private boolean failNextSend;
+        private long nextMessageId = 1000L;
 
         void clear() {
             messages.clear();
+            deletedMessages.clear();
+            editedReplyMarkups.clear();
+            answeredCallbacks.clear();
             failingFiles.clear();
             failNextSend = false;
         }
@@ -879,6 +887,18 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
             return messages.getLast().text();
         }
 
+        List<DeletedMessage> deletedMessages() {
+            return deletedMessages;
+        }
+
+        List<EditedReplyMarkup> editedReplyMarkups() {
+            return editedReplyMarkups;
+        }
+
+        List<String> answeredCallbacks() {
+            return answeredCallbacks;
+        }
+
         void failNextSend() {
             failNextSend = true;
         }
@@ -888,16 +908,34 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         }
 
         @Override
-        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
             if (failNextSend) {
                 failNextSend = false;
                 throw new TelegramApiException("Temporary Telegram send failure.");
             }
+            long messageId = nextMessageId++;
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return messageId;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+            answeredCallbacks.add(callbackQueryId);
+        }
+
+        @Override
+        public void deleteMessage(Long chatId, Long messageId) {
+            deletedMessages.add(new DeletedMessage(chatId, messageId));
+        }
+
+        @Override
+        public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+        }
+
+        @Override
+        public void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
+            editedReplyMarkups.add(new EditedReplyMarkup(chatId, messageId, replyMarkupJson));
         }
 
         @Override
@@ -930,6 +968,12 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     record SentMessage(Long chatId, String text, String replyMarkupJson) {
+    }
+
+    record DeletedMessage(Long chatId, Long messageId) {
+    }
+
+    record EditedReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
     }
 
     static final class FakeObjectStorageService implements ObjectStorageService {
