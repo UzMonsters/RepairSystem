@@ -39,6 +39,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
 import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
 import com.example.darks.repair_auto.settings.domain.Language;
+import com.example.darks.repair_auto.chat.application.ChatService;
+import com.example.darks.repair_auto.realtime.event.application.RequestAssignedDomainEvent;
+import com.example.darks.repair_auto.realtime.event.application.RequestUnassignedDomainEvent;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Service
 public class RepairAssignmentService {
@@ -54,6 +58,8 @@ public class RepairAssignmentService {
     private final NotificationOutboxService notificationOutboxService;
     private final EffectiveLanguageResolver effectiveLanguageResolver;
     private final LocalizedValueResolver localizedValueResolver;
+    private final ApplicationEventPublisher applicationEventPublisher;
+    private final ChatService chatService;
     private final Clock clock;
 
     public RepairAssignmentService(
@@ -65,7 +71,8 @@ public class RepairAssignmentService {
             NotificationEventFactory notificationEventFactory,
             NotificationOutboxService notificationOutboxService,
             EffectiveLanguageResolver effectiveLanguageResolver,
-            LocalizedValueResolver localizedValueResolver) {
+            LocalizedValueResolver localizedValueResolver,
+            Clock clock) {
         this(
                 repairAssignmentRepository,
                 repairRequestRepository,
@@ -76,7 +83,9 @@ public class RepairAssignmentService {
                 notificationOutboxService,
                 effectiveLanguageResolver,
                 localizedValueResolver,
-                Clock.systemUTC());
+                null,
+                null,
+                clock);
     }
 
     @Autowired
@@ -90,6 +99,35 @@ public class RepairAssignmentService {
             NotificationOutboxService notificationOutboxService,
             EffectiveLanguageResolver effectiveLanguageResolver,
             LocalizedValueResolver localizedValueResolver,
+            ApplicationEventPublisher applicationEventPublisher,
+            ChatService chatService) {
+        this(
+                repairAssignmentRepository,
+                repairRequestRepository,
+                technicianRepository,
+                userRepository,
+                statusHistoryService,
+                notificationEventFactory,
+                notificationOutboxService,
+                effectiveLanguageResolver,
+                localizedValueResolver,
+                applicationEventPublisher,
+                chatService,
+                Clock.systemUTC());
+    }
+
+    public RepairAssignmentService(
+            RepairAssignmentRepository repairAssignmentRepository,
+            RepairRequestRepository repairRequestRepository,
+            TechnicianRepository technicianRepository,
+            UserRepository userRepository,
+            RepairStatusHistoryService statusHistoryService,
+            NotificationEventFactory notificationEventFactory,
+            NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver,
+            ApplicationEventPublisher applicationEventPublisher,
+            ChatService chatService,
             Clock clock) {
         this.repairAssignmentRepository = repairAssignmentRepository;
         this.repairRequestRepository = repairRequestRepository;
@@ -100,6 +138,8 @@ public class RepairAssignmentService {
         this.notificationOutboxService = notificationOutboxService;
         this.effectiveLanguageResolver = effectiveLanguageResolver;
         this.localizedValueResolver = localizedValueResolver;
+        this.applicationEventPublisher = applicationEventPublisher;
+        this.chatService = chatService;
         this.clock = clock;
     }
 
@@ -119,6 +159,12 @@ public class RepairAssignmentService {
         applyRequestStatus(repairRequest, assignment, now);
         statusHistoryService.recordTransition(repairRequest, fromStatus, "Technician assigned.", assignedBy, now);
         enqueueAssignmentCreated(repairRequest, assignment);
+        publishDomainEvent(new RequestAssignedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                repairRequest.getCustomer().getId(),
+                technician.getId(),
+                assignment.getId()));
         return details(repairRequest);
     }
 
@@ -140,6 +186,9 @@ public class RepairAssignmentService {
         saveAssignment(next);
         applyRequestStatus(repairRequest, next, now);
         statusHistoryService.recordTransition(repairRequest, fromStatus, request.reason(), assignedBy, now);
+        if (chatService != null) {
+            chatService.handleTechnicianReassigned(repairRequest.getId(), current.getTechnician().getId(), technician.getId());
+        }
         String eventPart = "assignment:%d:reassigned-to:%d".formatted(current.getId(), next.getId());
         notificationOutboxService.enqueue(notificationEventFactory.technician(
                 NotificationType.TECHNICIAN_UNASSIGNED,
@@ -156,6 +205,12 @@ public class RepairAssignmentService {
                 repairRequest,
                 next,
                 eventPart));
+        publishDomainEvent(new RequestAssignedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                repairRequest.getCustomer().getId(),
+                technician.getId(),
+                next.getId()));
         return details(repairRequest);
     }
 
@@ -170,6 +225,9 @@ public class RepairAssignmentService {
         assignment.unassign(reason, now);
         repairRequest.returnToNew(now);
         statusHistoryService.recordTransition(repairRequest, fromStatus, reason, changedBy, now);
+        if (chatService != null) {
+            chatService.handleTechnicianUnassigned(repairRequest.getId(), assignment.getTechnician().getId());
+        }
         String eventPart = "assignment:%d:unassigned".formatted(assignment.getId());
         notificationOutboxService.enqueue(notificationEventFactory.technician(
                 NotificationType.TECHNICIAN_UNASSIGNED,
@@ -180,6 +238,12 @@ public class RepairAssignmentService {
                 NotificationType.TECHNICIAN_UNASSIGNED,
                 repairRequest,
                 eventPart));
+        publishDomainEvent(new RequestUnassignedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                repairRequest.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                assignment.getId()));
         return details(repairRequest);
     }
 
@@ -268,6 +332,15 @@ public class RepairAssignmentService {
         assignment.reject(reason, now);
         repairRequest.returnToNew(now);
         statusHistoryService.recordTransition(repairRequest, fromStatus, reason, changedBy, now);
+        if (chatService != null) {
+            chatService.handleTechnicianUnassigned(repairRequest.getId(), assignment.getTechnician().getId());
+        }
+        publishDomainEvent(new RequestUnassignedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                repairRequest.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                assignment.getId()));
         return details(repairRequest);
     }
 
@@ -295,7 +368,22 @@ public class RepairAssignmentService {
         assignment.reject(reason, now);
         repairRequest.returnToNew(now);
         statusHistoryService.recordTransition(repairRequest, fromStatus, reason, changedBy, now);
+        if (chatService != null) {
+            chatService.handleTechnicianUnassigned(repairRequest.getId(), assignment.getTechnician().getId());
+        }
+        publishDomainEvent(new RequestUnassignedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                repairRequest.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                assignment.getId()));
         return details(repairRequest);
+    }
+
+    private void publishDomainEvent(Object event) {
+        if (applicationEventPublisher != null) {
+            applicationEventPublisher.publishEvent(event);
+        }
     }
 
     @Transactional(readOnly = true)

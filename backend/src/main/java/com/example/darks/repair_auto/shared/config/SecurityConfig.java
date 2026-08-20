@@ -55,7 +55,9 @@ public class SecurityConfig {
                                 "/actuator/info",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html")
+                                "/swagger-ui.html",
+                                "/ws",
+                                "/ws/**")
                         .permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/login",
@@ -84,6 +86,10 @@ public class SecurityConfig {
                                 "/api/v1/mobile/me/attachments/**")
                         .hasAnyRole("CUSTOMER", "TECHNICIAN")
                         .requestMatchers(
+                                "/api/v1/mobile/me/conversations",
+                                "/api/v1/mobile/me/conversations/**")
+                        .hasAnyRole("CUSTOMER", "TECHNICIAN")
+                        .requestMatchers(
                                 "/api/v1/mobile/me",
                                 "/api/v1/mobile/me/**")
                         .hasAnyRole("CUSTOMER", "TECHNICIAN")
@@ -99,6 +105,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/reviews/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/dashboard/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/requests/**", "/api/v1/repair-requests/**").hasAnyRole("ADMIN", "MANAGER")
+                        .requestMatchers("/api/v1/conversations/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/attachments/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/customers/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers("/api/v1/technicians/**").hasAnyRole("ADMIN", "MANAGER")

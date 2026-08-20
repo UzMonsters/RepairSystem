@@ -41,7 +41,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
 import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
+import com.example.darks.repair_auto.realtime.event.application.RequestStatusChangedDomainEvent;
 import com.example.darks.repair_auto.settings.domain.Language;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Service
 public class RepairExecutionService {
@@ -63,6 +65,7 @@ public class RepairExecutionService {
     private final NotificationOutboxService notificationOutboxService;
     private final EffectiveLanguageResolver effectiveLanguageResolver;
     private final LocalizedValueResolver localizedValueResolver;
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final Clock clock;
 
     @Autowired
@@ -78,7 +81,8 @@ public class RepairExecutionService {
             NotificationEventFactory notificationEventFactory,
             NotificationOutboxService notificationOutboxService,
             EffectiveLanguageResolver effectiveLanguageResolver,
-            LocalizedValueResolver localizedValueResolver) {
+            LocalizedValueResolver localizedValueResolver,
+            ApplicationEventPublisher applicationEventPublisher) {
         this(
                 repairRequestRepository,
                 repairAssignmentRepository,
@@ -92,10 +96,11 @@ public class RepairExecutionService {
                 notificationOutboxService,
                 effectiveLanguageResolver,
                 localizedValueResolver,
+                applicationEventPublisher,
                 Clock.systemUTC());
     }
 
-    RepairExecutionService(
+    public RepairExecutionService(
             RepairRequestRepository repairRequestRepository,
             RepairAssignmentRepository repairAssignmentRepository,
             RepairExecutionRepository repairExecutionRepository,
@@ -109,6 +114,38 @@ public class RepairExecutionService {
             EffectiveLanguageResolver effectiveLanguageResolver,
             LocalizedValueResolver localizedValueResolver,
             Clock clock) {
+        this(
+                repairRequestRepository,
+                repairAssignmentRepository,
+                repairExecutionRepository,
+                statusHistoryRepository,
+                userRepository,
+                technicianRepository,
+                statusHistoryService,
+                attachmentRequirementService,
+                notificationEventFactory,
+                notificationOutboxService,
+                effectiveLanguageResolver,
+                localizedValueResolver,
+                null,
+                clock);
+    }
+
+    public RepairExecutionService(
+            RepairRequestRepository repairRequestRepository,
+            RepairAssignmentRepository repairAssignmentRepository,
+            RepairExecutionRepository repairExecutionRepository,
+            RepairRequestStatusHistoryRepository statusHistoryRepository,
+            UserRepository userRepository,
+            TechnicianRepository technicianRepository,
+            RepairStatusHistoryService statusHistoryService,
+            AttachmentRequirementService attachmentRequirementService,
+            NotificationEventFactory notificationEventFactory,
+            NotificationOutboxService notificationOutboxService,
+            EffectiveLanguageResolver effectiveLanguageResolver,
+            LocalizedValueResolver localizedValueResolver,
+            ApplicationEventPublisher applicationEventPublisher,
+            Clock clock) {
         this.repairRequestRepository = repairRequestRepository;
         this.repairAssignmentRepository = repairAssignmentRepository;
         this.repairExecutionRepository = repairExecutionRepository;
@@ -121,6 +158,7 @@ public class RepairExecutionService {
         this.notificationOutboxService = notificationOutboxService;
         this.effectiveLanguageResolver = effectiveLanguageResolver;
         this.localizedValueResolver = localizedValueResolver;
+        this.applicationEventPublisher = applicationEventPublisher;
         this.clock = clock;
     }
 
@@ -146,6 +184,13 @@ public class RepairExecutionService {
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, "Repair work started.", changedBy, now);
         enqueueCustomerStatus(NotificationType.REPAIR_STARTED, request, history);
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                fromStatus,
+                request.getStatus()));
         return details(request, assignment, execution);
     }
 
@@ -172,6 +217,13 @@ public class RepairExecutionService {
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, "Repair work started.", changedBy, now);
         enqueueCustomerStatus(NotificationType.REPAIR_STARTED, request, history);
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                fromStatus,
+                request.getStatus()));
         return details(request, assignment, execution);
     }
 
@@ -245,6 +297,13 @@ public class RepairExecutionService {
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, reason, changedBy, now);
         enqueueCustomerStatus(NotificationType.WAITING_FOR_PARTS, request, history);
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                fromStatus,
+                request.getStatus()));
         return details(request, assignment, execution);
     }
 
@@ -272,6 +331,13 @@ public class RepairExecutionService {
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, reason, changedBy, now);
         enqueueCustomerStatus(NotificationType.WAITING_FOR_PARTS, request, history);
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                fromStatus,
+                request.getStatus()));
         return details(request, assignment, execution);
     }
 
@@ -294,6 +360,13 @@ public class RepairExecutionService {
                 changedBy,
                 now);
         enqueueCustomerStatus(NotificationType.REPAIR_RESUMED, request, history);
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                fromStatus,
+                request.getStatus()));
         return details(request, assignment, execution);
     }
 
@@ -320,6 +393,13 @@ public class RepairExecutionService {
                 changedBy,
                 now);
         enqueueCustomerStatus(NotificationType.REPAIR_RESUMED, request, history);
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                fromStatus,
+                request.getStatus()));
         return details(request, assignment, execution);
     }
 
@@ -363,6 +443,13 @@ public class RepairExecutionService {
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, "Repair completed.", changedBy, now);
         enqueueCustomerStatus(NotificationType.REPAIR_COMPLETED, request, history);
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                fromStatus,
+                request.getStatus()));
         return details(request, null, execution);
     }
 
@@ -407,6 +494,13 @@ public class RepairExecutionService {
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, "Repair completed.", changedBy, now);
         enqueueCustomerStatus(NotificationType.REPAIR_COMPLETED, request, history);
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                fromStatus,
+                request.getStatus()));
         return details(request, null, execution);
     }
 
@@ -445,6 +539,7 @@ public class RepairExecutionService {
         saveExecution(execution);
         var history = statusHistoryService.recordTransition(request, fromStatus, reason, changedBy, now);
         enqueueCustomerStatus(NotificationType.REQUEST_CANCELLED, request, history);
+        Long techId = assignment != null ? assignment.getTechnician().getId() : null;
         if (assignment != null) {
             notificationOutboxService.enqueue(notificationEventFactory.technician(
                     NotificationType.REQUEST_CANCELLED,
@@ -453,7 +548,20 @@ public class RepairExecutionService {
                     assignment.getScheduledVisitAt(),
                     NotificationEventFactory.statusEventKeyPart(history.getId(), request.getStatus())));
         }
+        publishDomainEvent(new RequestStatusChangedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                request.getCustomer().getId(),
+                techId,
+                fromStatus,
+                request.getStatus()));
         return details(request, null, execution);
+    }
+
+    private void publishDomainEvent(Object event) {
+        if (applicationEventPublisher != null) {
+            applicationEventPublisher.publishEvent(event);
+        }
     }
 
     @Transactional(readOnly = true)

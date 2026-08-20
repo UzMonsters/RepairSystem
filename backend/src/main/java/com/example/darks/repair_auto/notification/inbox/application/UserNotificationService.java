@@ -44,6 +44,7 @@ public class UserNotificationService {
     private final TechnicianRepository technicianRepository;
     private final NotificationTemplateService templateService;
     private final RequestLocaleResolver requestLocaleResolver;
+    private final org.springframework.context.ApplicationEventPublisher applicationEventPublisher;
     private final Clock clock;
 
     @Autowired
@@ -52,22 +53,35 @@ public class UserNotificationService {
             CustomerRepository customerRepository,
             TechnicianRepository technicianRepository,
             NotificationTemplateService templateService,
-            RequestLocaleResolver requestLocaleResolver) {
-        this(userNotificationRepository, customerRepository, technicianRepository, templateService, requestLocaleResolver, Clock.systemUTC());
+            RequestLocaleResolver requestLocaleResolver,
+            org.springframework.context.ApplicationEventPublisher applicationEventPublisher) {
+        this(userNotificationRepository, customerRepository, technicianRepository, templateService, requestLocaleResolver, applicationEventPublisher, Clock.systemUTC());
     }
 
-    UserNotificationService(
+    public UserNotificationService(
             UserNotificationRepository userNotificationRepository,
             CustomerRepository customerRepository,
             TechnicianRepository technicianRepository,
             NotificationTemplateService templateService,
             RequestLocaleResolver requestLocaleResolver,
             Clock clock) {
+        this(userNotificationRepository, customerRepository, technicianRepository, templateService, requestLocaleResolver, null, clock);
+    }
+
+    public UserNotificationService(
+            UserNotificationRepository userNotificationRepository,
+            CustomerRepository customerRepository,
+            TechnicianRepository technicianRepository,
+            NotificationTemplateService templateService,
+            RequestLocaleResolver requestLocaleResolver,
+            org.springframework.context.ApplicationEventPublisher applicationEventPublisher,
+            Clock clock) {
         this.userNotificationRepository = userNotificationRepository;
         this.customerRepository = customerRepository;
         this.technicianRepository = technicianRepository;
         this.templateService = templateService;
         this.requestLocaleResolver = requestLocaleResolver;
+        this.applicationEventPublisher = applicationEventPublisher;
         this.clock = clock;
     }
 
@@ -99,7 +113,17 @@ public class UserNotificationService {
                     targetId,
                     event.payloadJson(),
                     now);
-            return inserted > 0 ? RecordResult.CREATED : RecordResult.ALREADY_EXISTS;
+            if (inserted > 0) {
+                publishDomainEvent(new com.example.darks.repair_auto.realtime.event.application.NotificationCreatedDomainEvent(
+                        com.example.darks.repair_auto.identity.domain.ActorType.CUSTOMER,
+                        customer.getId(),
+                        null,
+                        event.type().name(),
+                        targetId,
+                        target));
+                return RecordResult.CREATED;
+            }
+            return RecordResult.ALREADY_EXISTS;
         } else if (event.recipientType() == NotificationRecipientType.TECHNICIAN) {
             Technician technician = technicianRepository.findById(event.recipientId()).orElse(null);
             if (technician == null) {
@@ -117,7 +141,17 @@ public class UserNotificationService {
                     targetId,
                     event.payloadJson(),
                     now);
-            return inserted > 0 ? RecordResult.CREATED : RecordResult.ALREADY_EXISTS;
+            if (inserted > 0) {
+                publishDomainEvent(new com.example.darks.repair_auto.realtime.event.application.NotificationCreatedDomainEvent(
+                        com.example.darks.repair_auto.identity.domain.ActorType.TECHNICIAN,
+                        technician.getId(),
+                        null,
+                        event.type().name(),
+                        targetId,
+                        target));
+                return RecordResult.CREATED;
+            }
+            return RecordResult.ALREADY_EXISTS;
         }
 
         return RecordResult.SKIPPED;
@@ -186,6 +220,10 @@ public class UserNotificationService {
         if (notification.getReadAt() == null) {
             notification.markRead(now());
             userNotificationRepository.save(notification);
+            publishDomainEvent(new com.example.darks.repair_auto.realtime.event.application.NotificationReadDomainEvent(
+                    actor.actorType(),
+                    actor.actorId(),
+                    notification.getId()));
         }
     }
 
@@ -198,6 +236,16 @@ public class UserNotificationService {
             userNotificationRepository.markAllAsReadForTechnician(actor.actorId(), now);
         } else {
             throw new AccessDeniedException("Staff actor cannot mark mobile notifications as read.");
+        }
+        publishDomainEvent(new com.example.darks.repair_auto.realtime.event.application.NotificationReadDomainEvent(
+                actor.actorType(),
+                actor.actorId(),
+                null));
+    }
+
+    private void publishDomainEvent(Object event) {
+        if (applicationEventPublisher != null) {
+            applicationEventPublisher.publishEvent(event);
         }
     }
 
