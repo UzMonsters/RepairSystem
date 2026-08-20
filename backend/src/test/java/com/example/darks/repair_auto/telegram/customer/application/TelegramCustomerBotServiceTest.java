@@ -96,6 +96,106 @@ class TelegramCustomerBotServiceTest {
         assertThat(botClient.last().replyMarkupJson())
                 .contains("\"inline_keyboard\"")
                 .contains("cat:123");
+        assertThat(session.getActivePromptMessageId()).isEqualTo(3000L);
+    }
+
+    @Test
+    void givenSelectingCategoryAndPromptMessageMatchesWhenCategoryCallbackArrivesThenAdvancesToDescription() {
+        TelegramCustomerSession session = linkedSession(19119L, 23119L);
+        session.state(TelegramCustomerSessionState.SELECTING_CATEGORY, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.activePromptMessageId(4444L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        RepairCategory category = category();
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairCategoryRepository categories = mock(RepairCategoryRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(19119L)).thenReturn(Optional.of(session));
+        when(categories.findById(123L)).thenReturn(Optional.of(category));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                categories,
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(callback(221L, 19119L, 23119L, 4444L, "cb-cat-fresh", "cat:123"));
+
+        assertThat(session.getDraftCategoryId()).isEqualTo(123L);
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_DESCRIPTION);
+        assertThat(botClient.last().text()).contains("Describe the problem");
+        assertThat(botClient.answeredCallbacks()).contains("cb-cat-fresh");
+    }
+
+    @Test
+    void givenSelectingCategoryAndPromptMessageMissingWhenCategoryCallbackArrivesThenStillAdvances() {
+        TelegramCustomerSession session = linkedSession(19219L, 23219L);
+        session.state(TelegramCustomerSessionState.SELECTING_CATEGORY, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        RepairCategory category = category();
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairCategoryRepository categories = mock(RepairCategoryRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(19219L)).thenReturn(Optional.of(session));
+        when(categories.findById(123L)).thenReturn(Optional.of(category));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                categories,
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(callback(222L, 19219L, 23219L, 5555L, "cb-cat-null-prompt", "cat:123"));
+
+        assertThat(session.getActivePromptMessageId()).isNotEqualTo(5555L);
+        assertThat(session.getDraftCategoryId()).isEqualTo(123L);
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_DESCRIPTION);
+        assertThat(botClient.last().text()).contains("Describe the problem");
+    }
+
+    @Test
+    void givenCategoryCallbackAfterStateAdvancedThenItIsTreatedAsStale() {
+        TelegramCustomerSession session = linkedSession(19319L, 23319L);
+        session.state(TelegramCustomerSessionState.AWAITING_DESCRIPTION, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.draftCategory(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairCategoryRepository categories = mock(RepairCategoryRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(19319L)).thenReturn(Optional.of(session));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                categories,
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(callback(223L, 19319L, 23319L, 6666L, "cb-cat-duplicate", "cat:999"));
+
+        assertThat(session.getDraftCategoryId()).isEqualTo(123L);
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_DESCRIPTION);
+        assertThat(botClient.last().text()).contains("This action is no longer available");
+        assertThat(botClient.answeredCallbacks()).contains("cb-cat-duplicate");
     }
 
     @Test
