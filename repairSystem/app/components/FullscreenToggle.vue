@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 const isFullscreen = ref(false)
 
 function toggleFullscreen() {

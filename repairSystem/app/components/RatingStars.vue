@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 const props = defineProps<{ rating: number }>()
 
 const stars = computed(() => [1, 2, 3, 4, 5].map(n => ({ n, full: n <= Math.round(props.rating) })))

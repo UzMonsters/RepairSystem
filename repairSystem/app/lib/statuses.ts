@@ -1,4 +1,4 @@
-import type { RequestPriority, RequestStatus } from '~/types'
+﻿import type { RequestPriority, RequestStatus } from '~/types'
 
 export const requestStatuses: Array<{ value: RequestStatus, badge: string }> = [
   { value: 'NEW', badge: 'status-new' },

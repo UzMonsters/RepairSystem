@@ -6,6 +6,7 @@ type ApiRequest = {
   body?: BodyInit | Record<string, unknown> | null
   query?: Record<string, unknown>
   params?: Record<string, unknown>
+  responseType?: 'json' | 'blob' | 'arrayBuffer' | 'text'
 }
 
 type ErrorPayload = {
@@ -61,17 +62,24 @@ export function getApiErrorCode(error: unknown): string | undefined {
 }
 
 export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> {
-  const { refreshSession, logout } = useAuth()
-  const token = useCookie<string | null>('access_token', { default: () => null })
+  const { refreshSession, logout, isAuthenticated } = useAuth()
+  const fetcher = import.meta.server ? useRequestFetch() : $fetch
   const headers = new Headers(options.headers as HeadersInit | undefined)
-  headers.set('accept', 'application/json')
-  if (token.value) headers.set('authorization', `Bearer ${token.value}`)
+
+  // Attach default accept and language headers
+  if (!headers.has('accept')) {
+    headers.set('accept', options.responseType === 'blob' ? '*/*' : 'application/json')
+  }
+  if (!headers.has('accept-language')) {
+    const { locale } = useLocale()
+    headers.set('accept-language', locale.value || 'uz')
+  }
 
   const url = `/api${path.startsWith('/') ? path : `/${path}`}`
 
   async function execute(retried = false): Promise<T> {
     try {
-      return await $fetch<T>(url, {
+      return await fetcher<T>(url, {
         ...options,
         headers,
         credentials: 'include'
@@ -79,12 +87,11 @@ export function apiFetch<T>(path: string, options: ApiRequest = {}): Promise<T> 
     } catch (error) {
       const status = (error as { status?: number, response?: { status?: number } }).status
         || (error as { response?: { status?: number } }).response?.status
-      const isRefreshRequest = path === '/auth/refresh'
-      if (status === 401 && !retried && !isRefreshRequest && await refreshSession()) {
-        headers.set('authorization', `Bearer ${token.value}`)
+      const isAuthRequest = ['/auth/login', '/auth/refresh', '/auth/logout'].includes(path)
+      if (status === 401 && !retried && !isAuthRequest && await refreshSession()) {
         return execute(true)
       }
-      if (status === 401 && !isRefreshRequest) await logout()
+      if (status === 401 && !isAuthRequest && isAuthenticated.value) await logout()
 
       // Keep FetchError immutable. Error text is normalized by getApiErrorMessage.
       throw error

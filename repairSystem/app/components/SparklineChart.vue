@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 const props = defineProps({
   data: { type: Array, required: true },
   type: { type: String, default: 'area' },

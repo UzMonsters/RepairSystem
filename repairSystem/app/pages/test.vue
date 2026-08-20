@@ -1,28 +1,28 @@
-<template>
+﻿<template>
   <div>
     <NuxtLink
-      to="/requests"
+      to="/admin/requests"
       class="btn btn-sm btn-primary"
     >
       static class
     </NuxtLink>
     <NuxtLink
-      :to="'/requests'"
+      :to="'/admin/requests'"
       class="btn btn-sm btn-primary"
     >
       bound-to static class
     </NuxtLink>
     <NuxtLink
-      to="/requests"
+      to="/admin/requests"
       :class="['btn btn-sm btn-primary']"
     >
       bound class
     </NuxtLink>
-    <NuxtLink to="/requests">
+    <NuxtLink to="/admin/requests">
       no class
     </NuxtLink>
     <NuxtLink
-      to="/requests"
+      to="/admin/requests"
       class="btn btn-sm btn-primary"
       custom
     >

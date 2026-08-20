@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 onMounted(() => {
   document.body.classList.remove('layout-fixed', 'sidebar-expand-lg', 'fixed-header', 'fixed-sidebar', 'bg-body-tertiary')
 })

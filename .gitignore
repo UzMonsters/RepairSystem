@@ -15,24 +15,7 @@ repairSystem/.env.*
 # Backend
 backend/build/
 backend/.gradle/
-backend/.env
-backend/.env.*
-!backend/.env.example
-backend/src/main/resources/application-secrets.properties
-backend/src/main/resources/application-*-secrets.properties
-backend/src/main/resources/service-account-prod.json
-backend/src/main/resources/firebase-adminsdk-prod*.json
-backend/src/main/resources/*-prod-firebase-adminsdk*.json
-
-# Secret material
-*.p12
-*.jks
-*.keystore
-*.pem
-*.key
-*.crt
-*.p8
-
+backend/.en
 # Logs and local OS files
 *.log
 .DS_Store

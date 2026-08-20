@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 const props = defineProps({
   map: { type: String, default: 'world' },
   options: { type: Object, default: () => ({}) },

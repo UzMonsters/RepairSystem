@@ -2,7 +2,8 @@ export default defineNuxtConfig({
   modules: ['@nuxt/eslint'],
 
   plugins: [
-    { src: '~/plugins/adminlte.client', mode: 'client' }
+    { src: '~/plugins/adminlte.client', mode: 'client' },
+    { src: '~/plugins/web-push.client', mode: 'client' }
   ],
 
   devtools: {
@@ -41,10 +42,21 @@ export default defineNuxtConfig({
     'overlayscrollbars/overlayscrollbars.css',
     'jsvectormap/dist/jsvectormap.css',
     'admin-lte/dist/css/adminlte.css',
-    '~/assets/css/admin-theme.css'
+    '~/assets/css/admin-theme.css',
+    '~/assets/css/light-theme.css'
   ],
 
   runtimeConfig: {
+    public: {
+      telegramBotUsername: process.env.NUXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'repairauto_bot',
+      firebaseApiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,
+      firebaseAuthDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      firebaseProjectId: process.env.NUXT_PUBLIC_FIREBASE_PROJECT_ID,
+      firebaseStorageBucket: process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      firebaseMessagingSenderId: process.env.NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      firebaseAppId: process.env.NUXT_PUBLIC_FIREBASE_APP_ID,
+      firebaseVapidKey: process.env.NUXT_PUBLIC_FIREBASE_VAPID_KEY
+    },
     backendUrl: process.env.NUXT_BACKEND_URL
       || (process.env.NUXT_BACKEND_HOSTPORT ? `http://${process.env.NUXT_BACKEND_HOSTPORT}` : undefined)
       || 'http://localhost:8080'

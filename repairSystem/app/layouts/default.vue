@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 useLteBehaviors()
 
 onMounted(() => {
@@ -11,6 +11,7 @@ onMounted(() => {
   <div class="app-wrapper">
     <AppTopbar />
     <AppSidebar />
+    <AppToastContainer />
     <main class="app-main">
       <slot />
     </main>

@@ -9,7 +9,11 @@ export type RequestStatus
 
 export type RequestPriority = 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT'
 export type RequestSource = 'ADMIN' | 'TELEGRAM'
+export type RequestLocationSource = 'TELEGRAM' | 'DEVICE_GPS' | 'MAP_PIN' | 'MANUAL'
 export type LanguageCode = 'EN' | 'RU' | 'UZ'
+export type UserDateFormat = 'DD_MM_YYYY' | 'DD_SLASH_MM_SLASH_YYYY' | 'YYYY_MM_DD'
+export type UserTimeFormat = 'HOUR_24' | 'HOUR_12'
+export type UserTheme = 'LIGHT' | 'DARK' | 'SYSTEM'
 export type UserRole = 'ADMIN' | 'MANAGER'
 export type ReviewSource = 'TELEGRAM'
 
@@ -25,9 +29,23 @@ export interface Page<T> {
 
 export interface AuthUser {
   id: number
+  username: string
   fullName: string
+  phone: string | null
   email: string
   role: UserRole
+  active: boolean
+  avatar: {
+    attachmentId: number
+    fileName: string
+    contentType: string
+  } | null
+  language: LanguageCode
+  dateFormat: UserDateFormat
+  timeFormat: UserTimeFormat
+  theme: UserTheme
+  createdAt: string
+  updatedAt: string
 }
 
 export interface LoginResponse {
@@ -36,6 +54,7 @@ export interface LoginResponse {
   tokenType?: string
   accessTokenExpiresIn?: number
   refreshTokenExpiresIn?: number
+  rememberMe?: boolean
   user: AuthUser
 }
 
@@ -66,6 +85,8 @@ export interface Technician {
 
 export interface Category {
   id: number
+  name?: string
+  description?: string
   nameEn: string
   nameRu: string
   nameUz: string
@@ -73,9 +94,20 @@ export interface Category {
   descriptionRu?: string
   descriptionUz?: string
   active?: boolean
-  displayOrder?: number
   createdAt?: string
   updatedAt?: string
+}
+
+export interface UserSettings {
+  language: LanguageCode
+  dateFormat: UserDateFormat
+  timeFormat: UserTimeFormat
+  theme: UserTheme
+}
+
+export interface SystemSettings {
+  timezone: string
+  defaultLanguage: LanguageCode
 }
 
 export interface CrmUser {
@@ -95,11 +127,12 @@ export interface RepairRequestCustomerSummary {
 
 export interface RepairRequestCategorySummary {
   id: number
+  name?: string
+  description?: string
   nameEn: string
   nameRu: string
   nameUz: string
   active?: boolean
-  displayOrder?: number
 }
 
 export interface AssignmentTechnicianSummary {
@@ -200,7 +233,16 @@ export interface RepairRequest {
   source: RequestSource
   description?: string
   address?: string
+  latitude?: number
+  longitude?: number
+  location?: {
+    address?: string
+    latitude?: number
+    longitude?: number
+    source?: RequestLocationSource
+  }
   customerPreferredVisitAt?: string
+  customerFullName?: string
   customer?: RepairRequestCustomerSummary
   category?: RepairRequestCategorySummary
   currentAssignment?: CurrentAssignmentSummary | null
@@ -242,23 +284,43 @@ export interface DashboardOverview {
   totalReviews: number
 }
 
-export type NotificationStatus = 'PENDING' | 'PROCESSING' | 'RETRY_SCHEDULED' | 'DELIVERED' | 'SKIPPED' | 'DEAD'
+export interface DashboardStatusLabel {
+  label: string
+  labelEn: string
+  labelRu: string
+  labelUz: string
+  en?: string
+  ru?: string
+  uz?: string
+}
+
+export interface DashboardStatusDistributionItem {
+  status: RequestStatus
+  label: DashboardStatusLabel
+  count: number
+  percentage: number
+}
+
+export interface RequestCategoryDistributionItem {
+  categoryId: number
+  name: string
+  nameEn: string
+  nameRu: string
+  nameUz: string
+  count: number
+  percentage: number
+}
+
+export type NotificationStatus = 'PENDING' | 'DELIVERED' | 'FAILED' | 'SKIPPED'
 
 export interface NotificationSummary {
   id: number
-  eventKey?: string
-  notificationType?: string
-  recipientType?: string
-  recipientId?: number
-  repairRequestId?: number
-  requestNumber?: string
-  status: NotificationStatus
-  attemptCount: number
-  nextAttemptAt?: string
-  deliveredAt?: string
-  skippedAt?: string
-  deadAt?: string
-  lastFailureCategory?: string
+  type?: string
+  recipient?: { type?: string, id?: number, name?: string }
+  title?: string
+  message?: string
+  repairRequest?: { id: number, number?: string } | null
+  channel?: string
+  deliveryStatus: NotificationStatus
   createdAt?: string
-  updatedAt?: string
 }
