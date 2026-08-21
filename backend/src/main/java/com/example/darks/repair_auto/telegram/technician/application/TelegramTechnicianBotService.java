@@ -266,6 +266,9 @@ public class TelegramTechnicianBotService {
         String data = callback.data() == null ? "" : callback.data();
         if (data.startsWith("tlang:")) {
             chooseLanguage(session, data.substring("tlang:".length()));
+            if (callback.id() != null) {
+                botClient.answerCallback(callback.id(), "");
+            }
             return;
         }
         requireLinkedTechnician(session);
@@ -281,9 +284,12 @@ public class TelegramTechnicianBotService {
             showJob(session, parseId(data, "tjob:"));
         } else if (data.startsWith("taccept:")) {
             Long requestId = parseId(data, "taccept:");
-            acceptAssignment(session, requestId);
+            assignmentService.acceptByTechnician(requestId, session.getTechnicianId());
+            send(session, "accepted", jobKeyboard(requestId, session.getLanguage()));
         } else if (data.startsWith("treject:")) {
-            rejectAssignmentPrompt(session, parseId(data, "treject:"));
+            session.selectRequest(parseId(data, "treject:"), now());
+            session.state(TelegramTechnicianSessionState.AWAITING_REJECTION_REASON, now());
+            send(session, "send_rejection_reason", null);
         } else if (data.startsWith("tstart:")) {
             Long requestId = parseId(data, "tstart:");
             executionService.startByTechnician(requestId, session.getTechnicianId());
@@ -324,6 +330,9 @@ public class TelegramTechnicianBotService {
         } else {
             send(session, "invalid_action", mainKeyboard(session.getLanguage()));
         }
+        if (callback.id() != null) {
+            botClient.answerCallback(callback.id(), "");
+        }
     }
 
     private void chooseLanguage(TelegramTechnicianSession session, String code) {
@@ -340,59 +349,6 @@ public class TelegramTechnicianBotService {
         }
         session.language(language, now());
         showMenu(session);
-    }
-
-    private void acceptAssignment(TelegramTechnicianSession session, Long requestId) {
-        RepairAssignment assignment = latestAssignmentForTechnician(session, requestId);
-        if (assignment == null) {
-            send(session, "stale_action", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        if (assignment.getStatus() == AssignmentStatus.ACCEPTED) {
-            send(session, "accepted", jobKeyboard(requestId, session.getLanguage()));
-            return;
-        }
-        if (assignment.getStatus() != AssignmentStatus.PENDING) {
-            send(session, "stale_action", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        assignmentService.acceptByTechnician(requestId, session.getTechnicianId());
-        send(session, "accepted", jobKeyboard(requestId, session.getLanguage()));
-    }
-
-    private void rejectAssignmentPrompt(TelegramTechnicianSession session, Long requestId) {
-        RepairAssignment assignment = latestAssignmentForTechnician(session, requestId);
-        if (assignment == null) {
-            send(session, "stale_action", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        if (assignment.getStatus() == AssignmentStatus.REJECTED) {
-            send(session, "rejected", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        if (assignment.getStatus() != AssignmentStatus.PENDING) {
-            send(session, "stale_action", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        session.selectRequest(requestId, now());
-        session.state(TelegramTechnicianSessionState.AWAITING_REJECTION_REASON, now());
-        send(session, "send_rejection_reason", null);
-    }
-
-    private RepairAssignment latestAssignmentForTechnician(TelegramTechnicianSession session, Long requestId) {
-        RepairAssignment latest = assignmentRepository.findByRepairRequestIdAndTechnicianIdAndStatusInOrderByCreatedAtDesc(
-                        requestId,
-                        session.getTechnicianId(),
-                        List.of(AssignmentStatus.values()))
-                .stream()
-                .findFirst()
-                .orElse(null);
-        if (latest != null) {
-            return latest;
-        }
-        return assignmentRepository.findActiveByRequestId(requestId, RepairAssignmentRepository.ACTIVE_STATUSES)
-                .filter(assignment -> assignment.getTechnician().getId().equals(session.getTechnicianId()))
-                .orElse(null);
     }
 
     private void showMenu(TelegramTechnicianSession session) {
@@ -761,7 +717,6 @@ public class TelegramTechnicianBotService {
                 case "completed" -> "Repair completed.";
                 case "cancelled" -> "Cancelled.";
                 case "invalid_assignment" -> "Assignment is not available.";
-                case "stale_action" -> "This action is no longer available.";
                 case "link_invalid" -> "This link is invalid or expired.";
                 case "link_conflict" -> "This Telegram profile cannot be linked.";
                 case "inactive_technician" -> "Technician profile is inactive.";
@@ -811,7 +766,6 @@ public class TelegramTechnicianBotService {
                 case "completed" -> "Ремонт завершен.";
                 case "cancelled" -> "Отменено.";
                 case "invalid_assignment" -> "Заявка недоступна.";
-                case "stale_action" -> "Это действие больше недоступно.";
                 case "link_invalid" -> "Ссылка недействительна или истекла.";
                 case "link_conflict" -> "Этот Telegram-профиль нельзя привязать.";
                 case "inactive_technician" -> "Профиль техника неактивен.";
@@ -861,7 +815,6 @@ public class TelegramTechnicianBotService {
                 case "completed" -> "Ta'mirlash yakunlandi.";
                 case "cancelled" -> "Bekor qilindi.";
                 case "invalid_assignment" -> "Topshiriq mavjud emas.";
-                case "stale_action" -> "Bu amal endi mavjud emas.";
                 case "link_invalid" -> "Havola yaroqsiz yoki muddati tugagan.";
                 case "link_conflict" -> "Bu Telegram profilini bog'lab bo'lmaydi.";
                 case "inactive_technician" -> "Texnik profili faol emas.";

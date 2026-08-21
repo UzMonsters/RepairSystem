@@ -6,7 +6,6 @@ import com.example.darks.repair_auto.telegram.core.application.TelegramFileMetad
 import com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.FilterInputStream;
 import java.io.IOException;
@@ -39,20 +38,18 @@ class HttpTelegramBotClient implements TelegramBotClient {
     }
 
     @Override
-    public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
+    public void sendMessage(Long chatId, String text, String replyMarkupJson) {
         Map<String, Object> body = replyMarkupJson == null || replyMarkupJson.isBlank()
                 ? Map.of("chat_id", chatId, "text", text)
                 : Map.of("chat_id", chatId, "text", text, "reply_markup", replyMarkupJson);
         try {
-            JsonNode response = restClient.post()
+            TelegramResponse<?> response = restClient.post()
                     .uri(apiUri("sendMessage"))
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(TelegramResponse.class);
             validate(response);
-            JsonNode messageId = response.path("result").path("message_id");
-            return messageId.canConvertToLong() ? messageId.longValue() : null;
         } catch (RestClientException exception) {
             throw new TelegramApiException("Telegram API request failed.", exception);
         }
@@ -67,66 +64,6 @@ class HttpTelegramBotClient implements TelegramBotClient {
                     .body(Map.of("callback_query_id", callbackQueryId, "text", text == null ? "" : text))
                     .retrieve()
                     .body(TelegramResponse.class);
-            validate(response);
-        } catch (RestClientException exception) {
-            throw new TelegramApiException("Telegram API request failed.", exception);
-        }
-    }
-
-    @Override
-    public void deleteMessage(Long chatId, Long messageId) {
-        if (chatId == null || messageId == null) {
-            return;
-        }
-        try {
-            JsonNode response = restClient.post()
-                    .uri(apiUri("deleteMessage"))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("chat_id", chatId, "message_id", messageId))
-                    .retrieve()
-                    .body(JsonNode.class);
-            validate(response);
-        } catch (RestClientException exception) {
-            throw new TelegramApiException("Telegram API request failed.", exception);
-        }
-    }
-
-    @Override
-    public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
-        if (chatId == null || messageId == null) {
-            return;
-        }
-        Map<String, Object> body = replyMarkupJson == null || replyMarkupJson.isBlank()
-                ? Map.of("chat_id", chatId, "message_id", messageId, "text", text)
-                : Map.of("chat_id", chatId, "message_id", messageId, "text", text, "reply_markup", replyMarkupJson);
-        try {
-            JsonNode response = restClient.post()
-                    .uri(apiUri("editMessageText"))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(JsonNode.class);
-            validate(response);
-        } catch (RestClientException exception) {
-            throw new TelegramApiException("Telegram API request failed.", exception);
-        }
-    }
-
-    @Override
-    public void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
-        if (chatId == null || messageId == null) {
-            return;
-        }
-        Map<String, Object> body = replyMarkupJson == null || replyMarkupJson.isBlank()
-                ? Map.of("chat_id", chatId, "message_id", messageId, "reply_markup", Map.of("inline_keyboard", List.of()))
-                : Map.of("chat_id", chatId, "message_id", messageId, "reply_markup", replyMarkupJson);
-        try {
-            JsonNode response = restClient.post()
-                    .uri(apiUri("editMessageReplyMarkup"))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(JsonNode.class);
             validate(response);
         } catch (RestClientException exception) {
             throw new TelegramApiException("Telegram API request failed.", exception);
@@ -280,12 +217,6 @@ class HttpTelegramBotClient implements TelegramBotClient {
 
     private void validate(TelegramResponse<?> response) {
         if (response == null || !response.ok()) {
-            throw new TelegramApiException("Telegram API request failed.");
-        }
-    }
-
-    private void validate(JsonNode response) {
-        if (response == null || !response.path("ok").asBoolean(false)) {
             throw new TelegramApiException("Telegram API request failed.");
         }
     }
