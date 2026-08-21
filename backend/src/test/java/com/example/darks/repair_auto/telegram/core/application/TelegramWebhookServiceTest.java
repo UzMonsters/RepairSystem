@@ -112,7 +112,7 @@ class TelegramWebhookServiceTest {
     }
 
     @Test
-    void givenForcedCustomerMenuCommandThenLinkedCustomerGuardIsRequired() {
+    void givenForcedCustomerRegistrationTextThenLinkedCustomerGuardIsNotRequired() {
         TelegramUserContextRepository contexts = mock(TelegramUserContextRepository.class);
         TelegramCustomerBotService customerBotService = mock(TelegramCustomerBotService.class);
         TransactionTemplate transactionTemplate = transactionTemplate();
@@ -124,10 +124,11 @@ class TelegramWebhookServiceTest {
         TelegramUserMode mode = ReflectionTestUtils.invokeMethod(
                 service,
                 "mode",
-                message("/menu"),
+                message("Sarvar Ro'ziboyev"),
                 TelegramUserMode.CUSTOMER);
 
-        verify(customerBotService).requireSwitchAllowed(101L, 201L);
+        verify(customerBotService, never()).requireSwitchAllowed(101L, 201L);
+        verify(transactionTemplate).executeWithoutResult(any());
         org.assertj.core.api.Assertions.assertThat(mode).isEqualTo(TelegramUserMode.CUSTOMER);
     }
 
