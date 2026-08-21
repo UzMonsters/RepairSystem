@@ -504,10 +504,7 @@ class TelegramTechnicianBotServiceTest {
     private static final class RecordingTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new ArrayList<>();
-        private final List<Long> deletedMessages = new ArrayList<>();
-        private final List<String> answeredCallbacks = new ArrayList<>();
         private long lastDownloadMaxSizeBytes = -1;
-        private long nextMessageId = 4000L;
 
         SentMessage last() {
             return messages.getLast();
@@ -521,37 +518,13 @@ class TelegramTechnicianBotServiceTest {
             return lastDownloadMaxSizeBytes;
         }
 
-        List<Long> deletedMessages() {
-            return deletedMessages;
-        }
-
-        List<String> answeredCallbacks() {
-            return answeredCallbacks;
-        }
-
         @Override
-        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
-            return nextMessageId++;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
-            answeredCallbacks.add(callbackQueryId);
-        }
-
-        @Override
-        public void deleteMessage(Long chatId, Long messageId) {
-            deletedMessages.add(messageId);
-        }
-
-        @Override
-        public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(chatId, text, replyMarkupJson));
-        }
-
-        @Override
-        public void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
         }
 
         @Override

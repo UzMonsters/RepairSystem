@@ -822,7 +822,6 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         private final List<SentMessage> messages = new CopyOnWriteArrayList<>();
         private final List<Boolean> transactionStates = new CopyOnWriteArrayList<>();
         private final Queue<String> failures = new ArrayDeque<>();
-        private long nextMessageId = 6000L;
         private volatile CountDownLatch enteredSend;
         private volatile CountDownLatch releaseSend;
 
@@ -852,7 +851,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         }
 
         @Override
-        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
             transactionStates.add(TransactionSynchronizationManager.isActualTransactionActive());
             CountDownLatch entered = enteredSend;
             CountDownLatch release = releaseSend;
@@ -875,23 +874,10 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 throw new TelegramApiException(failure);
             }
             messages.add(new SentMessage(chatId, text));
-            return nextMessageId++;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
-        }
-
-        @Override
-        public void deleteMessage(Long chatId, Long messageId) {
-        }
-
-        @Override
-        public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
-        }
-
-        @Override
-        public void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
         }
 
         @Override

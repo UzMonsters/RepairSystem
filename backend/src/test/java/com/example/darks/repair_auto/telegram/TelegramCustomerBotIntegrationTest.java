@@ -198,21 +198,6 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
-    void givenUzReplyKeyboardCreateRequestWhenCategoryClickedThenDescriptionPromptIsShown() throws Exception {
-        register(19120, 23120, "+998902020203", "Uz Reply Action", LanguageCode.UZ);
-
-        send(update(212, 19120, 23120, "Ariza yaratish"));
-        assertThat(telegramBotClient.lastText()).contains("Ta'mirlash kategoriyasini tanlang");
-        assertThat(telegramBotClient.messages().getLast().replyMarkupJson()).contains("cat:" + categoryId);
-
-        send(callback(213, 19120, 23120, "cb-uz-reply-cat", "cat:" + categoryId));
-
-        assertThat(telegramBotClient.answeredCallbacks()).contains("cb-uz-reply-cat");
-        assertThat(telegramBotClient.lastText()).contains("Muammoni tasvirlab bering");
-        assertThat(telegramBotClient.lastText()).doesNotContain("Bu amal endi mavjud emas");
-    }
-
-    @Test
     void givenForeignContactThenRegistrationIsRejectedWithoutCustomerCreation() throws Exception {
         send(update(20, 2002, 6002, "/start"));
         send(callback(21, 2002, 6002, "cb-lang", "lang:EN"));
@@ -233,7 +218,6 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(telegramBotClient.lastText()).contains("1/3 foto qabul qilindi");
         send(callback(39, 3003, 7003, "cb-skip", "photo:skip"));
         send(location(40, 3003, 7003, "41.311081", "69.240562"));
-        Long confirmationMessageId = telegramBotClient.messages().getLast().messageId();
         send(callback(41, 3003, 7003, "cb-confirm", "confirm:create"));
         send(callback(41, 3003, 7003, "cb-confirm", "confirm:create"));
 
@@ -243,7 +227,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(request.getStatus()).isEqualTo(RepairRequestStatus.NEW);
         assertThat(request.getSource()).isEqualTo(RepairRequestSource.TELEGRAM);
         assertThat(request.getCreatedByUser()).isNull();
-        assertThat(request.getSourceReference()).isEqualTo("telegram-confirm-7003-" + confirmationMessageId);
+        assertThat(request.getSourceReference()).isEqualTo("telegram-confirm-7003-41");
         assertThat(customerTelegramUserId(request.getId())).isEqualTo(3003);
         assertThat(attachmentRepository.findAll()).hasSize(1);
         var attachment = attachmentRepository.findAll().getFirst();
@@ -277,8 +261,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         // Fourth photo should be rejected
         send(photo(51, 3103, 7103, "photo-multi-4", JPEG.length));
-        assertThat(telegramBotClient.lastText()).contains("Geolokatsiyani yuboring");
-        assertThat(telegramBotClient.deletedMessages()).contains(new DeletedMessage(7103L, 51L));
+        assertThat(telegramBotClient.lastText()).contains("Maksimal 3 ta foto qabul qilinadi");
 
         // Complete request creation
         send(location(52, 3103, 7103, "41.311081", "69.240562"));
@@ -574,7 +557,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     @Test
     void givenProfilePhoneConflictThenSafeLocalizedResponseIsReturned() throws Exception {
         register(14014, 18014, "+998901414141", "Profile Owner", LanguageCode.EN);
-        register(24015, 28015, "+998901515151", "Phone Owner", LanguageCode.EN);
+        register(14015, 18015, "+998901515151", "Phone Owner", LanguageCode.EN);
 
         send(callback(171, 14014, 18014, "cb-profile", "menu:profile"));
         send(callback(172, 14014, 18014, "cb-profile-phone", "profile:phone"));
@@ -798,15 +781,9 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     private String callback(long updateId, long userId, long chatId, String callbackId, String data) {
-        Long messageId = telegramBotClient.messages().isEmpty()
-                ? updateId
-                : telegramBotClient.messages().getLast().messageId();
-        if (messageId == null) {
-            messageId = updateId;
-        }
         return """
                 {"update_id":%d,"callback_query":{"id":"%s","from":{"id":%d},"message":{"message_id":%d,"chat":{"id":%d,"type":"private"}},"data":"%s"}}
-                """.formatted(updateId, callbackId, userId, messageId, chatId, data);
+                """.formatted(updateId, callbackId, userId, updateId, chatId, data);
     }
 
     private String contact(long updateId, long userId, long chatId, String phone, long contactUserId) {
@@ -885,18 +862,11 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     static final class FakeTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new CopyOnWriteArrayList<>();
-        private final List<DeletedMessage> deletedMessages = new CopyOnWriteArrayList<>();
-        private final List<EditedReplyMarkup> editedReplyMarkups = new CopyOnWriteArrayList<>();
-        private final List<String> answeredCallbacks = new CopyOnWriteArrayList<>();
         private final List<String> failingFiles = new CopyOnWriteArrayList<>();
         private boolean failNextSend;
-        private long nextMessageId = 1000L;
 
         void clear() {
             messages.clear();
-            deletedMessages.clear();
-            editedReplyMarkups.clear();
-            answeredCallbacks.clear();
             failingFiles.clear();
             failNextSend = false;
         }
@@ -909,18 +879,6 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
             return messages.getLast().text();
         }
 
-        List<DeletedMessage> deletedMessages() {
-            return deletedMessages;
-        }
-
-        List<EditedReplyMarkup> editedReplyMarkups() {
-            return editedReplyMarkups;
-        }
-
-        List<String> answeredCallbacks() {
-            return answeredCallbacks;
-        }
-
         void failNextSend() {
             failNextSend = true;
         }
@@ -930,34 +888,16 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         }
 
         @Override
-        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
             if (failNextSend) {
                 failNextSend = false;
                 throw new TelegramApiException("Temporary Telegram send failure.");
             }
-            long messageId = nextMessageId++;
-            messages.add(new SentMessage(messageId, chatId, text, replyMarkupJson));
-            return messageId;
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
-            answeredCallbacks.add(callbackQueryId);
-        }
-
-        @Override
-        public void deleteMessage(Long chatId, Long messageId) {
-            deletedMessages.add(new DeletedMessage(chatId, messageId));
-        }
-
-        @Override
-        public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(messageId, chatId, text, replyMarkupJson));
-        }
-
-        @Override
-        public void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
-            editedReplyMarkups.add(new EditedReplyMarkup(chatId, messageId, replyMarkupJson));
         }
 
         @Override
@@ -975,27 +915,21 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         @Override
         public void sendPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {
-            messages.add(new SentMessage(null, chatId, "[photo:" + filename + "]", null));
+            messages.add(new SentMessage(chatId, "[photo:" + filename + "]", null));
         }
 
         @Override
         public void sendMediaGroup(Long chatId, List<com.example.darks.repair_auto.telegram.core.application.TelegramMediaPhoto> photos) {
-            messages.add(new SentMessage(null, chatId, "[mediaGroup:" + photos.size() + "]", null));
+            messages.add(new SentMessage(chatId, "[mediaGroup:" + photos.size() + "]", null));
         }
 
         @Override
         public void sendLocation(Long chatId, double latitude, double longitude) {
-            messages.add(new SentMessage(null, chatId, "[location:" + latitude + "," + longitude + "]", null));
+            messages.add(new SentMessage(chatId, "[location:" + latitude + "," + longitude + "]", null));
         }
     }
 
-    record SentMessage(Long messageId, Long chatId, String text, String replyMarkupJson) {
-    }
-
-    record DeletedMessage(Long chatId, Long messageId) {
-    }
-
-    record EditedReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
+    record SentMessage(Long chatId, String text, String replyMarkupJson) {
     }
 
     static final class FakeObjectStorageService implements ObjectStorageService {

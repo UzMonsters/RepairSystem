@@ -5,28 +5,9 @@ import java.util.List;
 
 public interface TelegramBotClient {
 
-    Long sendMessage(Long chatId, String text, String replyMarkupJson);
+    void sendMessage(Long chatId, String text, String replyMarkupJson);
 
     void answerCallback(String callbackQueryId, String text);
-
-    default void answerCallbackQuery(String callbackQueryId) {
-        answerCallback(callbackQueryId, "");
-    }
-
-    void deleteMessage(Long chatId, Long messageId);
-
-    default void deleteMessages(Long chatId, List<Long> messageIds) {
-        if (messageIds == null) {
-            return;
-        }
-        for (Long messageId : messageIds) {
-            deleteMessage(chatId, messageId);
-        }
-    }
-
-    void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson);
-
-    void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson);
 
     TelegramFileMetadata getFile(String fileId);
 

@@ -21,10 +21,6 @@ import com.example.darks.repair_auto.telegram.core.api.TelegramUpdatePayload;
 import com.example.darks.repair_auto.telegram.core.application.TelegramApiException;
 import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient;
 import com.example.darks.repair_auto.telegram.core.application.TelegramFileMetadata;
-import com.example.darks.repair_auto.telegram.conversation.TelegramChatCleanupService;
-import com.example.darks.repair_auto.telegram.conversation.TelegramConversationPolicy;
-import com.example.darks.repair_auto.telegram.conversation.TelegramInputClassifier;
-import com.example.darks.repair_auto.telegram.conversation.TelegramUnexpectedInputHandler;
 import com.example.darks.repair_auto.telegram.technician.domain.TelegramTechnicianSession;
 import com.example.darks.repair_auto.telegram.technician.domain.TelegramTechnicianSessionState;
 import com.example.darks.repair_auto.telegram.technician.infrastructure.TelegramTechnicianSessionRepository;
@@ -59,20 +55,11 @@ public class TelegramTechnicianBotService {
     private final AttachmentService attachmentService;
     private final TechnicianTelegramLinkService linkService;
     private final TelegramBotClient botClient;
-    private final TelegramUnexpectedInputHandler unexpectedInputHandler;
-    private final TelegramChatCleanupService cleanupService;
     private final Clock clock;
     private static final String MENU_PENDING = "menu_pending";
     private static final String MENU_ACTIVE = "menu_active";
     private static final String MENU_RECENT = "menu_recent";
     private static final String MENU_LANGUAGE = "menu_language";
-
-    private static TelegramUnexpectedInputHandler unexpectedInputHandler() {
-        return new TelegramUnexpectedInputHandler(
-                new TelegramInputClassifier(),
-                new TelegramConversationPolicy(),
-                new TelegramChatCleanupService());
-    }
 
     @Autowired
     public TelegramTechnicianBotService(
@@ -84,12 +71,9 @@ public class TelegramTechnicianBotService {
             RepairRequestService requestService,
             AttachmentService attachmentService,
             TechnicianTelegramLinkService linkService,
-            @Qualifier("technicianTelegramBotClient") TelegramBotClient botClient,
-            TelegramUnexpectedInputHandler unexpectedInputHandler,
-            TelegramChatCleanupService cleanupService) {
+            @Qualifier("technicianTelegramBotClient") TelegramBotClient botClient) {
         this(sessionRepository, technicianRepository, assignmentRepository, assignmentService, executionService,
-                requestService, attachmentService, linkService, botClient,
-                unexpectedInputHandler, cleanupService, Clock.systemUTC());
+                requestService, attachmentService, linkService, botClient, Clock.systemUTC());
     }
 
     TelegramTechnicianBotService(
@@ -102,24 +86,6 @@ public class TelegramTechnicianBotService {
             AttachmentService attachmentService,
             TechnicianTelegramLinkService linkService,
             TelegramBotClient botClient,
-            Clock clock) {
-        this(sessionRepository, technicianRepository, assignmentRepository, assignmentService, executionService,
-                requestService, attachmentService, linkService, botClient,
-                unexpectedInputHandler(), new TelegramChatCleanupService(), clock);
-    }
-
-    TelegramTechnicianBotService(
-            TelegramTechnicianSessionRepository sessionRepository,
-            TechnicianRepository technicianRepository,
-            RepairAssignmentRepository assignmentRepository,
-            RepairAssignmentService assignmentService,
-            RepairExecutionService executionService,
-            RepairRequestService requestService,
-            AttachmentService attachmentService,
-            TechnicianTelegramLinkService linkService,
-            TelegramBotClient botClient,
-            TelegramUnexpectedInputHandler unexpectedInputHandler,
-            TelegramChatCleanupService cleanupService,
             Clock clock) {
         this.sessionRepository = sessionRepository;
         this.technicianRepository = technicianRepository;
@@ -130,8 +96,6 @@ public class TelegramTechnicianBotService {
         this.attachmentService = attachmentService;
         this.linkService = linkService;
         this.botClient = botClient;
-        this.unexpectedInputHandler = unexpectedInputHandler;
-        this.cleanupService = cleanupService;
         this.clock = clock;
     }
 
@@ -152,17 +116,6 @@ public class TelegramTechnicianBotService {
         session.touch(chat.id(), now());
         if (update.callbackQuery() != null) {
             handleCallback(session, update.callbackQuery());
-            return;
-        }
-        if (isUnknownCommand(update)) {
-            cleanupIncoming(session, update);
-            return;
-        }
-        if (!isGlobalCommand(update.text()) && unexpectedInputHandler.cleanupIfUnexpected(session, update, botClient)) {
-            return;
-        }
-        if (isUnexpectedTechnicianText(session, update)) {
-            cleanupIncoming(session, update);
             return;
         }
         handleMessage(session, update);
@@ -208,12 +161,10 @@ public class TelegramTechnicianBotService {
             return;
         }
         if ("/start".equalsIgnoreCase(text)) {
-            cleanupSessionMessages(session);
             showMenu(session);
             return;
         }
         if ("/cancel".equalsIgnoreCase(text)) {
-            cleanupSessionMessages(session);
             session.clearDraft(now());
             session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
             send(session, "cancelled", mainKeyboard(session.getLanguage()));
@@ -312,11 +263,12 @@ public class TelegramTechnicianBotService {
     private void handleCallback(
             TelegramTechnicianSession session,
             TelegramUpdatePayload.TelegramCallbackQuery callback) {
-        cleanupService.answerCallbackQuietly(botClient, callback.id(), "technician");
         String data = callback.data() == null ? "" : callback.data();
         if (data.startsWith("tlang:")) {
             chooseLanguage(session, data.substring("tlang:".length()));
-            cleanupCallbackKeyboard(session, callback);
+            if (callback.id() != null) {
+                botClient.answerCallback(callback.id(), "");
+            }
             return;
         }
         requireLinkedTechnician(session);
@@ -332,9 +284,12 @@ public class TelegramTechnicianBotService {
             showJob(session, parseId(data, "tjob:"));
         } else if (data.startsWith("taccept:")) {
             Long requestId = parseId(data, "taccept:");
-            acceptAssignment(session, requestId);
+            assignmentService.acceptByTechnician(requestId, session.getTechnicianId());
+            send(session, "accepted", jobKeyboard(requestId, session.getLanguage()));
         } else if (data.startsWith("treject:")) {
-            rejectAssignmentPrompt(session, parseId(data, "treject:"));
+            session.selectRequest(parseId(data, "treject:"), now());
+            session.state(TelegramTechnicianSessionState.AWAITING_REJECTION_REASON, now());
+            send(session, "send_rejection_reason", null);
         } else if (data.startsWith("tstart:")) {
             Long requestId = parseId(data, "tstart:");
             executionService.startByTechnician(requestId, session.getTechnicianId());
@@ -375,7 +330,9 @@ public class TelegramTechnicianBotService {
         } else {
             send(session, "invalid_action", mainKeyboard(session.getLanguage()));
         }
-        cleanupCallbackKeyboard(session, callback);
+        if (callback.id() != null) {
+            botClient.answerCallback(callback.id(), "");
+        }
     }
 
     private void chooseLanguage(TelegramTechnicianSession session, String code) {
@@ -392,59 +349,6 @@ public class TelegramTechnicianBotService {
         }
         session.language(language, now());
         showMenu(session);
-    }
-
-    private void acceptAssignment(TelegramTechnicianSession session, Long requestId) {
-        RepairAssignment assignment = latestAssignmentForTechnician(session, requestId);
-        if (assignment == null) {
-            send(session, "stale_action", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        if (assignment.getStatus() == AssignmentStatus.ACCEPTED) {
-            send(session, "accepted", jobKeyboard(requestId, session.getLanguage()));
-            return;
-        }
-        if (assignment.getStatus() != AssignmentStatus.PENDING) {
-            send(session, "stale_action", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        assignmentService.acceptByTechnician(requestId, session.getTechnicianId());
-        send(session, "accepted", jobKeyboard(requestId, session.getLanguage()));
-    }
-
-    private void rejectAssignmentPrompt(TelegramTechnicianSession session, Long requestId) {
-        RepairAssignment assignment = latestAssignmentForTechnician(session, requestId);
-        if (assignment == null) {
-            send(session, "stale_action", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        if (assignment.getStatus() == AssignmentStatus.REJECTED) {
-            send(session, "rejected", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        if (assignment.getStatus() != AssignmentStatus.PENDING) {
-            send(session, "stale_action", mainKeyboard(session.getLanguage()));
-            return;
-        }
-        session.selectRequest(requestId, now());
-        session.state(TelegramTechnicianSessionState.AWAITING_REJECTION_REASON, now());
-        send(session, "send_rejection_reason", null);
-    }
-
-    private RepairAssignment latestAssignmentForTechnician(TelegramTechnicianSession session, Long requestId) {
-        RepairAssignment latest = assignmentRepository.findByRepairRequestIdAndTechnicianIdAndStatusInOrderByCreatedAtDesc(
-                        requestId,
-                        session.getTechnicianId(),
-                        List.of(AssignmentStatus.values()))
-                .stream()
-                .findFirst()
-                .orElse(null);
-        if (latest != null) {
-            return latest;
-        }
-        return assignmentRepository.findActiveByRequestId(requestId, RepairAssignmentRepository.ACTIVE_STATUSES)
-                .filter(assignment -> assignment.getTechnician().getId().equals(session.getTechnicianId()))
-                .orElse(null);
     }
 
     private void showMenu(TelegramTechnicianSession session) {
@@ -770,68 +674,7 @@ public class TelegramTechnicianBotService {
     }
 
     private void send(TelegramTechnicianSession session, String key, String keyboard) {
-        Long messageId = botClient.sendMessage(session.getTelegramChatId(), msg(session.getLanguage(), key), keyboard);
-        trackBotMessage(session, messageId);
-    }
-
-    private void cleanupIncoming(TelegramTechnicianSession session, TelegramUpdatePayload update) {
-        Long messageId = update.message() == null ? null : update.message().messageId();
-        cleanupService.deleteQuietly(botClient, session.getTelegramChatId(), messageId, "technician");
-    }
-
-    private void cleanupSessionMessages(TelegramTechnicianSession session) {
-        cleanupService.removeKeyboardQuietly(
-                botClient,
-                session.getTelegramChatId(),
-                session.getActivePromptMessageId(),
-                "technician");
-        cleanupService.deleteAllQuietly(
-                botClient,
-                session.getTelegramChatId(),
-                session.transientMessageIds(),
-                "technician");
-    }
-
-    private void cleanupCallbackKeyboard(
-            TelegramTechnicianSession session,
-            TelegramUpdatePayload.TelegramCallbackQuery callback) {
-        cleanupService.removeKeyboardQuietly(
-                botClient,
-                session.getTelegramChatId(),
-                callback.message() == null ? null : callback.message().messageId(),
-                "technician");
-    }
-
-    private void trackBotMessage(TelegramTechnicianSession session, Long messageId) {
-        if (messageId == null) {
-            return;
-        }
-        session.activePromptMessageId(messageId, now());
-        session.trackTransientMessageId(messageId, 30, now());
-    }
-
-    private boolean isUnknownCommand(TelegramUpdatePayload update) {
-        String text = trim(update.text());
-        return text != null && text.startsWith("/") && !isGlobalCommand(text);
-    }
-
-    private boolean isGlobalCommand(String text) {
-        String command = trim(text);
-        return command != null
-                && (command.startsWith("/start tech_")
-                || "/start".equalsIgnoreCase(command)
-                || "/cancel".equalsIgnoreCase(command)
-                || "/menu".equalsIgnoreCase(command)
-                || "/technician".equalsIgnoreCase(command));
-    }
-
-    private boolean isUnexpectedTechnicianText(TelegramTechnicianSession session, TelegramUpdatePayload update) {
-        String text = trim(update.text());
-        if (text == null || text.startsWith("/") || !linked(session)) {
-            return false;
-        }
-        return session.getState() == TelegramTechnicianSessionState.MAIN_MENU
-                && menuAction(text).isBlank();
+        botClient.sendMessage(session.getTelegramChatId(), msg(session.getLanguage(), key), keyboard);
     }
 
     private String msg(LanguageCode language, String key) {
@@ -874,7 +717,6 @@ public class TelegramTechnicianBotService {
                 case "completed" -> "Repair completed.";
                 case "cancelled" -> "Cancelled.";
                 case "invalid_assignment" -> "Assignment is not available.";
-                case "stale_action" -> "This action is no longer available.";
                 case "link_invalid" -> "This link is invalid or expired.";
                 case "link_conflict" -> "This Telegram profile cannot be linked.";
                 case "inactive_technician" -> "Technician profile is inactive.";
@@ -924,7 +766,6 @@ public class TelegramTechnicianBotService {
                 case "completed" -> "Ремонт завершен.";
                 case "cancelled" -> "Отменено.";
                 case "invalid_assignment" -> "Заявка недоступна.";
-                case "stale_action" -> "Это действие больше недоступно.";
                 case "link_invalid" -> "Ссылка недействительна или истекла.";
                 case "link_conflict" -> "Этот Telegram-профиль нельзя привязать.";
                 case "inactive_technician" -> "Профиль техника неактивен.";
@@ -974,7 +815,6 @@ public class TelegramTechnicianBotService {
                 case "completed" -> "Ta'mirlash yakunlandi.";
                 case "cancelled" -> "Bekor qilindi.";
                 case "invalid_assignment" -> "Topshiriq mavjud emas.";
-                case "stale_action" -> "Bu amal endi mavjud emas.";
                 case "link_invalid" -> "Havola yaroqsiz yoki muddati tugagan.";
                 case "link_conflict" -> "Bu Telegram profilini bog'lab bo'lmaydi.";
                 case "inactive_technician" -> "Texnik profili faol emas.";

@@ -229,7 +229,8 @@ class TelegramCustomerBotLocationTest {
         botService.handle(payload);
 
         assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_LOCATION);
-        assertThat(botClient.messages()).isEmpty();
+        assertThat(botClient.last().text()).isEqualTo("Please send your location, enter an address, or skip this step.");
+        assertThat(botClient.last().replyMarkupJson()).contains("request_location");
     }
 
     @Test
@@ -263,37 +264,18 @@ class TelegramCustomerBotLocationTest {
     private static final class RecordingTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new ArrayList<>();
-        private long nextMessageId = 5000L;
-
-        List<SentMessage> messages() {
-            return messages;
-        }
 
         SentMessage last() {
             return messages.getLast();
         }
 
         @Override
-        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
-            return nextMessageId++;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
-        }
-
-        @Override
-        public void deleteMessage(Long chatId, Long messageId) {
-        }
-
-        @Override
-        public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(chatId, text, replyMarkupJson));
-        }
-
-        @Override
-        public void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
         }
 
         @Override
