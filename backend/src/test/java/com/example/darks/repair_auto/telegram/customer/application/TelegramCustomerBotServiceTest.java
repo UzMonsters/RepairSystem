@@ -96,12 +96,14 @@ class TelegramCustomerBotServiceTest {
         assertThat(botClient.last().replyMarkupJson())
                 .contains("\"inline_keyboard\"")
                 .contains("cat:123");
+        assertThat(session.getActivePromptMessageId()).isEqualTo(3000L);
     }
 
     @Test
-    void givenSelectingCategoryWhenCategoryCallbackArrivesThenAdvancesToDescription() {
+    void givenSelectingCategoryAndPromptMessageMatchesWhenCategoryCallbackArrivesThenAdvancesToDescription() {
         TelegramCustomerSession session = linkedSession(19119L, 23119L);
         session.state(TelegramCustomerSessionState.SELECTING_CATEGORY, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.activePromptMessageId(4444L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         RepairCategory category = category();
         TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
         RepairCategoryRepository categories = mock(RepairCategoryRepository.class);
@@ -128,10 +130,11 @@ class TelegramCustomerBotServiceTest {
         assertThat(session.getDraftCategoryId()).isEqualTo(123L);
         assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_DESCRIPTION);
         assertThat(botClient.last().text()).contains("Describe the problem");
+        assertThat(botClient.answeredCallbacks()).contains("cb-cat-fresh");
     }
 
     @Test
-    void givenSelectingCategoryWhenCallbackMessageIdIsUntrackedThenStillAdvancesToDescription() {
+    void givenSelectingCategoryAndPromptMessageMissingWhenCategoryCallbackArrivesThenRejectsAsStale() {
         TelegramCustomerSession session = linkedSession(19219L, 23219L);
         session.state(TelegramCustomerSessionState.SELECTING_CATEGORY, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         RepairCategory category = category();
@@ -157,15 +160,50 @@ class TelegramCustomerBotServiceTest {
 
         service.handle(callback(222L, 19219L, 23219L, 5555L, "cb-cat-null-prompt", "cat:123"));
 
-        assertThat(session.getDraftCategoryId()).isEqualTo(123L);
-        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_DESCRIPTION);
-        assertThat(botClient.last().text()).contains("Describe the problem");
+        assertThat(session.getActivePromptMessageId()).isNull();
+        assertThat(session.getDraftCategoryId()).isNull();
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.SELECTING_CATEGORY);
+        assertThat(botClient.last().text()).contains("This action is no longer available");
     }
 
     @Test
-    void givenLanguageSelectionWhenLanguageCallbackArrivesThenMainMenuIsShown() {
+    void givenSelectingCategoryAndPromptMessageMismatchesWhenCategoryCallbackArrivesThenRejectsAsStale() {
+        TelegramCustomerSession session = linkedSession(19220L, 23220L);
+        session.state(TelegramCustomerSessionState.SELECTING_CATEGORY, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.activePromptMessageId(7000L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        RepairCategory category = category();
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairCategoryRepository categories = mock(RepairCategoryRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(19220L)).thenReturn(Optional.of(session));
+        when(categories.findById(123L)).thenReturn(Optional.of(category));
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                categories,
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(callback(224L, 19220L, 23220L, 6999L, "cb-cat-old-prompt", "cat:123"));
+
+        assertThat(session.getDraftCategoryId()).isNull();
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.SELECTING_CATEGORY);
+        assertThat(botClient.last().text()).contains("This action is no longer available");
+    }
+
+    @Test
+    void givenLanguageSelectionAndPromptMessageMatchesWhenLanguageCallbackArrivesThenMainMenuIsShown() {
         TelegramCustomerSession session = linkedSession(19221L, 23221L);
         session.state(TelegramCustomerSessionState.LANGUAGE_SELECTION, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.activePromptMessageId(8000L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         CustomerService customers = mock(CustomerService.class);
         Customer updated = Customer.telegram("Reply Action", "+998902020202", 19221L, 23221L, LanguageCode.UZ,
                 OffsetDateTime.parse("2026-08-06T10:00:00Z"));
@@ -225,6 +263,7 @@ class TelegramCustomerBotServiceTest {
         assertThat(session.getDraftCategoryId()).isEqualTo(123L);
         assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_DESCRIPTION);
         assertThat(botClient.last().text()).contains("This action is no longer available");
+        assertThat(botClient.answeredCallbacks()).contains("cb-cat-duplicate");
     }
 
     @Test
@@ -359,7 +398,8 @@ class TelegramCustomerBotServiceTest {
 
         // Photo 4 -> rejected
         service.handle(photo(219L, 20320L, 24320L, "photo-4", 1024L));
-        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_LOCATION);
+        assertThat(botClient.last().text()).contains("Geolokatsiyani yuboring");
+        assertThat(botClient.deletedMessages()).contains(219L);
         assertThat(session.photoFileIds()).containsExactly("photo-1", "photo-2", "photo-3");
     }
 

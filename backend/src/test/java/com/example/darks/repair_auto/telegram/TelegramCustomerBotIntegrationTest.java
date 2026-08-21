@@ -207,6 +207,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         send(callback(213, 19120, 23120, "cb-uz-reply-cat", "cat:" + categoryId));
 
+        assertThat(telegramBotClient.answeredCallbacks()).contains("cb-uz-reply-cat");
         assertThat(telegramBotClient.lastText()).contains("Muammoni tasvirlab bering");
         assertThat(telegramBotClient.lastText()).doesNotContain("Bu amal endi mavjud emas");
     }
@@ -276,6 +277,8 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         // Fourth photo should be rejected
         send(photo(51, 3103, 7103, "photo-multi-4", JPEG.length));
+        assertThat(telegramBotClient.lastText()).contains("Geolokatsiyani yuboring");
+        assertThat(telegramBotClient.deletedMessages()).contains(new DeletedMessage(7103L, 51L));
 
         // Complete request creation
         send(location(52, 3103, 7103, "41.311081", "69.240562"));
