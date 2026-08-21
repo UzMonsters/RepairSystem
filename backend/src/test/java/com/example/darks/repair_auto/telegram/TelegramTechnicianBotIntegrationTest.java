@@ -443,9 +443,15 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     private String callback(long updateId, long userId, long chatId, String callbackId, String data) {
+        Long messageId = telegramBotClient.messages().isEmpty()
+                ? updateId
+                : telegramBotClient.messages().getLast().messageId();
+        if (messageId == null) {
+            messageId = updateId;
+        }
         return """
                 {"update_id":%d,"callback_query":{"id":"%s","from":{"id":%d,"first_name":"Tech"},"message":{"message_id":%d,"chat":{"id":%d,"type":"private"}},"data":"%s"}}
-                """.formatted(updateId, callbackId, userId, updateId, chatId, data);
+                """.formatted(updateId, callbackId, userId, messageId, chatId, data);
     }
 
     private String photo(long updateId, long userId, long chatId, String fileId, long size) {
@@ -709,8 +715,9 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         @Override
         public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(chatId, text, replyMarkupJson));
-            return nextMessageId++;
+            long messageId = nextMessageId++;
+            messages.add(new SentMessage(messageId, chatId, text, replyMarkupJson));
+            return messageId;
         }
 
         @Override
@@ -725,7 +732,7 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         @Override
         public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            messages.add(new SentMessage(messageId, chatId, text, replyMarkupJson));
         }
 
         @Override
@@ -759,7 +766,7 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
         }
     }
 
-    record SentMessage(Long chatId, String text, String replyMarkupJson) {
+    record SentMessage(Long messageId, Long chatId, String text, String replyMarkupJson) {
     }
 
     record DeletedMessage(Long chatId, Long messageId) {

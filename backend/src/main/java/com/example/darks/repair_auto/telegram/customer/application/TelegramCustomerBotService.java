@@ -37,16 +37,24 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 public class TelegramCustomerBotService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(TelegramCustomerBotService.class);
     private static final int HISTORY_PAGE_SIZE = 5;
     private static final DateTimeFormatter TELEGRAM_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
@@ -64,6 +72,7 @@ public class TelegramCustomerBotService {
     private final TelegramProperties properties;
     private final TelegramUnexpectedInputHandler unexpectedInputHandler;
     private final TelegramChatCleanupService cleanupService;
+    private final TransactionTemplate transactionTemplate;
     private final DateTimeFormatter telegramDateFormatter;
     private final Clock clock;
 
@@ -82,6 +91,7 @@ public class TelegramCustomerBotService {
             TelegramProperties properties,
             TelegramUnexpectedInputHandler unexpectedInputHandler,
             TelegramChatCleanupService cleanupService,
+            PlatformTransactionManager transactionManager,
             ZoneId businessZone) {
         this(
                 sessionRepository,
@@ -97,6 +107,7 @@ public class TelegramCustomerBotService {
                 properties,
                 unexpectedInputHandler,
                 cleanupService,
+                promptTransactionTemplate(transactionManager),
                 businessZone,
                 Clock.systemUTC());
     }
@@ -132,6 +143,7 @@ public class TelegramCustomerBotService {
                         new TelegramConversationPolicy(),
                         new TelegramChatCleanupService()),
                 new TelegramChatCleanupService(),
+                null,
                 businessZone,
                 clock);
     }
@@ -150,6 +162,7 @@ public class TelegramCustomerBotService {
             TelegramProperties properties,
             TelegramUnexpectedInputHandler unexpectedInputHandler,
             TelegramChatCleanupService cleanupService,
+            TransactionTemplate transactionTemplate,
             ZoneId businessZone,
             Clock clock) {
         this.sessionRepository = sessionRepository;
@@ -165,6 +178,7 @@ public class TelegramCustomerBotService {
         this.properties = properties;
         this.unexpectedInputHandler = unexpectedInputHandler;
         this.cleanupService = cleanupService;
+        this.transactionTemplate = transactionTemplate;
         this.telegramDateFormatter = TELEGRAM_DATE_FORMATTER.withZone(businessZone);
         this.clock = clock;
     }
@@ -458,14 +472,17 @@ public class TelegramCustomerBotService {
             TelegramUpdatePayload.TelegramCallbackQuery callback) {
         cleanupService.answerCallbackQuietly(botClient, callback.id(), "customer");
         String data = callback.data() == null ? "" : callback.data();
-        if (!isCallbackActionAllowed(session, data)) {
-            if (isMalformedCallbackData(data)) {
+        CallbackPolicyResult policyResult = validateCallback(session, callback, data);
+        if (!policyResult.allowed()) {
+            logRejectedCallback(session, callback, data, policyResult.reason());
+            if (policyResult.reason() == CallbackRejectionReason.INVALID_CALLBACK_FORMAT) {
                 throw new BusinessRuleException("INVALID_CALLBACK", "Invalid callback.", 400);
             }
             send(session, "invalid_action", mainKeyboard(session));
             cleanupCallbackKeyboard(session, callback);
             return;
         }
+        session.clearActivePrompt(now());
         if (data.startsWith("lang:")) {
             changeLanguage(session, data.substring("lang:".length()));
         } else if (data.equals("menu:create")) {
@@ -983,17 +1000,41 @@ public class TelegramCustomerBotService {
         return session.getCustomer() != null && session.getCustomer().isActive();
     }
 
+    private static TransactionTemplate promptTransactionTemplate(PlatformTransactionManager transactionManager) {
+        if (transactionManager == null) {
+            return null;
+        }
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template;
+    }
+
     private void send(TelegramCustomerSession session, String key, String keyboard, Object... args) {
         String text = args.length == 0
                 ? messages.get(session.getLanguage(), key)
                 : messages.format(session.getLanguage(), key, args);
-        Long messageId = botClient.sendMessage(session.getTelegramChatId(), text, keyboard);
-        trackBotMessage(session, messageId);
+        sendMessage(session, text, keyboard);
     }
 
     private Long sendRaw(TelegramCustomerSession session, String text, String keyboard) {
+        return sendMessage(session, text, keyboard);
+    }
+
+    private Long sendMessage(TelegramCustomerSession session, String text, String keyboard) {
+        if (shouldDeferPromptSend(keyboard)) {
+            Long sessionId = session.getId();
+            Long chatId = session.getTelegramChatId();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    Long messageId = botClient.sendMessage(chatId, text, keyboard);
+                    trackPersistedBotMessage(session, sessionId, messageId, keyboard);
+                }
+            });
+            return null;
+        }
         Long messageId = botClient.sendMessage(session.getTelegramChatId(), text, keyboard);
-        trackBotMessage(session, messageId);
+        trackBotMessage(session, messageId, keyboard);
         return messageId;
     }
 
@@ -1025,12 +1066,43 @@ public class TelegramCustomerBotService {
                 "customer");
     }
 
-    private void trackBotMessage(TelegramCustomerSession session, Long messageId) {
+    private boolean shouldDeferPromptSend(String keyboard) {
+        return isInlineKeyboard(keyboard)
+                && TransactionSynchronizationManager.isSynchronizationActive()
+                && TransactionSynchronizationManager.isActualTransactionActive();
+    }
+
+    private void trackPersistedBotMessage(
+            TelegramCustomerSession session,
+            Long sessionId,
+            Long messageId,
+            String keyboard) {
+        trackBotMessage(session, messageId, keyboard);
+        if (sessionId == null || messageId == null) {
+            return;
+        }
+        if (transactionTemplate == null) {
+            return;
+        }
+        transactionTemplate.executeWithoutResult(status ->
+                sessionRepository.findById(sessionId).ifPresent(stored -> {
+                    trackBotMessage(stored, messageId, keyboard);
+                    sessionRepository.saveAndFlush(stored);
+                }));
+    }
+
+    private void trackBotMessage(TelegramCustomerSession session, Long messageId, String keyboard) {
         if (messageId == null) {
             return;
         }
-        session.activePromptMessageId(messageId, now());
+        if (isInlineKeyboard(keyboard)) {
+            session.activePromptMessageId(messageId, now());
+        }
         session.trackTransientMessageId(messageId, 30, now());
+    }
+
+    private boolean isInlineKeyboard(String keyboard) {
+        return keyboard != null && keyboard.contains("\"inline_keyboard\"");
     }
 
     private boolean isUnknownCommand(TelegramUpdatePayload update) {
@@ -1068,6 +1140,28 @@ public class TelegramCustomerBotService {
                 || text.equals(messages.get(language, "change_language"))
                 || text.equals(messages.get(language, "help_button"))
                 || text.equals(messages.get(language, "help"));
+    }
+
+    private CallbackPolicyResult validateCallback(
+            TelegramCustomerSession session,
+            TelegramUpdatePayload.TelegramCallbackQuery callback,
+            String data) {
+        if (isMalformedCallbackData(data)) {
+            return CallbackPolicyResult.rejected(CallbackRejectionReason.INVALID_CALLBACK_FORMAT);
+        }
+        if (!isCallbackActionAllowed(session, data)) {
+            return CallbackPolicyResult.rejected(CallbackRejectionReason.STATE_MISMATCH);
+        }
+        if (requiresActivePrompt(data)) {
+            if (session.getActivePromptMessageId() == null) {
+                return CallbackPolicyResult.rejected(CallbackRejectionReason.NO_ACTIVE_PROMPT);
+            }
+            Long callbackMessageId = callback.message() == null ? null : callback.message().messageId();
+            if (!session.getActivePromptMessageId().equals(callbackMessageId)) {
+                return CallbackPolicyResult.rejected(CallbackRejectionReason.PROMPT_MESSAGE_MISMATCH);
+            }
+        }
+        return CallbackPolicyResult.allow();
     }
 
     private boolean isCallbackActionAllowed(TelegramCustomerSession session, String data) {
@@ -1118,6 +1212,28 @@ public class TelegramCustomerBotService {
             return state == TelegramCustomerSessionState.MAIN_MENU;
         }
         return false;
+    }
+
+    private boolean requiresActivePrompt(String data) {
+        return data.startsWith("lang:") || data.startsWith("cat:");
+    }
+
+    private void logRejectedCallback(
+            TelegramCustomerSession session,
+            TelegramUpdatePayload.TelegramCallbackQuery callback,
+            String data,
+            CallbackRejectionReason reason) {
+        Long callbackMessageId = callback.message() == null ? null : callback.message().messageId();
+        LOGGER.info(
+                "Rejected Telegram customer callback reason={} telegramChatId={} telegramUserId={} "
+                        + "callbackData={} callbackMessageId={} activePromptMessageId={} state={}",
+                reason,
+                session.getTelegramChatId(),
+                session.getTelegramUserId(),
+                data,
+                callbackMessageId,
+                session.getActivePromptMessageId(),
+                session.getState());
     }
 
     private boolean isMalformedCallbackData(String data) {
@@ -1218,5 +1334,23 @@ public class TelegramCustomerBotService {
 
     private OffsetDateTime now() {
         return OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
+    }
+
+    private record CallbackPolicyResult(boolean allowed, CallbackRejectionReason reason) {
+
+        private static CallbackPolicyResult allow() {
+            return new CallbackPolicyResult(true, null);
+        }
+
+        private static CallbackPolicyResult rejected(CallbackRejectionReason reason) {
+            return new CallbackPolicyResult(false, reason);
+        }
+    }
+
+    private enum CallbackRejectionReason {
+        INVALID_CALLBACK_FORMAT,
+        STATE_MISMATCH,
+        NO_ACTIVE_PROMPT,
+        PROMPT_MESSAGE_MISMATCH
     }
 }

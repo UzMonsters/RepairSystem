@@ -124,6 +124,10 @@ public class TelegramCustomerSession {
         return telegramUserId;
     }
 
+    public Long getId() {
+        return id;
+    }
+
     public Long getTelegramChatId() {
         return telegramChatId;
     }
@@ -283,6 +287,11 @@ public class TelegramCustomerSession {
 
     public void activePromptMessageId(Long messageId, OffsetDateTime now) {
         this.activePromptMessageId = messageId;
+        this.updatedAt = now;
+    }
+
+    public void clearActivePrompt(OffsetDateTime now) {
+        this.activePromptMessageId = null;
         this.updatedAt = now;
     }
 
