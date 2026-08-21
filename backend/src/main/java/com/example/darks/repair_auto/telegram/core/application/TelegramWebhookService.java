@@ -131,7 +131,7 @@ public class TelegramWebhookService {
         }
         if (mode == TelegramUserMode.TECHNICIAN) {
             technicianBotService.requireSwitchAllowed(sender.id(), chat.id());
-        } else if (mode == TelegramUserMode.CUSTOMER) {
+        } else if (mode == TelegramUserMode.CUSTOMER && !isCustomerBootstrap(update)) {
             customerBotService.requireSwitchAllowed(sender.id(), chat.id());
         }
         if (mode == null) {
@@ -190,6 +190,15 @@ public class TelegramWebhookService {
     private boolean isTechnicianLanguageSelection(TelegramUpdatePayload update) {
         String callbackData = update.callbackQuery() == null ? null : update.callbackQuery().data();
         return callbackData != null && callbackData.startsWith("tlang:");
+    }
+
+    private boolean isCustomerBootstrap(TelegramUpdatePayload update) {
+        String text = update.text();
+        if (text != null && text.equalsIgnoreCase("/start")) {
+            return true;
+        }
+        String callbackData = update.callbackQuery() == null ? null : update.callbackQuery().data();
+        return callbackData != null && callbackData.startsWith("lang:");
     }
 
     private TelegramUpdatePayload parse(String rawBody) {
