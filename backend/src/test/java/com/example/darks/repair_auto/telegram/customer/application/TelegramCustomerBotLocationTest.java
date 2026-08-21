@@ -229,7 +229,7 @@ class TelegramCustomerBotLocationTest {
         botService.handle(payload);
 
         assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_LOCATION);
-        assertThat(botClient.messages()).isEmpty();
+        assertThat(botClient.last().text()).containsIgnoringCase("location");
     }
 
     @Test

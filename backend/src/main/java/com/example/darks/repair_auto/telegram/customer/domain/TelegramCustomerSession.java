@@ -25,7 +25,6 @@ import java.util.List;
 public class TelegramCustomerSession {
 
     private static final String PHOTO_DELIMITER = "\n";
-    private static final String MESSAGE_ID_DELIMITER = "\n";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -86,12 +85,6 @@ public class TelegramCustomerSession {
 
     @Column(name = "history_page", nullable = false)
     private int historyPage;
-
-    @Column(name = "active_prompt_message_id")
-    private Long activePromptMessageId;
-
-    @Column(name = "transient_message_ids", columnDefinition = "text")
-    private String transientMessageIds;
 
     @Column(name = "last_interaction_at", nullable = false)
     private OffsetDateTime lastInteractionAt;
@@ -196,20 +189,6 @@ public class TelegramCustomerSession {
         return historyPage;
     }
 
-    public Long getActivePromptMessageId() {
-        return activePromptMessageId;
-    }
-
-    public List<Long> transientMessageIds() {
-        if (transientMessageIds == null || transientMessageIds.isBlank()) {
-            return List.of();
-        }
-        return List.of(transientMessageIds.split(MESSAGE_ID_DELIMITER)).stream()
-                .map(this::parseMessageId)
-                .filter(java.util.Objects::nonNull)
-                .toList();
-    }
-
     public void touch(Long chatId, OffsetDateTime now) {
         this.telegramChatId = chatId;
         this.lastInteractionAt = now;
@@ -285,40 +264,6 @@ public class TelegramCustomerSession {
         this.updatedAt = now;
     }
 
-    public void activePromptMessageId(Long messageId, OffsetDateTime now) {
-        this.activePromptMessageId = messageId;
-        this.updatedAt = now;
-    }
-
-    public void clearActivePrompt(OffsetDateTime now) {
-        this.activePromptMessageId = null;
-        this.updatedAt = now;
-    }
-
-    public void trackTransientMessageId(Long messageId, int maxMessages, OffsetDateTime now) {
-        if (messageId == null) {
-            return;
-        }
-        List<Long> current = new ArrayList<>(transientMessageIds());
-        if (!current.contains(messageId)) {
-            current.add(messageId);
-        }
-        while (current.size() > Math.max(maxMessages, 1)) {
-            current.remove(0);
-        }
-        this.transientMessageIds = current.stream()
-                .map(String::valueOf)
-                .reduce((left, right) -> left + MESSAGE_ID_DELIMITER + right)
-                .orElse(null);
-        this.updatedAt = now;
-    }
-
-    public void clearTrackedMessages(OffsetDateTime now) {
-        this.activePromptMessageId = null;
-        this.transientMessageIds = null;
-        this.updatedAt = now;
-    }
-
     public List<String> photoFileIds() {
         if (draftPhotoFileIds == null || draftPhotoFileIds.isBlank()) {
             return List.of();
@@ -348,7 +293,6 @@ public class TelegramCustomerSession {
         this.draftReviewRating = null;
         this.draftReviewComment = null;
         this.historyPage = 0;
-        clearTrackedMessages(now);
         this.updatedAt = now;
     }
 
@@ -357,13 +301,5 @@ public class TelegramCustomerSession {
         this.draftReviewRating = null;
         this.draftReviewComment = null;
         this.updatedAt = now;
-    }
-
-    private Long parseMessageId(String value) {
-        try {
-            return Long.valueOf(value);
-        } catch (RuntimeException exception) {
-            return null;
-        }
     }
 }
