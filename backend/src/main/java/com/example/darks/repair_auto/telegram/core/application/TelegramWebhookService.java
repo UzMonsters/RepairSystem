@@ -131,7 +131,7 @@ public class TelegramWebhookService {
         }
         if (mode == TelegramUserMode.TECHNICIAN) {
             technicianBotService.requireSwitchAllowed(sender.id(), chat.id());
-        } else if (mode == TelegramUserMode.CUSTOMER) {
+        } else if (mode == TelegramUserMode.CUSTOMER && forcedMode == null) {
             customerBotService.requireSwitchAllowed(sender.id(), chat.id());
         }
         if (mode == null) {

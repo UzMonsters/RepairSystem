@@ -69,6 +69,94 @@ class TelegramWebhookServiceTest {
         org.assertj.core.api.Assertions.assertThat(context.getActiveMode()).isEqualTo(TelegramUserMode.CUSTOMER);
     }
 
+    @Test
+    void givenForcedCustomerStartThenLinkedCustomerGuardIsNotRequired() {
+        TelegramUserContextRepository contexts = mock(TelegramUserContextRepository.class);
+        TelegramCustomerBotService customerBotService = mock(TelegramCustomerBotService.class);
+        TransactionTemplate transactionTemplate = transactionTemplate();
+        when(contexts.findByTelegramUserIdForUpdate(101L)).thenReturn(Optional.empty());
+        doAnswer(invocation -> invocation.getArgument(0, TelegramUserContext.class))
+                .when(contexts).saveAndFlush(any(TelegramUserContext.class));
+        TelegramWebhookService service = service(contexts, customerBotService, transactionTemplate);
+
+        TelegramUserMode mode = ReflectionTestUtils.invokeMethod(
+                service,
+                "mode",
+                message("/start"),
+                TelegramUserMode.CUSTOMER);
+
+        verify(customerBotService, never()).requireSwitchAllowed(101L, 201L);
+        verify(transactionTemplate).executeWithoutResult(any());
+        org.assertj.core.api.Assertions.assertThat(mode).isEqualTo(TelegramUserMode.CUSTOMER);
+    }
+
+    @Test
+    void givenForcedCustomerLanguageCallbackThenLinkedCustomerGuardIsNotRequired() {
+        TelegramUserContextRepository contexts = mock(TelegramUserContextRepository.class);
+        TelegramCustomerBotService customerBotService = mock(TelegramCustomerBotService.class);
+        TransactionTemplate transactionTemplate = transactionTemplate();
+        when(contexts.findByTelegramUserIdForUpdate(101L)).thenReturn(Optional.empty());
+        doAnswer(invocation -> invocation.getArgument(0, TelegramUserContext.class))
+                .when(contexts).saveAndFlush(any(TelegramUserContext.class));
+        TelegramWebhookService service = service(contexts, customerBotService, transactionTemplate);
+
+        TelegramUserMode mode = ReflectionTestUtils.invokeMethod(
+                service,
+                "mode",
+                callback("lang:UZ"),
+                TelegramUserMode.CUSTOMER);
+
+        verify(customerBotService, never()).requireSwitchAllowed(101L, 201L);
+        verify(transactionTemplate).executeWithoutResult(any());
+        org.assertj.core.api.Assertions.assertThat(mode).isEqualTo(TelegramUserMode.CUSTOMER);
+    }
+
+    @Test
+    void givenForcedCustomerRegistrationTextThenLinkedCustomerGuardIsNotRequired() {
+        TelegramUserContextRepository contexts = mock(TelegramUserContextRepository.class);
+        TelegramCustomerBotService customerBotService = mock(TelegramCustomerBotService.class);
+        TransactionTemplate transactionTemplate = transactionTemplate();
+        when(contexts.findByTelegramUserIdForUpdate(101L)).thenReturn(Optional.empty());
+        doAnswer(invocation -> invocation.getArgument(0, TelegramUserContext.class))
+                .when(contexts).saveAndFlush(any(TelegramUserContext.class));
+        TelegramWebhookService service = service(contexts, customerBotService, transactionTemplate);
+
+        TelegramUserMode mode = ReflectionTestUtils.invokeMethod(
+                service,
+                "mode",
+                message("Sarvar Ro'ziboyev"),
+                TelegramUserMode.CUSTOMER);
+
+        verify(customerBotService, never()).requireSwitchAllowed(101L, 201L);
+        verify(transactionTemplate).executeWithoutResult(any());
+        org.assertj.core.api.Assertions.assertThat(mode).isEqualTo(TelegramUserMode.CUSTOMER);
+    }
+
+    private TelegramWebhookService service(
+            TelegramUserContextRepository contexts,
+            TelegramCustomerBotService customerBotService,
+            TransactionTemplate transactionTemplate) {
+        return new TelegramWebhookService(
+                mock(TelegramUpdateRepository.class),
+                contexts,
+                customerBotService,
+                mock(TelegramTechnicianBotService.class),
+                mock(TelegramBusinessErrorResponder.class),
+                new ObjectMapper(),
+                transactionTemplate,
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+    }
+
+    private TransactionTemplate transactionTemplate() {
+        TransactionTemplate transactionTemplate = mock(TransactionTemplate.class);
+        doAnswer(invocation -> {
+            Consumer<TransactionStatus> action = invocation.getArgument(0);
+            action.accept(mock(TransactionStatus.class));
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
+        return transactionTemplate;
+    }
+
     private TelegramUpdatePayload message(String text) {
         return new TelegramUpdatePayload(
                 1L,
@@ -81,5 +169,24 @@ class TelegramWebhookServiceTest {
                         null,
                         null),
                 null);
+    }
+
+    private TelegramUpdatePayload callback(String data) {
+        TelegramUpdatePayload.TelegramMessage message = new TelegramUpdatePayload.TelegramMessage(
+                1L,
+                new TelegramUpdatePayload.TelegramUser(101L, "User", null),
+                new TelegramUpdatePayload.TelegramChat(201L, "private"),
+                null,
+                null,
+                null,
+                null);
+        return new TelegramUpdatePayload(
+                1L,
+                null,
+                new TelegramUpdatePayload.TelegramCallbackQuery(
+                        "callback-id",
+                        new TelegramUpdatePayload.TelegramUser(101L, "User", null),
+                        message,
+                        data));
     }
 }
