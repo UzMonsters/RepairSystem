@@ -443,15 +443,9 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     private String callback(long updateId, long userId, long chatId, String callbackId, String data) {
-        Long messageId = telegramBotClient.messages().isEmpty()
-                ? updateId
-                : telegramBotClient.messages().getLast().messageId();
-        if (messageId == null) {
-            messageId = updateId;
-        }
         return """
                 {"update_id":%d,"callback_query":{"id":"%s","from":{"id":%d,"first_name":"Tech"},"message":{"message_id":%d,"chat":{"id":%d,"type":"private"}},"data":"%s"}}
-                """.formatted(updateId, callbackId, userId, messageId, chatId, data);
+                """.formatted(updateId, callbackId, userId, updateId, chatId, data);
     }
 
     private String photo(long updateId, long userId, long chatId, String fileId, long size) {
@@ -666,19 +660,12 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
         private final List<SentPhoto> photos = new CopyOnWriteArrayList<>();
         private final List<SentMediaGroup> mediaGroups = new CopyOnWriteArrayList<>();
         private final List<SentLocation> locations = new CopyOnWriteArrayList<>();
-        private final List<DeletedMessage> deletedMessages = new CopyOnWriteArrayList<>();
-        private final List<EditedReplyMarkup> editedReplyMarkups = new CopyOnWriteArrayList<>();
-        private final List<String> answeredCallbacks = new CopyOnWriteArrayList<>();
-        private long nextMessageId = 2000L;
 
         void clear() {
             messages.clear();
             photos.clear();
             mediaGroups.clear();
             locations.clear();
-            deletedMessages.clear();
-            editedReplyMarkups.clear();
-            answeredCallbacks.clear();
         }
 
         List<SentMessage> messages() {
@@ -701,43 +688,13 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
             return messages.getLast().text();
         }
 
-        List<DeletedMessage> deletedMessages() {
-            return deletedMessages;
-        }
-
-        List<EditedReplyMarkup> editedReplyMarkups() {
-            return editedReplyMarkups;
-        }
-
-        List<String> answeredCallbacks() {
-            return answeredCallbacks;
-        }
-
         @Override
-        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
-            long messageId = nextMessageId++;
-            messages.add(new SentMessage(messageId, chatId, text, replyMarkupJson));
-            return messageId;
+        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
-            answeredCallbacks.add(callbackQueryId);
-        }
-
-        @Override
-        public void deleteMessage(Long chatId, Long messageId) {
-            deletedMessages.add(new DeletedMessage(chatId, messageId));
-        }
-
-        @Override
-        public void editMessageText(Long chatId, Long messageId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(messageId, chatId, text, replyMarkupJson));
-        }
-
-        @Override
-        public void editMessageReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
-            editedReplyMarkups.add(new EditedReplyMarkup(chatId, messageId, replyMarkupJson));
         }
 
         @Override
@@ -766,13 +723,7 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
         }
     }
 
-    record SentMessage(Long messageId, Long chatId, String text, String replyMarkupJson) {
-    }
-
-    record DeletedMessage(Long chatId, Long messageId) {
-    }
-
-    record EditedReplyMarkup(Long chatId, Long messageId, String replyMarkupJson) {
+    record SentMessage(Long chatId, String text, String replyMarkupJson) {
     }
 
     record SentPhoto(Long chatId, String filename, byte[] photoBytes, String caption) {

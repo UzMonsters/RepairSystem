@@ -117,10 +117,6 @@ public class TelegramCustomerSession {
         return telegramUserId;
     }
 
-    public Long getId() {
-        return id;
-    }
-
     public Long getTelegramChatId() {
         return telegramChatId;
     }
