@@ -74,6 +74,7 @@ public class NotificationTemplateService {
     private String interpolate(String template, Map<String, String> payload, LanguageCode language) {
         return template
                 .replace("{requestNumber}", value(payload, "requestNumber"))
+                .replace("{clientRequestNumber}", clientRequestNumber(payload))
                 .replace("{category}", category(payload, language))
                 .replace("{technicianName}", value(payload, "technicianName"))
                 .replace("{scheduledVisitAt}", scheduledVisitAt(payload, language))
@@ -100,9 +101,18 @@ public class NotificationTemplateService {
     private String scheduledVisitAt(Map<String, String> payload, LanguageCode language) {
         String value = payload.get("scheduledVisitAt");
         if (value == null || value.isBlank()) {
-            return switchDefault("not scheduled", "не назначено", "belgilanmagan", language);
+            return switchDefault("not scheduled yet", "пока не назначено", "hali belgilanmagan", language);
         }
         return telegramDateFormatter.format(Instant.parse(value));
+    }
+
+    private String clientRequestNumber(Map<String, String> payload) {
+        String requestNumber = value(payload, "requestNumber");
+        int lastDash = requestNumber.lastIndexOf('-');
+        if (lastDash >= 0 && lastDash + 1 < requestNumber.length()) {
+            return requestNumber.substring(lastDash + 1);
+        }
+        return requestNumber;
     }
 
     private String priority(Map<String, String> payload, LanguageCode language) {
@@ -198,69 +208,69 @@ public class NotificationTemplateService {
 
     private void loadTemplates() {
         put(NotificationType.REQUEST_CREATED, NotificationRecipientType.CUSTOMER,
-                "Request created", "Repair request {requestNumber} for {category} was created. Status: {status}.",
-                "Заявка создана", "Заявка {requestNumber} по категории {category} создана. Статус: {status}.",
-                "Ariza yaratildi", "{requestNumber} raqamli {category} bo'yicha ariza yaratildi. Holat: {status}.");
+                "Request received", "Your repair request has been received.\nRequest number: {clientRequestNumber}\nStatus: {status}.",
+                "Заявка принята", "Ваша заявка на ремонт принята.\nНомер заявки: {clientRequestNumber}\nСтатус: {status}.",
+                "Ariza qabul qilindi", "Ta'mirlash arizangiz qabul qilindi.\nAriza raqami: {clientRequestNumber}\nHolat: {status}.");
         put(NotificationType.TECHNICIAN_ASSIGNED, NotificationRecipientType.CUSTOMER,
-                "Technician assigned", "Technician {technicianName} has been assigned to request {requestNumber}. Visit: {scheduledVisitAt}.",
-                "Мастер назначен", "Мастер {technicianName} назначен на заявку {requestNumber}. Визит: {scheduledVisitAt}.",
-                "Usta biriktirildi", "{requestNumber} arizasiga {technicianName} biriktirildi. Tashrif: {scheduledVisitAt}.");
+                "Technician assigned", "A technician has been assigned to your request.\nRequest number: {clientRequestNumber}\nTechnician: {technicianName}\nVisit time: {scheduledVisitAt}.",
+                "Мастер назначен", "По вашей заявке назначен мастер.\nНомер заявки: {clientRequestNumber}\nМастер: {technicianName}\nВремя визита: {scheduledVisitAt}.",
+                "Usta tayinlandi", "Arizangiz bo'yicha usta tayinlandi.\nAriza raqami: {clientRequestNumber}\nUsta: {technicianName}\nTashrif vaqti: {scheduledVisitAt}.");
         put(NotificationType.TECHNICIAN_ASSIGNED, NotificationRecipientType.TECHNICIAN,
                 "New assignment", "A new repair request {requestNumber} was assigned to you. Priority: {priority}. Visit: {scheduledVisitAt}.",
                 "Новое назначение", "Вам назначена новая заявка {requestNumber}. Приоритет: {priority}. Визит: {scheduledVisitAt}.",
                 "Yangi topshiriq", "Sizga {requestNumber} raqamli yangi ariza biriktirildi. Muhimlik: {priority}. Tashrif: {scheduledVisitAt}.");
         put(NotificationType.TECHNICIAN_UNASSIGNED, NotificationRecipientType.CUSTOMER,
-                "Technician removed", "Request {requestNumber} is waiting for a technician again.",
-                "Мастер снят", "Заявка {requestNumber} снова ожидает назначения мастера.",
-                "Usta olib tashlandi", "{requestNumber} arizasi yana usta biriktirilishini kutmoqda.");
+                "Technician assignment in progress", "We are assigning a technician to your request again.\nRequest number: {clientRequestNumber}.",
+                "Мастер подбирается", "Мы заново подбираем мастера по вашей заявке.\nНомер заявки: {clientRequestNumber}.",
+                "Usta qayta tayinlanmoqda", "Arizangiz bo'yicha usta qayta tayinlanmoqda.\nAriza raqami: {clientRequestNumber}.");
         put(NotificationType.TECHNICIAN_UNASSIGNED, NotificationRecipientType.TECHNICIAN,
                 "Assignment removed", "You were removed from repair request {requestNumber}.",
                 "Назначение снято", "Вы сняты с заявки {requestNumber}.",
                 "Topshiriq olib tashlandi", "Siz {requestNumber} arizasidan olib tashlandingiz.");
         put(NotificationType.VISIT_SCHEDULED, NotificationRecipientType.CUSTOMER,
-                "Visit scheduled", "Visit for request {requestNumber} is scheduled for {scheduledVisitAt}.",
-                "Визит назначен", "Визит по заявке {requestNumber} назначен на {scheduledVisitAt}.",
-                "Tashrif belgilandi", "{requestNumber} arizasi bo'yicha tashrif {scheduledVisitAt} vaqtiga belgilandi.");
+                "Visit scheduled", "A visit has been scheduled for your request.\nRequest number: {clientRequestNumber}\nVisit time: {scheduledVisitAt}.",
+                "Визит назначен", "По вашей заявке назначен визит.\nНомер заявки: {clientRequestNumber}\nВремя визита: {scheduledVisitAt}.",
+                "Tashrif belgilandi", "Arizangiz bo'yicha tashrif belgilandi.\nAriza raqami: {clientRequestNumber}\nTashrif vaqti: {scheduledVisitAt}.");
         put(NotificationType.VISIT_SCHEDULED, NotificationRecipientType.TECHNICIAN,
                 "Visit scheduled", "Visit for request {requestNumber} is scheduled for {scheduledVisitAt}.",
                 "Визит назначен", "Визит по заявке {requestNumber} назначен на {scheduledVisitAt}.",
                 "Tashrif belgilandi", "{requestNumber} arizasi bo'yicha tashrif {scheduledVisitAt} vaqtiga belgilandi.");
         put(NotificationType.VISIT_RESCHEDULED, NotificationRecipientType.CUSTOMER,
-                "Visit rescheduled", "Visit for request {requestNumber} was moved to {scheduledVisitAt}.",
-                "Визит перенесён", "Визит по заявке {requestNumber} перенесён на {scheduledVisitAt}.",
-                "Tashrif ko'chirildi", "{requestNumber} arizasi bo'yicha tashrif {scheduledVisitAt} vaqtiga ko'chirildi.");
+                "Visit rescheduled", "The visit time for your request has changed.\nRequest number: {clientRequestNumber}\nNew visit time: {scheduledVisitAt}.",
+                "Визит перенесён", "Время визита по вашей заявке изменено.\nНомер заявки: {clientRequestNumber}\nНовое время визита: {scheduledVisitAt}.",
+                "Tashrif vaqti o'zgartirildi", "Arizangiz bo'yicha tashrif vaqti o'zgartirildi.\nAriza raqami: {clientRequestNumber}\nYangi tashrif vaqti: {scheduledVisitAt}.");
         put(NotificationType.VISIT_RESCHEDULED, NotificationRecipientType.TECHNICIAN,
                 "Visit rescheduled", "Visit for request {requestNumber} was moved to {scheduledVisitAt}.",
                 "Визит перенесён", "Визит по заявке {requestNumber} перенесён на {scheduledVisitAt}.",
                 "Tashrif ko'chirildi", "{requestNumber} arizasi bo'yicha tashrif {scheduledVisitAt} vaqtiga ko'chirildi.");
         put(NotificationType.VISIT_CANCELLED, NotificationRecipientType.CUSTOMER,
-                "Visit cancelled", "Visit time for request {requestNumber} is no longer confirmed.",
-                "Визит отменён", "Время визита по заявке {requestNumber} больше не подтверждено.",
-                "Tashrif bekor qilindi", "{requestNumber} arizasi bo'yicha tashrif vaqti hozircha tasdiqlanmagan.");
+                "Visit time pending", "The visit time for your request is not confirmed yet.\nRequest number: {clientRequestNumber}.",
+                "Время визита уточняется", "Время визита по вашей заявке пока не подтверждено.\nНомер заявки: {clientRequestNumber}.",
+                "Tashrif vaqti aniqlanmoqda", "Arizangiz bo'yicha tashrif vaqti hali tasdiqlanmagan.\nAriza raqami: {clientRequestNumber}.");
         put(NotificationType.VISIT_CANCELLED, NotificationRecipientType.TECHNICIAN,
                 "Visit cancelled", "Visit time for request {requestNumber} is no longer confirmed.",
                 "Визит отменён", "Время визита по заявке {requestNumber} больше не подтверждено.",
                 "Tashrif bekor qilindi", "{requestNumber} arizasi bo'yicha tashrif vaqti hozircha tasdiqlanmagan.");
         put(NotificationType.REPAIR_STARTED, NotificationRecipientType.CUSTOMER,
-                "Repair started", "Repair request {requestNumber} is now {status}.",
-                "Ремонт начат", "Ремонт по заявке {requestNumber} теперь {status}.",
-                "Ta'mirlash boshlandi", "{requestNumber} arizasi bo'yicha ta'mirlash holati: {status}.");
+                "Repair started", "Repair work on your request has started.\nRequest number: {clientRequestNumber}.",
+                "Ремонт начат", "Работы по вашей заявке начались.\nНомер заявки: {clientRequestNumber}.",
+                "Ta'mirlash boshlandi", "Arizangiz bo'yicha ta'mirlash ishlari boshlandi.\nAriza raqami: {clientRequestNumber}.");
         put(NotificationType.WAITING_FOR_PARTS, NotificationRecipientType.CUSTOMER,
-                "Waiting for parts", "Repair request {requestNumber} is {status}. Required parts are being arranged.",
-                "Ожидаются запчасти", "Ремонт по заявке {requestNumber}: {status}. Необходимые запчасти подготавливаются.",
-                "Qismlar kutilmoqda", "{requestNumber} arizasi bo'yicha ta'mirlash {status}. Kerakli qismlar tayyorlanmoqda.");
+                "Waiting for parts", "Repair work is waiting for the required parts.\nRequest number: {clientRequestNumber}.",
+                "Ожидаются запчасти", "Ремонт ожидает необходимые запчасти.\nНомер заявки: {clientRequestNumber}.",
+                "Qismlar kutilmoqda", "Ta'mirlash uchun kerakli qismlar kutilmoqda.\nAriza raqami: {clientRequestNumber}.");
         put(NotificationType.REPAIR_RESUMED, NotificationRecipientType.CUSTOMER,
-                "Repair resumed", "Repair request {requestNumber} resumed and is {status}.",
-                "Ремонт возобновлён", "Ремонт по заявке {requestNumber} возобновлён, статус: {status}.",
-                "Ta'mirlash davom etdi", "{requestNumber} arizasi bo'yicha ta'mirlash davom ettirildi, holat: {status}.");
+                "Repair resumed", "Repair work on your request has resumed.\nRequest number: {clientRequestNumber}.",
+                "Ремонт возобновлён", "Работы по вашей заявке возобновлены.\nНомер заявки: {clientRequestNumber}.",
+                "Ta'mirlash davom ettirildi", "Arizangiz bo'yicha ta'mirlash ishlari davom ettirildi.\nAriza raqami: {clientRequestNumber}.");
         put(NotificationType.REPAIR_COMPLETED, NotificationRecipientType.CUSTOMER,
-                "Repair completed", "Repair request {requestNumber} has been completed.",
-                "Ремонт завершён", "Ремонт по заявке {requestNumber} завершён.",
-                "Ta'mirlash yakunlandi", "{requestNumber} raqamli ta'mirlash arizasi yakunlandi.");
+                "Repair completed", "Repair work on your request has been completed.\nRequest number: {clientRequestNumber}.",
+                "Ремонт завершён", "Работы по вашей заявке завершены.\nНомер заявки: {clientRequestNumber}.",
+                "Ta'mirlash yakunlandi", "Arizangiz bo'yicha ta'mirlash ishlari yakunlandi.\nAriza raqami: {clientRequestNumber}.");
         put(NotificationType.REQUEST_CANCELLED, NotificationRecipientType.CUSTOMER,
-                "Request cancelled", "Repair request {requestNumber} has been cancelled.",
-                "Заявка отменена", "Заявка {requestNumber} отменена.",
-                "Ariza bekor qilindi", "{requestNumber} raqamli ariza bekor qilindi.");
+                "Request cancelled", "Your repair request has been cancelled.\nRequest number: {clientRequestNumber}.",
+                "Заявка отменена", "Ваша заявка на ремонт отменена.\nНомер заявки: {clientRequestNumber}.",
+                "Ariza bekor qilindi", "Ta'mirlash arizangiz bekor qilindi.\nAriza raqami: {clientRequestNumber}.");
         put(NotificationType.REQUEST_CANCELLED, NotificationRecipientType.TECHNICIAN,
                 "Request cancelled", "Repair request {requestNumber} assigned to you has been cancelled.",
                 "Заявка отменена", "Назначенная вам заявка {requestNumber} отменена.",
