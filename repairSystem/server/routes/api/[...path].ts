@@ -14,7 +14,8 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   const method = event.method
   const query = getQuery(event)
   const incoming = getRequestHeaders(event)
-  const isAvatarDownload = path === 'me/avatar' && method === 'GET'
+  const isBinaryDownload = method === 'GET'
+    && (path === 'me/avatar' || /^attachments\/[^/]+\/download$/.test(path))
 
   const isLogin = path === 'auth/login' && method === 'POST'
   const isRefresh = path === 'auth/refresh' && method === 'POST'
@@ -44,9 +45,9 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       headers: forwardHeaders,
       retry: 0,
       timeout: 20000,
-      // Avatar downloads are image bytes, not JSON. Explicitly keep the
-      // response binary while all other API calls retain normal JSON parsing.
-      responseType: isAvatarDownload ? 'arrayBuffer' : 'json'
+      // Image/file downloads are raw bytes, not JSON. Keep them binary while
+      // all other API calls retain normal JSON parsing.
+      responseType: isBinaryDownload ? 'arrayBuffer' : 'json'
     })
 
     setResponseStatus(event, res.status)
@@ -71,7 +72,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       clearAuthCookies(event)
       return res._data
     }
-    if (isAvatarDownload) {
+    if (isBinaryDownload) {
       return new Uint8Array(res._data as ArrayBuffer)
     }
 
