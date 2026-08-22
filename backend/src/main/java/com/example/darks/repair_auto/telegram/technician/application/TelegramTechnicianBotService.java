@@ -200,7 +200,9 @@ public class TelegramTechnicianBotService {
             case AWAITING_DIAGNOSIS -> {
                 executionService.updateDiagnosisByTechnician(requestId, new DiagnosisRequest(text), session.getTechnicianId());
                 session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "diagnosis_saved", jobKeyboard(requestId, session.getLanguage()));
+                send(session, "diagnosis_saved", completionDraftReady(session)
+                        ? completeKeyboard(requestId, session.getLanguage())
+                        : jobKeyboard(requestId, session.getLanguage()));
             }
             case AWAITING_WAIT_REASON -> {
                 executionService.waitForPartsByTechnician(requestId, new WaitForPartsRequest(text), session.getTechnicianId());
@@ -347,6 +349,12 @@ public class TelegramTechnicianBotService {
             send(session, "linked", mainKeyboard(language));
             return;
         }
+        if (!linked(session)) {
+            send(session, "not_linked", null);
+            return;
+        }
+        Technician technician = requireLinkedTechnician(session);
+        technician.updateTelegramLanguage(language, now());
         session.language(language, now());
         showMenu(session);
     }
@@ -356,6 +364,7 @@ public class TelegramTechnicianBotService {
             send(session, "not_linked", null);
             return;
         }
+        requireLinkedTechnician(session);
         session.clearDraft(now());
         session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         send(session, "main_menu", mainKeyboard(session.getLanguage()));
@@ -366,6 +375,7 @@ public class TelegramTechnicianBotService {
             send(session, "not_linked", null);
             return;
         }
+        requireLinkedTechnician(session);
         session.clearDraft(now());
         session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         List<RepairAssignment> assignments = assignmentRepository
@@ -378,6 +388,7 @@ public class TelegramTechnicianBotService {
             send(session, "not_linked", null);
             return;
         }
+        requireLinkedTechnician(session);
         session.clearDraft(now());
         session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         sendList(session, assignmentRepository.findByTechnicianIdAndStatusInOrderByCreatedAtDesc(
@@ -390,6 +401,7 @@ public class TelegramTechnicianBotService {
             send(session, "not_linked", null);
             return;
         }
+        requireLinkedTechnician(session);
         session.clearDraft(now());
         session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         sendList(session, assignmentRepository.findByTechnicianIdAndStatusInOrderByCreatedAtDesc(
@@ -480,11 +492,27 @@ public class TelegramTechnicianBotService {
             throw new BusinessRuleException("ATTACHMENT_STORAGE_FAILED", "Attachment upload failed.", 503);
         }
         if (type == AttachmentType.COMPLETION_PHOTO) {
-            send(session, "completion_photo_saved", completeKeyboard(requestId, session.getLanguage()));
+            if (diagnosisPresent(requestId)) {
+                send(session, "completion_photo_saved", completeKeyboard(requestId, session.getLanguage()));
+            } else {
+                session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS, now());
+                send(session, "send_diagnosis", null);
+            }
         } else {
             session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
             send(session, "diagnosis_photo_saved", jobKeyboard(requestId, session.getLanguage()));
         }
+    }
+
+    private boolean completionDraftReady(TelegramTechnicianSession session) {
+        return session.getSelectedRequestId() != null
+                && session.getDraftText() != null
+                && !session.getDraftText().isBlank();
+    }
+
+    private boolean diagnosisPresent(Long requestId) {
+        RepairRequestDetailResponse detail = requestService.get(requestId);
+        return detail.execution() != null && detail.execution().diagnosisPresent();
     }
 
     private void requireOwnedActiveAssignment(TelegramTechnicianSession session, Long requestId) {
@@ -529,6 +557,10 @@ public class TelegramTechnicianBotService {
                     "Technician profile is not available.",
                     409);
         }
+        if (technician.getPreferredLanguage() != null
+                && technician.getPreferredLanguage() != session.getLanguage()) {
+            session.language(technician.getPreferredLanguage(), now());
+        }
     }
 
     private boolean linked(TelegramTechnicianSession session) {
@@ -562,6 +594,10 @@ public class TelegramTechnicianBotService {
                     "TECHNICIAN_INACTIVE",
                     "Technician profile is not available.",
                     409);
+        }
+        if (technician.getPreferredLanguage() != null
+                && technician.getPreferredLanguage() != session.getLanguage()) {
+            session.language(technician.getPreferredLanguage(), now());
         }
         return technician;
     }
