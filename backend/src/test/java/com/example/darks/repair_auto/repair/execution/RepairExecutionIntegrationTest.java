@@ -65,6 +65,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
@@ -79,6 +80,9 @@ class RepairExecutionIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Autowired
     private RepairExecutionRepository repairExecutionRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private RepairRequestStatusHistoryRepository statusHistoryRepository;
@@ -426,6 +430,176 @@ class RepairExecutionIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void givenConcurrentCompleteAndCancelThenOnlyOneTerminalTransitionWins() throws Exception {
+        Long requestId = startedRequest();
+        repairExecutionService.updateDiagnosis(requestId, new DiagnosisRequest("Terminal race diagnosis."), new AuthenticatedUser(admin));
+        addCompletionPhoto(requestId);
+
+        List<Object> results = runConcurrently(
+                () -> repairExecutionService.complete(
+                        requestId,
+                        new CompleteRepairRequest("Completed terminal race repair.", null),
+                        new AuthenticatedUser(admin)),
+                () -> repairExecutionService.cancel(
+                        requestId,
+                        new CancelRepairRequest("Customer cancelled during completion."),
+                        new AuthenticatedUser(manager)));
+
+        assertOneSuccess(results);
+        assertSingleTerminalState(requestId);
+        assertThat(notificationCount(requestId, "REPAIR_COMPLETED")
+                + notificationCount(requestId, "REQUEST_CANCELLED")).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    void givenConcurrentCompleteTwiceThenOnlyOneCompletionHistoryAndNoDuplicateTerminalSideEffects() throws Exception {
+        Long requestId = startedRequest();
+        repairExecutionService.updateDiagnosis(requestId, new DiagnosisRequest("Double complete diagnosis."), new AuthenticatedUser(admin));
+        addCompletionPhoto(requestId);
+
+        List<Object> results = runConcurrently(
+                () -> repairExecutionService.complete(
+                        requestId,
+                        new CompleteRepairRequest("Completed once.", null),
+                        new AuthenticatedUser(admin)),
+                () -> repairExecutionService.complete(
+                        requestId,
+                        new CompleteRepairRequest("Completed twice.", null),
+                        new AuthenticatedUser(manager)));
+
+        assertOneSuccess(results);
+        assertSingleTerminalState(requestId);
+        assertThat(statusHistoryRepository.countByRepairRequestIdAndToStatus(requestId, RepairRequestStatus.COMPLETED))
+                .isEqualTo(1);
+        assertThat(notificationCount(requestId, "REPAIR_COMPLETED")).isLessThanOrEqualTo(1);
+    }
+
+    @Test
+    void givenConcurrentCancelTwiceThenOnlyOneCancellationHistoryAndNoDuplicateTerminalSideEffects() throws Exception {
+        Long requestId = acceptedRequest(false);
+
+        List<Object> results = runConcurrently(
+                () -> repairExecutionService.cancel(
+                        requestId,
+                        new CancelRepairRequest("First cancel."),
+                        new AuthenticatedUser(admin)),
+                () -> repairExecutionService.cancel(
+                        requestId,
+                        new CancelRepairRequest("Second cancel."),
+                        new AuthenticatedUser(manager)));
+
+        assertOneSuccess(results);
+        assertSingleTerminalState(requestId);
+        assertThat(statusHistoryRepository.countByRepairRequestIdAndToStatus(requestId, RepairRequestStatus.CANCELLED))
+                .isEqualTo(1);
+        assertThat(notificationCount(requestId, "REQUEST_CANCELLED")).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    void givenConcurrentStartAndCancelThenStartedCancelledStateCannotContradictAssignment() throws Exception {
+        Long requestId = acceptedRequest(false);
+
+        List<Object> results = runConcurrently(
+                () -> repairExecutionService.start(requestId, new AuthenticatedUser(admin)),
+                () -> repairExecutionService.cancel(
+                        requestId,
+                        new CancelRepairRequest("Cancelled at start."),
+                        new AuthenticatedUser(manager)));
+
+        assertOneSuccess(results);
+        assertSingleTerminalState(requestId);
+        var status = repairRequestService.get(requestId).status();
+        if (status == RepairRequestStatus.CANCELLED) {
+            assertThat(activeAssignments(requestId)).isZero();
+        } else {
+            assertThat(status).isEqualTo(RepairRequestStatus.IN_PROGRESS);
+            assertThat(activeAssignments(requestId)).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void givenConcurrentWaitForPartsAndCompleteThenOnlyReachableStatePersists() throws Exception {
+        Long requestId = startedRequest();
+        repairExecutionService.updateDiagnosis(
+                requestId,
+                new DiagnosisRequest("Relay failure."),
+                new AuthenticatedUser(admin));
+        addCompletionPhoto(requestId);
+
+        List<Object> results = runConcurrently(
+                () -> repairExecutionService.waitForParts(
+                        requestId,
+                        new WaitForPartsRequest("Need ordered relay."),
+                        new AuthenticatedUser(admin)),
+                () -> repairExecutionService.complete(
+                        requestId,
+                        new CompleteRepairRequest("Relay replaced.", "Race completion."),
+                        new AuthenticatedUser(manager)));
+
+        assertThat(results).hasSize(2);
+        assertSingleTerminalState(requestId);
+        var status = repairRequestService.get(requestId).status();
+        if (status == RepairRequestStatus.WAITING_FOR_PARTS) {
+            assertThat(activeAssignments(requestId)).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void givenConcurrentResumeAndCancelThenWaitingRepairCannotRemainContradictory() throws Exception {
+        Long requestId = startedRequest();
+        repairExecutionService.waitForParts(
+                requestId,
+                new WaitForPartsRequest("Waiting for compressor."),
+                new AuthenticatedUser(admin));
+
+        List<Object> results = runConcurrently(
+                () -> repairExecutionService.resume(
+                        requestId,
+                        new ResumeRepairRequest("Compressor arrived."),
+                        new AuthenticatedUser(admin)),
+                () -> repairExecutionService.cancel(
+                        requestId,
+                        new CancelRepairRequest("Customer cancelled during wait."),
+                        new AuthenticatedUser(manager)));
+
+        assertThat(results).hasSize(2);
+        assertSingleTerminalState(requestId);
+        var status = repairRequestService.get(requestId).status();
+        if (status == RepairRequestStatus.IN_PROGRESS) {
+            assertThat(activeAssignments(requestId)).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void givenConcurrentDiagnosisUpdateAndCompleteThenCompletionAndDiagnosisRemainCoherent() throws Exception {
+        Long requestId = startedRequest();
+        repairExecutionService.updateDiagnosis(
+                requestId,
+                new DiagnosisRequest("Initial diagnosis."),
+                new AuthenticatedUser(admin));
+        addCompletionPhoto(requestId);
+
+        List<Object> results = runConcurrently(
+                () -> repairExecutionService.updateDiagnosis(
+                        requestId,
+                        new DiagnosisRequest("Updated diagnosis during completion."),
+                        new AuthenticatedUser(admin)),
+                () -> repairExecutionService.complete(
+                        requestId,
+                        new CompleteRepairRequest("Repair completed during diagnosis update.", null),
+                        new AuthenticatedUser(manager)));
+
+        assertThat(results).hasSize(2);
+        assertSingleTerminalState(requestId);
+        var execution = repairExecutionRepository.findByRepairRequestId(requestId).orElseThrow();
+        assertThat(execution.getDiagnosis()).isNotBlank();
+        if (repairRequestService.get(requestId).status() == RepairRequestStatus.COMPLETED) {
+            assertThat(execution.getCompletedAt()).isNotNull();
+            assertThat(activeAssignments(requestId)).isZero();
+        }
+    }
+
+    @Test
     void givenConcurrentCompletionDiagnosisReassignmentOrCancellationThenNoActiveAssignmentLeaks()
             throws Exception {
         Long doubleComplete = startedRequest();
@@ -578,6 +752,37 @@ class RepairExecutionIntegrationTest extends PostgreSqlIntegrationTest {
                 .stream()
                 .filter(assignment -> assignment.isActive())
                 .count();
+    }
+
+    private void assertSingleTerminalState(Long requestId) {
+        var detail = repairRequestService.get(requestId);
+        assertThat(detail.status()).isIn(
+                RepairRequestStatus.IN_PROGRESS,
+                RepairRequestStatus.WAITING_FOR_PARTS,
+                RepairRequestStatus.COMPLETED,
+                RepairRequestStatus.CANCELLED);
+        long completedHistory = statusHistoryRepository.countByRepairRequestIdAndToStatus(requestId, RepairRequestStatus.COMPLETED);
+        long cancelledHistory = statusHistoryRepository.countByRepairRequestIdAndToStatus(requestId, RepairRequestStatus.CANCELLED);
+        assertThat(completedHistory + cancelledHistory).isLessThanOrEqualTo(1);
+        repairExecutionRepository.findByRepairRequestId(requestId).ifPresent(execution -> {
+            assertThat(execution.getCompletedAt() == null || execution.getCancelledAt() == null).isTrue();
+            if (detail.status() == RepairRequestStatus.COMPLETED) {
+                assertThat(execution.getCompletedAt()).isNotNull();
+                assertThat(activeAssignments(requestId)).isZero();
+            }
+            if (detail.status() == RepairRequestStatus.CANCELLED) {
+                assertThat(execution.getCancelledAt()).isNotNull();
+                assertThat(activeAssignments(requestId)).isZero();
+            }
+        });
+    }
+
+    private int notificationCount(Long requestId, String notificationType) {
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from notification_outbox
+                where repair_request_id = ? and notification_type = ?
+                """, Integer.class, requestId, notificationType);
+        return count == null ? 0 : count;
     }
 
     private void assertOneSuccess(List<Object> results) {

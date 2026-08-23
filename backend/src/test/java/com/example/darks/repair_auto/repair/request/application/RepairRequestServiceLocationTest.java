@@ -94,6 +94,16 @@ class RepairRequestServiceLocationTest {
     }
 
     @Test
+    void givenAddressAtMaximumLength_whenValidateLocation_thenAcceptsAddress() {
+        String address = "A".repeat(500);
+
+        var location = service.validateLocation(new RequestLocationRequest(null, null, address, null), null);
+
+        assertThat(location.address()).isEqualTo(address);
+        assertThat(location.source()).isEqualTo(RequestLocationSource.MANUAL);
+    }
+
+    @Test
     void givenCoordinatesAndAddressWithMapPinSource_whenValidateLocation_thenPreservesMapPinSource() {
         var location = service.validateLocation(
                 new RequestLocationRequest(
@@ -107,6 +117,21 @@ class RepairRequestServiceLocationTest {
         assertThat(location.latitude()).isEqualTo(new BigDecimal("41.3110810"));
         assertThat(location.longitude()).isEqualTo(new BigDecimal("69.2405620"));
         assertThat(location.source()).isEqualTo(RequestLocationSource.MAP_PIN);
+    }
+
+    @Test
+    void givenBoundaryCoordinates_whenValidateLocation_thenAcceptsInclusiveEarthBounds() {
+        var northEast = service.validateLocation(
+                new RequestLocationRequest(new BigDecimal("90"), new BigDecimal("180"), null, null),
+                null);
+        var southWest = service.validateLocation(
+                new RequestLocationRequest(new BigDecimal("-90"), new BigDecimal("-180"), null, null),
+                null);
+
+        assertThat(northEast.latitude()).isEqualTo(new BigDecimal("90"));
+        assertThat(northEast.longitude()).isEqualTo(new BigDecimal("180"));
+        assertThat(southWest.latitude()).isEqualTo(new BigDecimal("-90"));
+        assertThat(southWest.longitude()).isEqualTo(new BigDecimal("-180"));
     }
 
     @Test

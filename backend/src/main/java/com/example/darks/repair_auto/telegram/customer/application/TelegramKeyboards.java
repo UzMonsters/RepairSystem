@@ -1,8 +1,12 @@
 package com.example.darks.repair_auto.telegram.customer.application;
 
 import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
+import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestCategorySummary;
+import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestSummaryResponse;
 import com.example.darks.repair_auto.review.application.EligibleReviewRequest;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -59,9 +63,18 @@ public class TelegramKeyboards {
                 List.of(button(messages.get(language, "back"), "menu:back"))));
     }
 
-    public String history(Long requestId, int page, boolean hasNext, TelegramMessages messages, LanguageCode language) {
+    public String history(
+            List<RepairRequestSummaryResponse> requests,
+            int page,
+            boolean hasNext,
+            TelegramMessages messages,
+            LanguageCode language,
+            DateTimeFormatter dateFormatter) {
         List<List<String>> rows = new java.util.ArrayList<>();
-        rows.add(List.of(button(messages.get(language, "open"), "req:" + requestId)));
+        for (RepairRequestSummaryResponse request : requests) {
+            String label = requestButtonLabel(request, messages, language, dateFormatter);
+            rows.add(List.of(button(label, "req:" + request.id() + ":" + page)));
+        }
         if (page > 0 || hasNext) {
             List<String> paging = new java.util.ArrayList<>();
             if (page > 0) {
@@ -72,17 +85,85 @@ public class TelegramKeyboards {
             }
             rows.add(paging);
         }
-        rows.add(List.of(button(messages.get(language, "back"), "menu:back")));
+        rows.add(List.of(button(messages.get(language, "main_menu_button"), "menu:back")));
         return inline(rows);
     }
 
-    public String requestDetails(Long requestId, boolean canReview, TelegramMessages messages, LanguageCode language) {
+    public String emptyHistory(TelegramMessages messages, LanguageCode language) {
+        return inline(List.of(List.of(button(messages.get(language, "main_menu_button"), "menu:back"))));
+    }
+
+    public String requestDetails(
+            Long requestId,
+            int page,
+            boolean canReview,
+            TelegramMessages messages,
+            LanguageCode language) {
         List<List<String>> rows = new java.util.ArrayList<>();
         if (canReview) {
-            rows.add(List.of(button(messages.get(language, "leave_review"), "revreq:" + requestId)));
+            rows.add(List.of(button(messages.get(language, "leave_review_detail"), "revreq:" + requestId)));
         }
-        rows.add(List.of(button(messages.get(language, "back"), "menu:back")));
+        rows.add(List.of(button(messages.get(language, "back_to_requests"), "hist:" + page)));
+        rows.add(List.of(button(messages.get(language, "main_menu_button"), "menu:back")));
         return inline(rows);
+    }
+
+    public String requestButtonLabel(
+            RepairRequestSummaryResponse request,
+            TelegramMessages messages,
+            LanguageCode language,
+            DateTimeFormatter dateFormatter) {
+        String icon = messages.statusIcon(request.status());
+        String category = categorySummaryLabel(request.category(), language);
+        String date = "";
+        if (request.createdAt() != null && dateFormatter != null) {
+            date = dateFormatter.format(Instant.from(request.createdAt()));
+        }
+        String label = icon + " " + truncate(category, 28);
+        if (!date.isBlank()) {
+            label += " · " + date;
+        }
+        return label;
+    }
+
+    public String categorySummaryLabel(RepairRequestCategorySummary category, LanguageCode language) {
+        if (category == null) {
+            return "";
+        }
+        String name = switch (language) {
+            case EN -> category.nameEn();
+            case RU -> category.nameRu();
+            case UZ -> category.nameUz();
+        };
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        if (category.name() != null && !category.name().isBlank()) {
+            return category.name();
+        }
+        if (category.nameUz() != null && !category.nameUz().isBlank()) {
+            return category.nameUz();
+        }
+        if (category.nameRu() != null && !category.nameRu().isBlank()) {
+            return category.nameRu();
+        }
+        if (category.nameEn() != null && !category.nameEn().isBlank()) {
+            return category.nameEn();
+        }
+        return "";
+    }
+
+    public static String truncate(String text, int maxLength) {
+        if (text == null || text.length() <= maxLength) {
+            return text == null ? "" : text;
+        }
+        int codePointCount = text.codePointCount(0, text.length());
+        if (codePointCount <= maxLength) {
+            return text;
+        }
+        int target = maxLength - 1;
+        int offset = text.offsetByCodePoints(0, target);
+        return text.substring(0, offset) + "…";
     }
 
     public String eligibleReviewRequests(List<EligibleReviewRequest> requests, LanguageCode language) {

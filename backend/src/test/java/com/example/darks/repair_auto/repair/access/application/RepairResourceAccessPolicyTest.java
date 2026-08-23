@@ -246,6 +246,34 @@ class RepairResourceAccessPolicyTest {
     }
 
     @Test
+    void givenTechnicianActor_whenCallingCurrentTechnicianHelper_thenSucceeds() {
+        RepairRequest request = new RepairRequest(
+                "REQ-202",
+                customer,
+                category,
+                "Fix pump",
+                "Tashkent",
+                null,
+                null,
+                RepairRequestPriority.NORMAL,
+                null,
+                null,
+                admin,
+                NOW);
+        ReflectionTestUtils.setField(request, "id", 501L);
+
+        when(repairRequestRepository.findWithRelationsById(501L)).thenReturn(Optional.of(request));
+        when(repairAssignmentRepository.findByRepairRequestIdAndTechnicianIdAndStatusInOrderByCreatedAtDesc(
+                eq(501L), eq(202L), any())).thenReturn(List.of(mock(RepairAssignment.class)));
+
+        AuthenticatedMobileActor techActor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 202L, "+998902222222", true);
+
+        RepairRequest result = policy.requireCurrentTechnicianCanReadRequest(techActor, 501L);
+
+        assertThat(result).isSameAs(request);
+    }
+
+    @Test
     void givenTechnicianActor_whenCallingCustomerMethod_thenThrowsAccessDenied() {
         AuthenticatedMobileActor techActor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 202L, "+998902222222", true);
 

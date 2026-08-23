@@ -22,7 +22,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.auth-throttle.max-failures=5")
 @AutoConfigureMockMvc
 class AuthThrottleIntegrationTest extends PostgreSqlIntegrationTest {
 

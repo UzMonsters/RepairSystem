@@ -240,6 +240,65 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void givenConcurrentDuplicateAcceptCallbackThenExactlyOneAssignmentAcceptanceIsPersisted() throws Exception {
+        linkTechnician(9051, 19051);
+        Long requestId = assignedRequest();
+
+        List<Object> results = runConcurrently(
+                () -> {
+                    send(callback(4, 9051, 19051, "cb-accept-concurrent", "taccept:" + requestId));
+                    return null;
+                },
+                () -> {
+                    send(callback(4, 9051, 19051, "cb-accept-concurrent", "taccept:" + requestId));
+                    return null;
+                });
+
+        assertThat(results).filteredOn(result -> result instanceof Exception).isEmpty();
+        var assignment = assignmentRepository.findActiveByRequestId(
+                requestId,
+                RepairAssignmentRepository.ACTIVE_STATUSES).orElseThrow();
+        assertThat(assignment.getStatus()).isEqualTo(AssignmentStatus.ACCEPTED);
+        assertThat(assignmentRepository.findByRepairRequestIdOrderByCreatedAtDesc(requestId)).hasSize(1);
+        assertThat(updateRepository.findAll())
+                .filteredOn(record -> record.getTelegramUpdateId().equals(4L))
+                .singleElement()
+                .extracting(record -> record.getStatus())
+                .isEqualTo(TelegramUpdateStatus.PROCESSED);
+        assertThat(statusHistoryCount(requestId, "ASSIGNED")).isLessThanOrEqualTo(1);
+    }
+
+    @Test
+    void givenConcurrentDuplicateRejectCallbackThenOnlyOneRejectionPromptIsProcessed() throws Exception {
+        linkTechnician(9061, 19061);
+        Long requestId = assignedRequest();
+
+        List<Object> results = runConcurrently(
+                () -> {
+                    send(callback(5, 9061, 19061, "cb-reject-concurrent", "treject:" + requestId));
+                    return null;
+                },
+                () -> {
+                    send(callback(5, 9061, 19061, "cb-reject-concurrent", "treject:" + requestId));
+                    return null;
+                });
+
+        assertThat(results).filteredOn(result -> result instanceof Exception).isEmpty();
+        assertThat(updateRepository.findAll())
+                .filteredOn(record -> record.getTelegramUpdateId().equals(5L))
+                .singleElement()
+                .extracting(record -> record.getStatus())
+                .isEqualTo(TelegramUpdateStatus.PROCESSED);
+        assertThat(telegramBotClient.messages())
+                .filteredOn(message -> message.chatId().equals(19061L))
+                .filteredOn(message -> message.text().contains("Send rejection reason"))
+                .hasSize(1);
+        assertThat(assignmentRepository.findByRepairRequestIdOrderByCreatedAtDesc(requestId))
+                .filteredOn(assignment -> assignment.getStatus() == AssignmentStatus.PENDING)
+                .hasSize(1);
+    }
+
+    @Test
     void givenTechnicianPhotoWhenDiagnosisPhotoUploadedThenTechnicianUploaderIsPersisted() throws Exception {
         linkTechnician(9101, 19101);
         Long requestId = assignedRequest();
@@ -481,6 +540,14 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
                 select count(*) from telegram_technician_link_tokens
                 where used_at is not null
                 """, Integer.class);
+        return count == null ? 0 : count;
+    }
+
+    private int statusHistoryCount(Long requestId, String status) {
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from repair_request_status_history
+                where repair_request_id = ? and to_status = ?
+                """, Integer.class, requestId, status);
         return count == null ? 0 : count;
     }
 
