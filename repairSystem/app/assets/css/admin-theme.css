@@ -1003,6 +1003,18 @@ select:hover {
   color: rgba(174, 185, 225, 0.6);
 }
 
+.form-control:disabled,
+.form-control[readonly],
+.form-select:disabled,
+select:disabled {
+  background: var(--rs-panel-2) !important;
+  border-color: var(--rs-border) !important;
+  color: var(--rs-text-2) !important;
+  -webkit-text-fill-color: var(--rs-text-2);
+  opacity: 1;
+  color-scheme: dark;
+}
+
 .form-control[type="file"] {
   color: var(--rs-text-2);
   color-scheme: dark;

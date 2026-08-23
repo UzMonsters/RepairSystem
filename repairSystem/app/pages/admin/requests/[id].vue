@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
+import { hideModal } from '~/utils/modal'
 import type { AssignmentDetail, Attachment, RepairExecution, RepairRequest, StatusHistoryItem, Technician } from '~/types'
 import type { RealtimeEvent } from '~/types/realtime'
 
@@ -79,10 +80,12 @@ async function deleteRequest() {
   actionError.value = ''
   try {
     await apiFetch(`/requests/${id}`, { method: 'DELETE' })
+    await hideModal('request-delete-modal')
     await navigateTo('/admin/requests')
   } catch (e) {
     if (getApiErrorCode(e) === 'REPAIR_REQUEST_NOT_FOUND') {
       actionError.value = t('requestAlreadyDeleted')
+      await hideModal('request-delete-modal')
       await navigateTo('/admin/requests')
     } else {
       actionError.value = getApiErrorMessage(e, 'Failed to delete request.')
@@ -441,14 +444,6 @@ function can(action: string) {
                       <i class="bi bi-box-arrow-up-right" />
                     </a>
                   </dd>
-                  <template v-if="locationCoordinates !== '-'">
-                    <dt class="col-sm-4">
-                      {{ t('coordinates') }}
-                    </dt>
-                    <dd class="col-sm-8">
-                      <span>{{ locationCoordinates }}</span>
-                    </dd>
-                  </template>
                   <dt class="col-sm-4">
                     {{ t('customerPreferredVisitAt') }}
                   </dt>
