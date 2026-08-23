@@ -114,7 +114,10 @@ public class TelegramMessages {
                 entry("back", "Back"),
                 entry("confirm", "Confirm"),
                 entry("edit", "Edit"),
-                entry("skip", "Skip")));
+                entry("skip", "Skip"),
+                entry("open_on_map", "🗺 Open on map"),
+                entry("location_attached", "Location attached"),
+                entry("cancel_button", "Cancel")));
         messages.put(LanguageCode.RU, Map.ofEntries(
                 entry("choose_language", "Выберите язык."),
                 entry("send_name", "Отправьте ваше полное имя."),
@@ -216,7 +219,10 @@ public class TelegramMessages {
                 entry("back", "Назад"),
                 entry("confirm", "Подтвердить"),
                 entry("edit", "Изменить"),
-                entry("skip", "Пропустить")));
+                entry("skip", "Пропустить"),
+                entry("open_on_map", "🗺 Открыть на карте"),
+                entry("location_attached", "Местоположение указано"),
+                entry("cancel_button", "Отменить")));
         messages.put(LanguageCode.UZ, Map.ofEntries(
                 entry("choose_language", "Tilni tanlang."),
                 entry("send_name", "To'liq ismingizni yuboring."),
@@ -318,7 +324,10 @@ public class TelegramMessages {
                 entry("back", "Orqaga"),
                 entry("confirm", "Tasdiqlash"),
                 entry("edit", "Tahrirlash"),
-                entry("skip", "O'tkazish")));
+                entry("skip", "O'tkazish"),
+                entry("open_on_map", "🗺 Xaritada ochish"),
+                entry("location_attached", "Joylashuv biriktirilgan"),
+                entry("cancel_button", "Bekor qilish")));
     }
 
     public String get(LanguageCode language, String key) {

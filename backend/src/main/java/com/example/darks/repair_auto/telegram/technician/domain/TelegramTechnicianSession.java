@@ -46,7 +46,10 @@ public class TelegramTechnicianSession {
     private String pendingTokenHash;
 
     @Column(name = "selected_request_id")
-    private Long selectedRequestId;
+    private Long pendingRequestId;
+
+    @Column(name = "active_workflow_message_id")
+    private Long activeWorkflowMessageId;
 
     @Column(name = "draft_text", length = 4000)
     private String draftText;
@@ -105,8 +108,16 @@ public class TelegramTechnicianSession {
         return pendingTokenHash;
     }
 
+    public Long getPendingRequestId() {
+        return pendingRequestId;
+    }
+
     public Long getSelectedRequestId() {
-        return selectedRequestId;
+        return pendingRequestId;
+    }
+
+    public Long getActiveWorkflowMessageId() {
+        return activeWorkflowMessageId;
     }
 
     public String getDraftText() {
@@ -130,7 +141,8 @@ public class TelegramTechnicianSession {
         this.language = language;
         this.pendingTokenHash = null;
         this.state = TelegramTechnicianSessionState.MAIN_MENU;
-        this.selectedRequestId = null;
+        this.pendingRequestId = null;
+        this.activeWorkflowMessageId = null;
         this.draftText = null;
         this.updatedAt = now;
     }
@@ -146,8 +158,20 @@ public class TelegramTechnicianSession {
     }
 
     public void selectRequest(Long requestId, OffsetDateTime now) {
-        this.selectedRequestId = requestId;
+        this.pendingRequestId = requestId;
         this.draftText = null;
+        this.updatedAt = now;
+    }
+
+    public void pendingRequest(Long requestId, Long messageId, OffsetDateTime now) {
+        this.pendingRequestId = requestId;
+        this.activeWorkflowMessageId = messageId;
+        this.draftText = null;
+        this.updatedAt = now;
+    }
+
+    public void activeWorkflowMessageId(Long messageId, OffsetDateTime now) {
+        this.activeWorkflowMessageId = messageId;
         this.updatedAt = now;
     }
 
@@ -157,7 +181,8 @@ public class TelegramTechnicianSession {
     }
 
     public void clearDraft(OffsetDateTime now) {
-        this.selectedRequestId = null;
+        this.pendingRequestId = null;
+        this.activeWorkflowMessageId = null;
         this.draftText = null;
         this.updatedAt = now;
     }
@@ -166,7 +191,8 @@ public class TelegramTechnicianSession {
         this.technician = null;
         this.pendingTokenHash = null;
         this.state = TelegramTechnicianSessionState.MAIN_MENU;
-        this.selectedRequestId = null;
+        this.pendingRequestId = null;
+        this.activeWorkflowMessageId = null;
         this.draftText = null;
         this.updatedAt = now;
     }

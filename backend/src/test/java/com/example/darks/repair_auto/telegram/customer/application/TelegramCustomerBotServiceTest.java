@@ -23,6 +23,7 @@ import com.example.darks.repair_auto.repair.request.domain.RepairRequestPriority
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestSource;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequestStatus;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
+import com.example.darks.repair_auto.review.application.CustomerReviewSummary;
 import com.example.darks.repair_auto.review.application.RepairReviewService;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
@@ -36,11 +37,13 @@ import com.example.darks.repair_auto.telegram.customer.infrastructure.TelegramCu
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -750,6 +753,304 @@ class TelegramCustomerBotServiceTest {
                 .contains("🏠 Asosiy menyu");
     }
 
+    @Test
+    void givenRussianLanguageWhenMyRequestsAndDetailsShownThenRussianFormattingUsed() {
+        TelegramCustomerSession session = linkedSession(21021L, 25021L);
+        session.language(LanguageCode.RU, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairRequestRepository requestRepository = mock(RepairRequestRepository.class);
+        RepairRequestService repairRequests = mock(RepairRequestService.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairRequest requestEntity = mock(RepairRequest.class);
+
+        when(sessions.findByTelegramUserIdForUpdate(21021L)).thenReturn(Optional.of(session));
+        when(repairRequests.customerHistory(eq(77L), any(RepairRequestQuery.class), any())).thenReturn(
+                new PageResponse<>(
+                        List.of(summary(101L, "REP-2026-000001", "Washer", RepairRequestStatus.IN_PROGRESS, "2026-08-06T05:45:39Z")),
+                        0, 5, 1, 1, true, true));
+        when(requestRepository.findByIdAndCustomerId(101L, 77L)).thenReturn(Optional.of(requestEntity));
+        when(repairRequests.get(101L)).thenReturn(detail(101L, "REP-2026-000001", "Washer", RepairRequestStatus.IN_PROGRESS, "Шумит барабан", "ул. Чиланзар"));
+
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                requestRepository,
+                mock(CustomerService.class),
+                repairRequests,
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(message(226L, 21021L, 25021L, "Мои заявки"));
+
+        assertThat(botClient.last().text())
+                .contains("📋 Мои заявки")
+                .contains("Выберите заявку для просмотра:");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("🛠 Washer RU · 06.08.2026")
+                .contains("🏠 Главное меню");
+
+        service.handle(callback(227L, 21021L, 25021L, 9011L, "cb-req-ru", "req:101:0"));
+
+        assertThat(botClient.last().text())
+                .contains("🔧 Washer RU")
+                .contains("🛠 В работе")
+                .contains("📝 Описание")
+                .contains("Шумит барабан")
+                .contains("📍 Адрес")
+                .contains("ул. Чиланзар")
+                .contains("🕒 Создано");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("◀️ Вернуться к заявкам")
+                .contains("🏠 Главное меню");
+    }
+
+    @Test
+    void givenEnglishLanguageWhenMyRequestsAndDetailsShownThenEnglishFormattingUsed() {
+        TelegramCustomerSession session = linkedSession(21021L, 25021L);
+        session.language(LanguageCode.EN, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairRequestRepository requestRepository = mock(RepairRequestRepository.class);
+        RepairRequestService repairRequests = mock(RepairRequestService.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairRequest requestEntity = mock(RepairRequest.class);
+
+        when(sessions.findByTelegramUserIdForUpdate(21021L)).thenReturn(Optional.of(session));
+        when(repairRequests.customerHistory(eq(77L), any(RepairRequestQuery.class), any())).thenReturn(
+                new PageResponse<>(
+                        List.of(summary(101L, "REP-2026-000001", "Washer", RepairRequestStatus.SCHEDULED, "2026-08-06T05:45:39Z")),
+                        0, 5, 1, 1, true, true));
+        when(requestRepository.findByIdAndCustomerId(101L, 77L)).thenReturn(Optional.of(requestEntity));
+        when(repairRequests.get(101L)).thenReturn(detail(101L, "REP-2026-000001", "Washer", RepairRequestStatus.SCHEDULED, "Drum noise", "Chilanzar St."));
+
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                requestRepository,
+                mock(CustomerService.class),
+                repairRequests,
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(message(228L, 21021L, 25021L, "My requests"));
+
+        assertThat(botClient.last().text())
+                .contains("📋 My requests")
+                .contains("Select a request to view:");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("🗓 Washer · 06.08.2026")
+                .contains("🏠 Main menu");
+
+        service.handle(callback(229L, 21021L, 25021L, 9012L, "cb-req-en", "req:101:0"));
+
+        assertThat(botClient.last().text())
+                .contains("🔧 Washer")
+                .contains("🗓 Scheduled")
+                .contains("📝 Problem")
+                .contains("Drum noise")
+                .contains("📍 Location")
+                .contains("Chilanzar St.")
+                .contains("🕒 Created");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("◀️ Back to my requests")
+                .contains("🏠 Main menu");
+    }
+
+    @Test
+    void givenLocationVariantsWhenDetailsRenderedThenProperlyFormatted() {
+        TelegramCustomerSession session = linkedSession(21021L, 25021L);
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairRequestRepository requestRepository = mock(RepairRequestRepository.class);
+        RepairRequestService repairRequests = mock(RepairRequestService.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairRequest requestEntity = mock(RepairRequest.class);
+
+        when(sessions.findByTelegramUserIdForUpdate(21021L)).thenReturn(Optional.of(session));
+        when(requestRepository.findByIdAndCustomerId(any(), eq(77L))).thenReturn(Optional.of(requestEntity));
+
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                requestRepository,
+                mock(CustomerService.class),
+                repairRequests,
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        // 1. Coordinates only
+        RepairRequestDetailResponse coordDetail = new RepairRequestDetailResponse(
+                104L, "REP-2026-000004", RepairRequestStatus.NEW, RepairRequestPriority.NORMAL, RepairRequestSource.TELEGRAM,
+                "Coords problem", null, BigDecimal.valueOf(41.311081), BigDecimal.valueOf(69.240562), null, null,
+                new RepairRequestCustomerSummary(77L, "Customer", "+998902020202", LanguageCode.EN, true),
+                new RepairRequestCategorySummary(123L, "Washer", "desc", "Washer", "Washer RU", "Washer UZ", true),
+                null, null, null, OffsetDateTime.parse("2026-08-06T05:45:39Z"), OffsetDateTime.parse("2026-08-06T05:45:39Z"));
+        when(repairRequests.get(104L)).thenReturn(coordDetail);
+
+        service.handle(callback(230L, 21021L, 25021L, 9013L, "cb-req-coords", "req:104:0"));
+        assertThat(botClient.last().text())
+                .contains("📍 Location")
+                .contains("Location attached")
+                .doesNotContain("41.311081");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("https://maps.google.com/?q=41.311081,69.240562");
+
+        // 2. No location at all
+        RepairRequestDetailResponse noLocDetail = new RepairRequestDetailResponse(
+                105L, "REP-2026-000005", RepairRequestStatus.NEW, RepairRequestPriority.NORMAL, RepairRequestSource.TELEGRAM,
+                "No loc problem", null, null, null, null, null,
+                new RepairRequestCustomerSummary(77L, "Customer", "+998902020202", LanguageCode.EN, true),
+                new RepairRequestCategorySummary(123L, "Washer", "desc", "Washer", "Washer RU", "Washer UZ", true),
+                null, null, null, OffsetDateTime.parse("2026-08-06T05:45:39Z"), OffsetDateTime.parse("2026-08-06T05:45:39Z"));
+        when(repairRequests.get(105L)).thenReturn(noLocDetail);
+
+        service.handle(callback(231L, 21021L, 25021L, 9014L, "cb-req-noloc", "req:105:0"));
+        assertThat(botClient.last().text())
+                .doesNotContain("📍 Location")
+                .doesNotContain("📍 Manzil")
+                .doesNotContain("📍 Адрес");
+    }
+
+    @Test
+    void givenSpecialCharactersInFieldsWhenRenderedThenProperlyEscaped() {
+        TelegramCustomerSession session = linkedSession(21021L, 25021L);
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairRequestRepository requestRepository = mock(RepairRequestRepository.class);
+        RepairRequestService repairRequests = mock(RepairRequestService.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairRequest requestEntity = mock(RepairRequest.class);
+
+        when(sessions.findByTelegramUserIdForUpdate(21021L)).thenReturn(Optional.of(session));
+        when(requestRepository.findByIdAndCustomerId(109L, 77L)).thenReturn(Optional.of(requestEntity));
+
+        RepairRequestDetailResponse specialDetail = new RepairRequestDetailResponse(
+                109L, "REP-2026-000009", RepairRequestStatus.NEW, RepairRequestPriority.NORMAL, RepairRequestSource.TELEGRAM,
+                "Special <script>alert('xss')</script> & problem_text *bold*", "Street <1> & 2", null, null, null, null,
+                new RepairRequestCustomerSummary(77L, "Customer", "+998902020202", LanguageCode.EN, true),
+                new RepairRequestCategorySummary(123L, "Washer <A&B>", "desc", "Washer <A&B>", "Washer RU", "Washer UZ", true),
+                null, null, null, OffsetDateTime.parse("2026-08-06T05:45:39Z"), OffsetDateTime.parse("2026-08-06T05:45:39Z"));
+        when(repairRequests.get(109L)).thenReturn(specialDetail);
+
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                requestRepository,
+                mock(CustomerService.class),
+                repairRequests,
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(callback(232L, 21021L, 25021L, 9015L, "cb-req-special", "req:109:0"));
+
+        assertThat(botClient.last().text())
+                .contains("<script>alert('xss')</script>")
+                .contains("&")
+                .contains("Street <1> & 2")
+                .contains("Washer <A&B>");
+    }
+
+    @Test
+    void givenLongCategoryNameWhenButtonLabelGeneratedThenTruncatedSafely() {
+        TelegramKeyboards keyboards = new TelegramKeyboards();
+        TelegramMessages messages = new TelegramMessages();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.of("Asia/Tashkent"));
+
+        String longCategory = "Очень длинная категория по ремонту бытовой техники и электроники";
+        RepairRequestSummaryResponse summary = new RepairRequestSummaryResponse(
+                110L, "REP-2026-000010", RepairRequestStatus.NEW, RepairRequestPriority.NORMAL, RepairRequestSource.TELEGRAM,
+                "desc", "addr", null, "cust",
+                new RepairRequestCategorySummary(123L, longCategory, "desc", longCategory, longCategory, longCategory, true),
+                OffsetDateTime.parse("2026-08-06T05:45:39Z"), OffsetDateTime.parse("2026-08-06T05:45:39Z"));
+
+        String label = keyboards.requestButtonLabel(summary, messages, LanguageCode.RU, formatter);
+
+        assertThat(label)
+                .startsWith("🆕 ")
+                .contains("… · 06.08.2026")
+                .doesNotContain("электроники");
+    }
+
+    @Test
+    void givenAllDomainStatusesWhenStatusFormattedThenAllLanguagesAndIconsAreValid() {
+        TelegramMessages messages = new TelegramMessages();
+        for (RepairRequestStatus status : RepairRequestStatus.values()) {
+            String icon = messages.statusIcon(status);
+            assertThat(icon).isNotBlank().doesNotContain("?");
+
+            String uz = messages.requestStatus(status, LanguageCode.UZ);
+            String ru = messages.requestStatus(status, LanguageCode.RU);
+            String en = messages.requestStatus(status, LanguageCode.EN);
+
+            assertThat(uz).isNotBlank().doesNotContain("telegram.request.status");
+            assertThat(ru).isNotBlank().doesNotContain("telegram.request.status");
+            assertThat(en).isNotBlank().doesNotContain("telegram.request.status");
+        }
+    }
+
+    @Test
+    void givenCompletedAlreadyReviewedRequestWhenDetailsRenderedThenReviewButtonHiddenAndReviewSummaryShown() {
+        TelegramCustomerSession session = linkedSession(21021L, 25021L);
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairRequestRepository requestRepository = mock(RepairRequestRepository.class);
+        RepairRequestService repairRequests = mock(RepairRequestService.class);
+        RepairReviewService reviewService = mock(RepairReviewService.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairRequest requestEntity = mock(RepairRequest.class);
+
+        when(sessions.findByTelegramUserIdForUpdate(21021L)).thenReturn(Optional.of(session));
+        when(requestRepository.findByIdAndCustomerId(103L, 77L)).thenReturn(Optional.of(requestEntity));
+        when(repairRequests.get(103L)).thenReturn(detail(103L, "REP-2026-000003", "Phone", RepairRequestStatus.COMPLETED, "Battery replaced", null));
+        when(reviewService.customerReview(77L, 103L)).thenReturn(new CustomerReviewSummary(501L, 5, "Great service!"));
+        when(reviewService.canReview(77L, 103L)).thenReturn(false);
+
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                requestRepository,
+                mock(CustomerService.class),
+                repairRequests,
+                reviewService,
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(callback(233L, 21021L, 25021L, 9016L, "cb-req-103", "req:103:0"));
+
+        assertThat(botClient.last().text())
+                .contains("Your review: 5/5")
+                .contains("Great service!");
+        assertThat(botClient.last().replyMarkupJson())
+                .doesNotContain("⭐ Leave a review")
+                .contains("◀️ Back to my requests")
+                .contains("🏠 Main menu");
+    }
+
     private TelegramCustomerSession linkedSession(Long userId, Long chatId) {
         OffsetDateTime now = OffsetDateTime.parse("2026-08-06T10:00:00Z");
         Customer customer = Customer.telegram("Reply Action", "+998902020202", userId, chatId, LanguageCode.EN, now);
@@ -894,12 +1195,23 @@ class TelegramCustomerBotServiceTest {
         }
 
         @Override
-        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return (long) messages.size();
+        }
+
+        @Override
+        public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return messageId;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+        }
+
+        @Override
+        public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
         }
 
         @Override

@@ -99,13 +99,36 @@ public class TelegramKeyboards {
             boolean canReview,
             TelegramMessages messages,
             LanguageCode language) {
+        return requestDetails(requestId, page, canReview, null, null, messages, language);
+    }
+
+    public String requestDetails(
+            Long requestId,
+            int page,
+            boolean canReview,
+            java.math.BigDecimal latitude,
+            java.math.BigDecimal longitude,
+            TelegramMessages messages,
+            LanguageCode language) {
         List<List<String>> rows = new java.util.ArrayList<>();
+        if (latitude != null && longitude != null) {
+            String mapUrl = mapUrl(latitude, longitude);
+            rows.add(List.of(urlButton(messages.get(language, "open_on_map"), mapUrl)));
+        }
         if (canReview) {
             rows.add(List.of(button(messages.get(language, "leave_review_detail"), "revreq:" + requestId)));
         }
         rows.add(List.of(button(messages.get(language, "back_to_requests"), "hist:" + page)));
         rows.add(List.of(button(messages.get(language, "main_menu_button"), "menu:back")));
         return inline(rows);
+    }
+
+    public static String mapUrl(java.math.BigDecimal latitude, java.math.BigDecimal longitude) {
+        return "https://maps.google.com/?q=" + latitude.toPlainString() + "," + longitude.toPlainString();
+    }
+
+    public String urlButton(String text, String url) {
+        return "{\"text\":\"" + json(text) + "\",\"url\":\"" + json(url) + "\"}";
     }
 
     public String requestButtonLabel(

@@ -869,6 +869,9 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         private final List<SentMessage> messages = new CopyOnWriteArrayList<>();
         private final List<Boolean> transactionStates = new CopyOnWriteArrayList<>();
         private final Queue<String> failures = new ArrayDeque<>();
+        private final List<SentPhoto> photos = new CopyOnWriteArrayList<>();
+        private final List<SentMediaGroup> mediaGroups = new CopyOnWriteArrayList<>();
+        private final List<SentLocation> locations = new CopyOnWriteArrayList<>();
         private volatile CountDownLatch enteredSend;
         private volatile CountDownLatch releaseSend;
 
@@ -876,6 +879,9 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
             messages.clear();
             transactionStates.clear();
             failures.clear();
+            photos.clear();
+            mediaGroups.clear();
+            locations.clear();
             enteredSend = null;
             releaseSend = null;
         }
@@ -898,7 +904,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         }
 
         @Override
-        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
             transactionStates.add(TransactionSynchronizationManager.isActualTransactionActive());
             CountDownLatch entered = enteredSend;
             CountDownLatch release = releaseSend;
@@ -921,10 +927,21 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 throw new TelegramApiException(failure);
             }
             messages.add(new SentMessage(chatId, text));
+            return (long) messages.size();
+        }
+
+        @Override
+        public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
+            messages.add(new SentMessage(chatId, text));
+            return messageId;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+        }
+
+        @Override
+        public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
         }
 
         @Override
@@ -975,10 +992,6 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         List<SentLocation> locations() {
             return locations;
         }
-
-        private final List<SentPhoto> photos = new CopyOnWriteArrayList<>();
-        private final List<SentMediaGroup> mediaGroups = new CopyOnWriteArrayList<>();
-        private final List<SentLocation> locations = new CopyOnWriteArrayList<>();
     }
 
     record SentMessage(Long chatId, String text) {

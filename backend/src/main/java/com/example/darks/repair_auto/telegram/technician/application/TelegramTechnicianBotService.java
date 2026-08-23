@@ -21,6 +21,7 @@ import com.example.darks.repair_auto.telegram.core.api.TelegramUpdatePayload;
 import com.example.darks.repair_auto.telegram.core.application.TelegramApiException;
 import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient;
 import com.example.darks.repair_auto.telegram.core.application.TelegramFileMetadata;
+import com.example.darks.repair_auto.telegram.core.application.TelegramScreenService;
 import com.example.darks.repair_auto.telegram.technician.domain.TelegramTechnicianSession;
 import com.example.darks.repair_auto.telegram.technician.domain.TelegramTechnicianSessionState;
 import com.example.darks.repair_auto.telegram.technician.infrastructure.TelegramTechnicianSessionRepository;
@@ -28,23 +29,33 @@ import com.example.darks.repair_auto.technician.domain.Technician;
 import com.example.darks.repair_auto.technician.infrastructure.TechnicianRepository;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TelegramTechnicianBotService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TelegramTechnicianBotService.class);
+    private static final int PAGE_SIZE = 5;
+    private static final DateTimeFormatter LIST_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final TelegramTechnicianSessionRepository sessionRepository;
     private final TechnicianRepository technicianRepository;
@@ -55,7 +66,10 @@ public class TelegramTechnicianBotService {
     private final AttachmentService attachmentService;
     private final TechnicianTelegramLinkService linkService;
     private final TelegramBotClient botClient;
+    private final TelegramScreenService screenService;
+    private final DateTimeFormatter listDateFormatter;
     private final Clock clock;
+
     private static final String MENU_PENDING = "menu_pending";
     private static final String MENU_ACTIVE = "menu_active";
     private static final String MENU_RECENT = "menu_recent";
@@ -71,9 +85,11 @@ public class TelegramTechnicianBotService {
             RepairRequestService requestService,
             AttachmentService attachmentService,
             TechnicianTelegramLinkService linkService,
-            @Qualifier("technicianTelegramBotClient") TelegramBotClient botClient) {
+            @Qualifier("technicianTelegramBotClient") TelegramBotClient botClient,
+            TelegramScreenService screenService,
+            ZoneId businessZone) {
         this(sessionRepository, technicianRepository, assignmentRepository, assignmentService, executionService,
-                requestService, attachmentService, linkService, botClient, Clock.systemUTC());
+                requestService, attachmentService, linkService, botClient, screenService, businessZone, Clock.systemUTC());
     }
 
     TelegramTechnicianBotService(
@@ -87,6 +103,23 @@ public class TelegramTechnicianBotService {
             TechnicianTelegramLinkService linkService,
             TelegramBotClient botClient,
             Clock clock) {
+        this(sessionRepository, technicianRepository, assignmentRepository, assignmentService, executionService,
+                requestService, attachmentService, linkService, botClient, new TelegramScreenService(), ZoneOffset.UTC, clock);
+    }
+
+    TelegramTechnicianBotService(
+            TelegramTechnicianSessionRepository sessionRepository,
+            TechnicianRepository technicianRepository,
+            RepairAssignmentRepository assignmentRepository,
+            RepairAssignmentService assignmentService,
+            RepairExecutionService executionService,
+            RepairRequestService requestService,
+            AttachmentService attachmentService,
+            TechnicianTelegramLinkService linkService,
+            TelegramBotClient botClient,
+            TelegramScreenService screenService,
+            ZoneId businessZone,
+            Clock clock) {
         this.sessionRepository = sessionRepository;
         this.technicianRepository = technicianRepository;
         this.assignmentRepository = assignmentRepository;
@@ -96,6 +129,8 @@ public class TelegramTechnicianBotService {
         this.attachmentService = attachmentService;
         this.linkService = linkService;
         this.botClient = botClient;
+        this.screenService = screenService;
+        this.listDateFormatter = LIST_DATE_FORMATTER.withZone(businessZone != null ? businessZone : ZoneOffset.UTC);
         this.clock = clock;
     }
 
@@ -133,6 +168,25 @@ public class TelegramTechnicianBotService {
         botClient.sendMessage(chat.id(), businessError(language, exception.code()), null);
     }
 
+    public void respondBusinessErrorCallback(
+            TelegramUpdatePayload.TelegramCallbackQuery callback,
+            BusinessRuleException exception) {
+        if (callback == null || callback.id() == null) {
+            return;
+        }
+        LanguageCode language = LanguageCode.UZ;
+        if (callback.from() != null && callback.from().id() != null) {
+            language = sessionRepository.findByTelegramUserId(callback.from().id())
+                    .map(TelegramTechnicianSession::getLanguage)
+                    .orElse(LanguageCode.UZ);
+        }
+        String errorMsg = businessError(language, exception.code());
+        botClient.answerCallback(callback.id(), errorMsg, true);
+        if (callback.message() != null && callback.message().chat() != null && callback.message().chat().id() != null) {
+            botClient.sendMessage(callback.message().chat().id(), errorMsg, null);
+        }
+    }
+
     @Transactional(readOnly = true, noRollbackFor = BusinessRuleException.class)
     public void requireSwitchAllowed(Long telegramUserId, Long telegramChatId) {
         TelegramTechnicianSession session = sessionRepository.findByTelegramUserId(telegramUserId)
@@ -140,27 +194,51 @@ public class TelegramTechnicianBotService {
                         "TELEGRAM_TECHNICIAN_NOT_LINKED",
                         "Technician profile is not linked.",
                         403));
-        if (!telegramChatId.equals(session.getTelegramChatId())) {
+        if (session.getTechnicianId() == null) {
             throw new BusinessRuleException(
                     "TELEGRAM_TECHNICIAN_NOT_LINKED",
                     "Technician profile is not linked.",
                     403);
         }
-        requireLinkedTechnicianWithoutLock(session);
+        Technician technician = technicianRepository.findById(session.getTechnicianId())
+                .orElseThrow(() -> new BusinessRuleException(
+                        "TELEGRAM_TECHNICIAN_NOT_LINKED",
+                        "Technician profile is not linked.",
+                        403));
+        if (!technician.isActive()) {
+            throw new BusinessRuleException(
+                    "TECHNICIAN_INACTIVE",
+                    "Technician profile is not available.",
+                    409);
+        }
+        if (technician.getTelegramUserId() == null
+                || !technician.getTelegramUserId().equals(telegramUserId)
+                || technician.getTelegramChatId() == null
+                || !technician.getTelegramChatId().equals(telegramChatId)) {
+            throw new BusinessRuleException(
+                    "TELEGRAM_TECHNICIAN_NOT_LINKED",
+                    "Technician profile is not linked.",
+                    403);
+        }
     }
 
     private void handleMessage(TelegramTechnicianSession session, TelegramUpdatePayload update) {
         String text = trim(update.text());
         if (text != null && text.startsWith("/start tech_")) {
-            session.pendingLink(linkService.hash(text.substring("/start tech_".length())), now());
+            String token = text.substring("/start tech_".length()).trim();
+            session.pendingLink(linkService.hash(token), now());
             send(session, "choose_language", languageKeyboard());
             return;
         }
-        if ("/technician".equalsIgnoreCase(text) || "/menu".equalsIgnoreCase(text)) {
-            showMenu(session);
+        if ("/start".equalsIgnoreCase(text)) {
+            if (linked(session)) {
+                showMenu(session);
+                return;
+            }
+            send(session, "not_linked", null);
             return;
         }
-        if ("/start".equalsIgnoreCase(text)) {
+        if ("/technician".equalsIgnoreCase(text) || "/menu".equalsIgnoreCase(text)) {
             showMenu(session);
             return;
         }
@@ -178,10 +256,6 @@ public class TelegramTechnicianBotService {
     }
 
     private void handleText(TelegramTechnicianSession session, String text) {
-        if (!linked(session)) {
-            send(session, "not_linked", null);
-            return;
-        }
         if (text == null) {
             send(session, "invalid_action", mainKeyboard(session.getLanguage()));
             return;
@@ -189,52 +263,111 @@ public class TelegramTechnicianBotService {
         if (handleMenuText(session, text)) {
             return;
         }
-        Long requestId = session.getSelectedRequestId();
         switch (session.getState()) {
-            case AWAITING_REJECTION_REASON -> {
-                assignmentService.rejectByTechnician(requestId, new AssignmentRejectionRequest(text), session.getTechnicianId());
-                session.clearDraft(now());
-                session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "rejected", mainKeyboard(session.getLanguage()));
-            }
-            case AWAITING_DIAGNOSIS -> {
-                executionService.updateDiagnosisByTechnician(requestId, new DiagnosisRequest(text), session.getTechnicianId());
-                session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "diagnosis_saved", completionDraftReady(session)
-                        ? completeKeyboard(requestId, session.getLanguage())
-                        : jobKeyboard(requestId, session.getLanguage()));
-            }
-            case AWAITING_WAIT_REASON -> {
-                executionService.waitForPartsByTechnician(requestId, new WaitForPartsRequest(text), session.getTechnicianId());
-                session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "waiting", jobKeyboard(requestId, session.getLanguage()));
-            }
-            case AWAITING_RESUME_NOTE -> {
-                executionService.resumeByTechnician(requestId, new ResumeRepairRequest(text), session.getTechnicianId());
-                session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-                send(session, "resumed", jobKeyboard(requestId, session.getLanguage()));
-            }
-            case AWAITING_WORK_PERFORMED -> {
-                session.draftText(text, now());
-                session.state(TelegramTechnicianSessionState.AWAITING_COMPLETION_PHOTO, now());
-                send(session, "send_completion_photo", null);
-            }
+            case AWAITING_REJECTION_REASON -> handleRejectionReason(session, text);
+            case AWAITING_DIAGNOSIS -> handleDiagnosisText(session, text);
+            case AWAITING_WAIT_REASON -> handleWaitReasonText(session, text);
+            case AWAITING_WORK_PERFORMED -> handleWorkPerformedText(session, text);
             default -> send(session, "invalid_action", mainKeyboard(session.getLanguage()));
         }
     }
 
+    private void handleRejectionReason(TelegramTechnicianSession session, String text) {
+        Long requestId = session.getPendingRequestId();
+        requireOwnedActiveAssignment(session, requestId);
+        assignmentService.rejectByTechnician(
+                requestId,
+                new AssignmentRejectionRequest(text),
+                session.getTechnicianId());
+        Long activeId = session.getActiveWorkflowMessageId();
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
+        screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                activeId,
+                msg(session.getLanguage(), "rejected"),
+                null);
+        send(session, "main_menu", mainKeyboard(session.getLanguage()));
+    }
+
+    private void handleDiagnosisText(TelegramTechnicianSession session, String text) {
+        Long requestId = session.getPendingRequestId();
+        requireOwnedActiveAssignment(session, requestId);
+        executionService.updateDiagnosisByTechnician(
+                requestId,
+                new DiagnosisRequest(text),
+                session.getTechnicianId());
+        Long activeId = session.getActiveWorkflowMessageId();
+        if (session.getDraftText() != null && !session.getDraftText().isBlank()) {
+            screenService.sendOrEdit(
+                    botClient,
+                    session.getTelegramChatId(),
+                    activeId,
+                    msg(session.getLanguage(), "diagnosis_saved"),
+                    completeKeyboard(requestId, "a", 0, session.getLanguage()));
+            return;
+        }
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
+        RepairRequestDetailResponse detail = requestService.get(requestId);
+        screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                activeId,
+                msg(session.getLanguage(), "diagnosis_saved") + "\n\n" + detailText(detail, session.getLanguage()),
+                jobKeyboard(requestId, "a", 0, session.getLanguage()));
+    }
+
+    private void handleWaitReasonText(TelegramTechnicianSession session, String text) {
+        Long requestId = session.getPendingRequestId();
+        requireOwnedActiveAssignment(session, requestId);
+        executionService.waitForPartsByTechnician(
+                requestId,
+                new WaitForPartsRequest(text),
+                session.getTechnicianId());
+        Long activeId = session.getActiveWorkflowMessageId();
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
+        RepairRequestDetailResponse detail = requestService.get(requestId);
+        screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                activeId,
+                msg(session.getLanguage(), "waiting") + "\n\n" + detailText(detail, session.getLanguage()),
+                jobKeyboard(requestId, "a", 0, session.getLanguage()));
+    }
+
+    private void handleWorkPerformedText(TelegramTechnicianSession session, String text) {
+        Long requestId = session.getPendingRequestId();
+        requireOwnedActiveAssignment(session, requestId);
+        session.draftText(text, now());
+        session.state(TelegramTechnicianSessionState.AWAITING_COMPLETION_PHOTO, now());
+        Long activeId = session.getActiveWorkflowMessageId();
+        Long msgId = screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                activeId,
+                msg(session.getLanguage(), "send_completion_photo"),
+                cancelInputKeyboard(requestId, "a", 0, session.getLanguage()));
+        session.activeWorkflowMessageId(msgId, now());
+    }
+
     private boolean handleMenuText(TelegramTechnicianSession session, String text) {
+        if (!linked(session)) {
+            return false;
+        }
         String action = menuAction(text);
         if (MENU_PENDING.equals(action)) {
-            showAssignments(session, AssignmentStatus.PENDING);
+            showAssignments(session, AssignmentStatus.PENDING, 0, null);
             return true;
         }
         if (MENU_ACTIVE.equals(action)) {
-            showActive(session);
+            showActive(session, 0, null);
             return true;
         }
         if (MENU_RECENT.equals(action)) {
-            showRecent(session);
+            showRecent(session, 0, null);
             return true;
         }
         if (MENU_LANGUAGE.equals(action)) {
@@ -266,78 +399,286 @@ public class TelegramTechnicianBotService {
             TelegramTechnicianSession session,
             TelegramUpdatePayload.TelegramCallbackQuery callback) {
         String data = callback.data() == null ? "" : callback.data();
+        Long callbackMessageId = callback.message() == null ? null : callback.message().messageId();
+
         if (data.startsWith("tlang:")) {
-            chooseLanguage(session, data.substring("tlang:".length()));
+            chooseLanguage(session, data.substring("tlang:".length()), callbackMessageId);
             if (callback.id() != null) {
                 botClient.answerCallback(callback.id(), "");
             }
             return;
         }
         requireLinkedTechnician(session);
-        if (data.equals("tmenu:pending")) {
-            showAssignments(session, AssignmentStatus.PENDING);
+
+        if (data.equals("tmenu:main")) {
+            showMenu(session);
+        } else if (data.startsWith("tlist:")) {
+            handleListCallback(session, data, callbackMessageId);
+        } else if (data.equals("tmenu:pending")) {
+            showAssignments(session, AssignmentStatus.PENDING, 0, callbackMessageId);
         } else if (data.equals("tmenu:active")) {
-            showActive(session);
+            showActive(session, 0, callbackMessageId);
         } else if (data.equals("tmenu:recent")) {
-            showRecent(session);
+            showRecent(session, 0, callbackMessageId);
         } else if (data.equals("tmenu:lang")) {
-            send(session, "choose_language", languageKeyboard());
+            screenService.sendOrEdit(
+                    botClient,
+                    session.getTelegramChatId(),
+                    callbackMessageId,
+                    msg(session.getLanguage(), "choose_language"),
+                    languageKeyboard());
         } else if (data.startsWith("tjob:")) {
-            showJob(session, parseId(data, "tjob:"));
+            handleJobCallback(session, data, callbackMessageId);
         } else if (data.startsWith("taccept:")) {
-            Long requestId = parseId(data, "taccept:");
-            assignmentService.acceptByTechnician(requestId, session.getTechnicianId());
-            send(session, "accepted", jobKeyboard(requestId, session.getLanguage()));
+            handleAcceptCallback(session, data, callbackMessageId);
         } else if (data.startsWith("treject:")) {
-            session.selectRequest(parseId(data, "treject:"), now());
-            session.state(TelegramTechnicianSessionState.AWAITING_REJECTION_REASON, now());
-            send(session, "send_rejection_reason", null);
+            handleRejectCallback(session, data, callback, callbackMessageId);
         } else if (data.startsWith("tstart:")) {
-            Long requestId = parseId(data, "tstart:");
-            executionService.startByTechnician(requestId, session.getTechnicianId());
-            send(session, "started", jobKeyboard(requestId, session.getLanguage()));
+            handleStartCallback(session, data, callbackMessageId);
         } else if (data.startsWith("tdiagnosis:")) {
-            session.selectRequest(parseId(data, "tdiagnosis:"), now());
-            session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS, now());
-            send(session, "send_diagnosis", null);
+            handleDiagnosisCallback(session, data, callback, callbackMessageId);
         } else if (data.startsWith("twait:")) {
-            session.selectRequest(parseId(data, "twait:"), now());
-            session.state(TelegramTechnicianSessionState.AWAITING_WAIT_REASON, now());
-            send(session, "send_wait_reason", null);
+            handleWaitCallback(session, data, callback, callbackMessageId);
         } else if (data.startsWith("tresume:")) {
-            Long requestId = parseId(data, "tresume:");
-            executionService.resumeByTechnician(
-                    requestId,
-                    new ResumeRepairRequest(null),
-                    session.getTechnicianId());
-            session.clearDraft(now());
-            session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-            send(session, "resumed", jobKeyboard(requestId, session.getLanguage()));
+            handleResumeCallback(session, data, callbackMessageId);
         } else if (data.startsWith("tdiagphoto:")) {
-            session.selectRequest(parseId(data, "tdiagphoto:"), now());
-            session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS_PHOTO, now());
-            send(session, "send_diagnosis_photo", null);
+            handleDiagPhotoCallback(session, data, callback, callbackMessageId);
         } else if (data.startsWith("twork:")) {
-            session.selectRequest(parseId(data, "twork:"), now());
-            session.state(TelegramTechnicianSessionState.AWAITING_WORK_PERFORMED, now());
-            send(session, "send_work", null);
+            handleWorkCallback(session, data, callback, callbackMessageId);
         } else if (data.startsWith("tcomplete:")) {
-            Long requestId = parseId(data, "tcomplete:");
-            executionService.completeByTechnician(
-                    requestId,
-                    new CompleteRepairRequest(session.getDraftText(), null),
-                    session.getTechnicianId());
-            session.clearDraft(now());
-            send(session, "completed", mainKeyboard(session.getLanguage()));
+            handleCompleteCallback(session, data, callbackMessageId);
+        } else if (data.startsWith("tcancelinput:")) {
+            handleCancelInputCallback(session, data, callbackMessageId);
         } else {
             send(session, "invalid_action", mainKeyboard(session.getLanguage()));
         }
+
         if (callback.id() != null) {
             botClient.answerCallback(callback.id(), "");
         }
     }
 
-    private void chooseLanguage(TelegramTechnicianSession session, String code) {
+    private boolean checkPendingInputCollision(
+            TelegramTechnicianSession session,
+            Long targetRequestId,
+            TelegramUpdatePayload.TelegramCallbackQuery callback) {
+        if (session.getPendingRequestId() != null
+                && !session.getPendingRequestId().equals(targetRequestId)
+                && session.getState() != null
+                && session.getState().isAwaitingInput()) {
+            if (callback.id() != null) {
+                botClient.answerCallback(callback.id(), msg(session.getLanguage(), "finish_current_input_first"), true);
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private void handleListCallback(TelegramTechnicianSession session, String data, Long callbackMessageId) {
+        String[] parts = data.split(":");
+        String origin = parts.length > 1 ? parts[1] : "p";
+        int page = parts.length > 2 ? parseInt(parts[2], 0) : 0;
+        if ("a".equals(origin)) {
+            showActive(session, page, callbackMessageId);
+        } else if ("r".equals(origin)) {
+            showRecent(session, page, callbackMessageId);
+        } else {
+            showAssignments(session, AssignmentStatus.PENDING, page, callbackMessageId);
+        }
+    }
+
+    private void handleJobCallback(TelegramTechnicianSession session, String data, Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "p";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        showJob(session, requestId, origin, page, callbackMessageId);
+    }
+
+    private void handleAcceptCallback(TelegramTechnicianSession session, String data, Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "p";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        assignmentService.acceptByTechnician(requestId, session.getTechnicianId());
+        showJob(session, requestId, origin, page, callbackMessageId);
+    }
+
+    private void handleRejectCallback(
+            TelegramTechnicianSession session,
+            String data,
+            TelegramUpdatePayload.TelegramCallbackQuery callback,
+            Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "p";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        if (!checkPendingInputCollision(session, requestId, callback)) {
+            return;
+        }
+        requireOwnedActiveAssignment(session, requestId);
+        session.pendingRequest(requestId, callbackMessageId, now());
+        session.state(TelegramTechnicianSessionState.AWAITING_REJECTION_REASON, now());
+        Long msgId = screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                callbackMessageId,
+                msg(session.getLanguage(), "send_rejection_reason"),
+                cancelInputKeyboard(requestId, origin, page, session.getLanguage()));
+        session.activeWorkflowMessageId(msgId, now());
+    }
+
+    private void handleStartCallback(TelegramTechnicianSession session, String data, Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "a";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        executionService.startByTechnician(requestId, session.getTechnicianId());
+        showJob(session, requestId, origin, page, callbackMessageId);
+    }
+
+    private void handleDiagnosisCallback(
+            TelegramTechnicianSession session,
+            String data,
+            TelegramUpdatePayload.TelegramCallbackQuery callback,
+            Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "a";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        if (!checkPendingInputCollision(session, requestId, callback)) {
+            return;
+        }
+        requireOwnedActiveAssignment(session, requestId);
+        session.pendingRequest(requestId, callbackMessageId, now());
+        session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS, now());
+        Long msgId = screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                callbackMessageId,
+                msg(session.getLanguage(), "send_diagnosis"),
+                cancelInputKeyboard(requestId, origin, page, session.getLanguage()));
+        session.activeWorkflowMessageId(msgId, now());
+    }
+
+    private void handleWaitCallback(
+            TelegramTechnicianSession session,
+            String data,
+            TelegramUpdatePayload.TelegramCallbackQuery callback,
+            Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "a";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        if (!checkPendingInputCollision(session, requestId, callback)) {
+            return;
+        }
+        requireOwnedActiveAssignment(session, requestId);
+        session.pendingRequest(requestId, callbackMessageId, now());
+        session.state(TelegramTechnicianSessionState.AWAITING_WAIT_REASON, now());
+        Long msgId = screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                callbackMessageId,
+                msg(session.getLanguage(), "send_wait_reason"),
+                cancelInputKeyboard(requestId, origin, page, session.getLanguage()));
+        session.activeWorkflowMessageId(msgId, now());
+    }
+
+    private void handleResumeCallback(TelegramTechnicianSession session, String data, Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "a";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        executionService.resumeByTechnician(
+                requestId,
+                new ResumeRepairRequest(null),
+                session.getTechnicianId());
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
+        showJob(session, requestId, origin, page, callbackMessageId);
+    }
+
+    private void handleDiagPhotoCallback(
+            TelegramTechnicianSession session,
+            String data,
+            TelegramUpdatePayload.TelegramCallbackQuery callback,
+            Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "a";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        if (!checkPendingInputCollision(session, requestId, callback)) {
+            return;
+        }
+        requireOwnedActiveAssignment(session, requestId);
+        session.pendingRequest(requestId, callbackMessageId, now());
+        session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS_PHOTO, now());
+        Long msgId = screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                callbackMessageId,
+                msg(session.getLanguage(), "send_diagnosis_photo"),
+                cancelInputKeyboard(requestId, origin, page, session.getLanguage()));
+        session.activeWorkflowMessageId(msgId, now());
+    }
+
+    private void handleWorkCallback(
+            TelegramTechnicianSession session,
+            String data,
+            TelegramUpdatePayload.TelegramCallbackQuery callback,
+            Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "a";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        if (!checkPendingInputCollision(session, requestId, callback)) {
+            return;
+        }
+        requireOwnedActiveAssignment(session, requestId);
+        session.pendingRequest(requestId, callbackMessageId, now());
+        session.state(TelegramTechnicianSessionState.AWAITING_WORK_PERFORMED, now());
+        Long msgId = screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                callbackMessageId,
+                msg(session.getLanguage(), "send_work"),
+                cancelInputKeyboard(requestId, origin, page, session.getLanguage()));
+        session.activeWorkflowMessageId(msgId, now());
+    }
+
+    private void handleCompleteCallback(TelegramTechnicianSession session, String data, Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "a";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        executionService.completeByTechnician(
+                requestId,
+                new CompleteRepairRequest(session.getDraftText(), null),
+                session.getTechnicianId());
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
+        RepairRequestDetailResponse detail = requestService.get(requestId);
+        String text = "✅ " + msg(session.getLanguage(), "completed") + "\n\n" + detailText(detail, session.getLanguage());
+        screenService.sendOrEdit(
+                botClient,
+                session.getTelegramChatId(),
+                callbackMessageId,
+                text,
+                completedJobKeyboard(origin, page, session.getLanguage()));
+    }
+
+    private void handleCancelInputCallback(TelegramTechnicianSession session, String data, Long callbackMessageId) {
+        String[] parts = data.split(":");
+        Long requestId = parseLong(parts[1]);
+        String origin = parts.length > 2 ? parts[2] : "a";
+        int page = parts.length > 3 ? parseInt(parts[3], 0) : 0;
+        session.clearDraft(now());
+        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
+        showJob(session, requestId, origin, page, callbackMessageId);
+    }
+
+    private void chooseLanguage(TelegramTechnicianSession session, String code, Long callbackMessageId) {
         LanguageCode language = parseLanguage(code);
         if (session.getPendingTokenHash() != null) {
             Technician technician = linkService.consume(
@@ -346,7 +687,13 @@ public class TelegramTechnicianBotService {
                     session.getTelegramChatId(),
                     language).technician();
             session.link(technician, language, now());
-            send(session, "linked", mainKeyboard(language));
+            screenService.sendOrEdit(
+                    botClient,
+                    session.getTelegramChatId(),
+                    callbackMessageId,
+                    msg(language, "linked"),
+                    null);
+            send(session, "main_menu", mainKeyboard(language));
             return;
         }
         if (!linked(session)) {
@@ -370,7 +717,11 @@ public class TelegramTechnicianBotService {
         send(session, "main_menu", mainKeyboard(session.getLanguage()));
     }
 
-    private void showAssignments(TelegramTechnicianSession session, AssignmentStatus status) {
+    private void showAssignments(
+            TelegramTechnicianSession session,
+            AssignmentStatus status,
+            int page,
+            Long messageIdToEdit) {
         if (!linked(session)) {
             send(session, "not_linked", null);
             return;
@@ -378,12 +729,15 @@ public class TelegramTechnicianBotService {
         requireLinkedTechnician(session);
         session.clearDraft(now());
         session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-        List<RepairAssignment> assignments = assignmentRepository
-                .findByTechnicianIdAndStatusOrderByCreatedAtDesc(session.getTechnicianId(), status);
-        sendList(session, assignments);
+        Page<RepairAssignment> assignmentPage = assignmentRepository
+                .findJobsByTechnicianIdAndStatusIn(
+                        session.getTechnicianId(),
+                        List.of(status),
+                        PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt")));
+        sendList(session, assignmentPage, "p", "jobs_pending_title", messageIdToEdit);
     }
 
-    private void showActive(TelegramTechnicianSession session) {
+    private void showActive(TelegramTechnicianSession session, int page, Long messageIdToEdit) {
         if (!linked(session)) {
             send(session, "not_linked", null);
             return;
@@ -391,12 +745,15 @@ public class TelegramTechnicianBotService {
         requireLinkedTechnician(session);
         session.clearDraft(now());
         session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-        sendList(session, assignmentRepository.findByTechnicianIdAndStatusInOrderByCreatedAtDesc(
-                session.getTechnicianId(),
-                List.of(AssignmentStatus.ACCEPTED)));
+        Page<RepairAssignment> assignmentPage = assignmentRepository
+                .findJobsByTechnicianIdAndStatusIn(
+                        session.getTechnicianId(),
+                        List.of(AssignmentStatus.ACCEPTED),
+                        PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt")));
+        sendList(session, assignmentPage, "a", "jobs_active_title", messageIdToEdit);
     }
 
-    private void showRecent(TelegramTechnicianSession session) {
+    private void showRecent(TelegramTechnicianSession session, int page, Long messageIdToEdit) {
         if (!linked(session)) {
             send(session, "not_linked", null);
             return;
@@ -404,42 +761,53 @@ public class TelegramTechnicianBotService {
         requireLinkedTechnician(session);
         session.clearDraft(now());
         session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-        sendList(session, assignmentRepository.findByTechnicianIdAndStatusInOrderByCreatedAtDesc(
-                session.getTechnicianId(),
-                List.of(AssignmentStatus.REJECTED, AssignmentStatus.COMPLETED, AssignmentStatus.CANCELLED)));
+        Page<RepairAssignment> assignmentPage = assignmentRepository
+                .findJobsByTechnicianIdAndStatusIn(
+                        session.getTechnicianId(),
+                        List.of(AssignmentStatus.REJECTED, AssignmentStatus.COMPLETED, AssignmentStatus.CANCELLED),
+                        PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt")));
+        sendList(session, assignmentPage, "r", "jobs_recent_title", messageIdToEdit);
     }
 
-    private void sendList(TelegramTechnicianSession session, List<RepairAssignment> assignments) {
-        if (assignments.isEmpty()) {
-            send(session, "empty_jobs", mainKeyboard(session.getLanguage()));
+    private void sendList(
+            TelegramTechnicianSession session,
+            Page<RepairAssignment> assignmentPage,
+            String origin,
+            String titleKey,
+            Long messageIdToEdit) {
+        if (assignmentPage.isEmpty()) {
+            screenService.sendOrEdit(
+                    botClient,
+                    session.getTelegramChatId(),
+                    messageIdToEdit,
+                    msg(session.getLanguage(), "empty_jobs"),
+                    emptyListKeyboard(session.getLanguage()));
             return;
         }
-        List<RepairAssignment> visibleAssignments = assignments.stream().limit(10).toList();
-        StringBuilder builder = new StringBuilder(msg(session.getLanguage(), "jobs"));
-        for (int index = 0; index < visibleAssignments.size(); index++) {
-            RepairAssignment assignment = visibleAssignments.get(index);
-            builder.append("\n")
-                    .append(index + 1)
-                    .append(". ")
-                    .append(jobLabel(assignment, session.getLanguage()))
-                    .append(" | ")
-                    .append(status(assignment.getRepairRequest().getStatus(), session.getLanguage()));
-        }
-        botClient.sendMessage(
+        String text = msg(session.getLanguage(), titleKey);
+        screenService.sendOrEdit(
+                botClient,
                 session.getTelegramChatId(),
-                builder.toString(),
-                listKeyboard(visibleAssignments, session.getLanguage()));
+                messageIdToEdit,
+                text,
+                paginatedListKeyboard(assignmentPage, origin, session.getLanguage()));
     }
 
-    private void showJob(TelegramTechnicianSession session, Long requestId) {
+    private void showJob(
+            TelegramTechnicianSession session,
+            Long requestId,
+            String origin,
+            int page,
+            Long messageIdToEdit) {
         requireOwnedActiveAssignment(session, requestId);
-        session.selectRequest(requestId, now());
-        session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
         RepairRequestDetailResponse detail = requestService.get(requestId);
-        botClient.sendMessage(
+        String text = detailText(detail, session.getLanguage());
+        screenService.sendOrEdit(
+                botClient,
                 session.getTelegramChatId(),
-                detailText(detail, session.getLanguage()),
-                jobKeyboard(requestId, session.getLanguage()));
+                messageIdToEdit,
+                text,
+                jobKeyboard(requestId, origin, page, session.getLanguage()));
     }
 
     private void handlePhoto(TelegramTechnicianSession session, List<TelegramUpdatePayload.TelegramPhotoSize> photos) {
@@ -448,7 +816,7 @@ public class TelegramTechnicianBotService {
             send(session, "invalid_action", mainKeyboard(session.getLanguage()));
             return;
         }
-        Long requestId = session.getSelectedRequestId();
+        Long requestId = session.getPendingRequestId();
         requireOwnedActiveAssignmentForUpload(session, requestId);
         TelegramUpdatePayload.TelegramPhotoSize photo = photos.stream()
                 .max(Comparator.comparingLong(this::photoWeight))
@@ -491,23 +859,37 @@ public class TelegramTechnicianBotService {
                     exception.getMessage());
             throw new BusinessRuleException("ATTACHMENT_STORAGE_FAILED", "Attachment upload failed.", 503);
         }
+        Long activeId = session.getActiveWorkflowMessageId();
         if (type == AttachmentType.COMPLETION_PHOTO) {
             if (diagnosisPresent(requestId)) {
-                send(session, "completion_photo_saved", completeKeyboard(requestId, session.getLanguage()));
+                Long msgId = screenService.sendOrEdit(
+                        botClient,
+                        session.getTelegramChatId(),
+                        activeId,
+                        msg(session.getLanguage(), "completion_photo_saved"),
+                        completeKeyboard(requestId, "a", 0, session.getLanguage()));
+                session.activeWorkflowMessageId(msgId, now());
             } else {
                 session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS, now());
-                send(session, "send_diagnosis", null);
+                Long msgId = screenService.sendOrEdit(
+                        botClient,
+                        session.getTelegramChatId(),
+                        activeId,
+                        msg(session.getLanguage(), "send_diagnosis"),
+                        cancelInputKeyboard(requestId, "a", 0, session.getLanguage()));
+                session.activeWorkflowMessageId(msgId, now());
             }
         } else {
+            session.clearDraft(now());
             session.state(TelegramTechnicianSessionState.MAIN_MENU, now());
-            send(session, "diagnosis_photo_saved", jobKeyboard(requestId, session.getLanguage()));
+            RepairRequestDetailResponse detail = requestService.get(requestId);
+            screenService.sendOrEdit(
+                    botClient,
+                    session.getTelegramChatId(),
+                    activeId,
+                    msg(session.getLanguage(), "diagnosis_photo_saved") + "\n\n" + detailText(detail, session.getLanguage()),
+                    jobKeyboard(requestId, "a", 0, session.getLanguage()));
         }
-    }
-
-    private boolean completionDraftReady(TelegramTechnicianSession session) {
-        return session.getSelectedRequestId() != null
-                && session.getDraftText() != null
-                && !session.getDraftText().isBlank();
     }
 
     private boolean diagnosisPresent(Long requestId) {
@@ -603,24 +985,77 @@ public class TelegramTechnicianBotService {
     }
 
     private String detailText(RepairRequestDetailResponse detail, LanguageCode language) {
-        return msg(language, "customer") + ": " + detail.customer().fullName()
-                + "\n" + msg(language, "category") + ": " + switch (language) {
-                    case EN -> detail.category().nameEn();
-                    case RU -> detail.category().nameRu();
-                    case UZ -> detail.category().nameUz();
-                }
-                + "\n" + msg(language, "status") + ": " + status(detail.status(), language)
-                + "\n" + msg(language, "description") + ": " + detail.description()
-                + "\n" + msg(language, "location") + ": " + (detail.address() == null
-                ? detail.latitude() + ", " + detail.longitude()
-                : detail.address());
+        String categoryName = switch (language) {
+            case EN -> detail.category().nameEn();
+            case RU -> detail.category().nameRu();
+            case UZ -> detail.category().nameUz();
+        };
+        String locationDisplay = extractLocationDisplay(detail, language);
+        StringBuilder builder = new StringBuilder();
+        builder.append(msg(language, "customer")).append(": ").append(detail.customer().fullName())
+                .append("\n").append(msg(language, "category")).append(": ").append(categoryName)
+                .append("\n").append(msg(language, "status")).append(": ").append(status(detail.status(), language))
+                .append("\n").append(msg(language, "description")).append(": ").append(detail.description());
+        if (locationDisplay != null && !locationDisplay.isBlank()) {
+            builder.append("\n").append(msg(language, "location")).append(": ").append(locationDisplay);
+        }
+        return builder.toString();
+    }
+
+    private String extractLocationDisplay(RepairRequestDetailResponse detail, LanguageCode language) {
+        if (detail.location() != null) {
+            if (detail.location().address() != null && !detail.location().address().isBlank()) {
+                return detail.location().address();
+            }
+            if (detail.location().latitude() != null && detail.location().longitude() != null) {
+                return msg(language, "location_attached");
+            }
+        }
+        if (detail.address() != null && !detail.address().isBlank()) {
+            return detail.address();
+        }
+        if (detail.latitude() != null && detail.longitude() != null) {
+            return msg(language, "location_attached");
+        }
+        return null;
+    }
+
+    private BigDecimal extractLatitude(RepairRequestDetailResponse detail) {
+        if (detail.location() != null && detail.location().latitude() != null) {
+            return detail.location().latitude();
+        }
+        return detail.latitude();
+    }
+
+    private BigDecimal extractLongitude(RepairRequestDetailResponse detail) {
+        if (detail.location() != null && detail.location().longitude() != null) {
+            return detail.location().longitude();
+        }
+        return detail.longitude();
     }
 
     private String jobLabel(RepairAssignment assignment, LanguageCode language) {
-        return switch (language) {
+        String name = switch (language) {
             case EN -> assignment.getRepairRequest().getCategory().getNameEn();
             case RU -> assignment.getRepairRequest().getCategory().getNameRu();
             case UZ -> assignment.getRepairRequest().getCategory().getNameUz();
+        };
+        String date = "";
+        if (assignment.getRepairRequest().getCreatedAt() != null) {
+            date = listDateFormatter.format(Instant.from(assignment.getRepairRequest().getCreatedAt()));
+        }
+        String icon = statusIcon(assignment.getRepairRequest().getStatus());
+        return icon + " " + name + (date.isBlank() ? "" : " · " + date);
+    }
+
+    private String statusIcon(RepairRequestStatus status) {
+        return switch (status) {
+            case NEW -> "🆕";
+            case ASSIGNED, SCHEDULED -> "📌";
+            case IN_PROGRESS -> "⚙️";
+            case WAITING_FOR_PARTS -> "⏳";
+            case COMPLETED -> "✅";
+            case CANCELLED -> "❌";
         };
     }
 
@@ -637,51 +1072,103 @@ public class TelegramTechnicianBotService {
                 button("O'zbek", "tlang:UZ"))));
     }
 
-    private String listKeyboard(List<RepairAssignment> assignments, LanguageCode language) {
-        List<List<String>> rows = new java.util.ArrayList<>();
-        for (int index = 0; index < assignments.size(); index++) {
-            RepairAssignment assignment = assignments.get(index);
+    private String paginatedListKeyboard(
+            Page<RepairAssignment> page,
+            String origin,
+            LanguageCode language) {
+        List<List<String>> rows = new ArrayList<>();
+        for (RepairAssignment assignment : page.getContent()) {
             rows.add(List.of(button(
-                    msg(language, "open") + " " + (index + 1),
-                    "tjob:" + assignment.getRepairRequest().getId())));
+                    jobLabel(assignment, language),
+                    "tjob:" + assignment.getRepairRequest().getId() + ":" + origin + ":" + page.getNumber())));
         }
+        if (page.getNumber() > 0 || page.hasNext()) {
+            List<String> paging = new ArrayList<>();
+            if (page.getNumber() > 0) {
+                paging.add(button(msg(language, "previous"), "tlist:" + origin + ":" + (page.getNumber() - 1)));
+            }
+            if (page.hasNext()) {
+                paging.add(button(msg(language, "next"), "tlist:" + origin + ":" + (page.getNumber() + 1)));
+            }
+            rows.add(paging);
+        }
+        rows.add(List.of(button(msg(language, "main_menu_button"), "tmenu:main")));
         return inline(rows);
     }
 
-    private String jobKeyboard(Long requestId, LanguageCode language) {
+    private String emptyListKeyboard(LanguageCode language) {
+        return inline(List.of(List.of(button(msg(language, "main_menu_button"), "tmenu:main"))));
+    }
+
+    private String cancelInputKeyboard(Long requestId, String origin, int page, LanguageCode language) {
+        return inline(List.of(List.of(button(
+                msg(language, "cancel_input"),
+                "tcancelinput:" + requestId + ":" + origin + ":" + page))));
+    }
+
+    private String completedJobKeyboard(String origin, int page, LanguageCode language) {
+        return inline(List.of(List.of(button(
+                msg(language, "back_to_jobs"),
+                "tlist:" + origin + ":" + page))));
+    }
+
+    private String jobKeyboard(Long requestId, String origin, int page, LanguageCode language) {
         return assignmentRepository
                 .findActiveByRequestId(requestId, RepairAssignmentRepository.ACTIVE_STATUSES)
-                .map(assignment -> jobKeyboard(assignment, language))
+                .map(assignment -> jobKeyboard(assignment, origin, page, language))
                 .orElse(null);
     }
 
-    private String jobKeyboard(RepairAssignment assignment, LanguageCode language) {
+    private String jobKeyboard(
+            RepairAssignment assignment,
+            String origin,
+            int page,
+            LanguageCode language) {
         Long requestId = assignment.getRepairRequest().getId();
+        List<List<String>> rows = new ArrayList<>();
+
+        RepairRequestDetailResponse detail = requestService.get(requestId);
+        BigDecimal lat = extractLatitude(detail);
+        BigDecimal lon = extractLongitude(detail);
+        if (lat != null && lon != null) {
+            rows.add(List.of(urlButton(
+                    msg(language, "open_on_map"),
+                    "https://maps.google.com/?q=" + lat.toPlainString() + "," + lon.toPlainString())));
+        }
+
+        String suffix = ":" + origin + ":" + page;
         if (assignment.getStatus() == AssignmentStatus.PENDING) {
-            return inline(List.of(List.of(
-                    button(msg(language, "action_accept"), "taccept:" + requestId),
-                    button(msg(language, "action_reject"), "treject:" + requestId))));
+            rows.add(List.of(
+                    button(msg(language, "action_accept"), "taccept:" + requestId + suffix),
+                    button(msg(language, "action_reject"), "treject:" + requestId + suffix)));
+        } else if (assignment.getStatus() == AssignmentStatus.ACCEPTED) {
+            switch (assignment.getRepairRequest().getStatus()) {
+                case ASSIGNED, SCHEDULED -> rows.add(List.of(
+                        button(msg(language, "action_start"), "tstart:" + requestId + suffix)));
+                case IN_PROGRESS -> {
+                    rows.add(List.of(
+                            button(msg(language, "action_diagnosis"), "tdiagnosis:" + requestId + suffix),
+                            button(msg(language, "action_wait"), "twait:" + requestId + suffix)));
+                    rows.add(List.of(
+                            button(msg(language, "action_diag_photo"), "tdiagphoto:" + requestId + suffix),
+                            button(msg(language, "action_complete"), "twork:" + requestId + suffix)));
+                }
+                case WAITING_FOR_PARTS -> rows.add(List.of(
+                        button(msg(language, "action_resume"), "tresume:" + requestId + suffix),
+                        button(msg(language, "action_diagnosis"), "tdiagnosis:" + requestId + suffix)));
+                case NEW, COMPLETED, CANCELLED -> { }
+            }
         }
-        if (assignment.getStatus() != AssignmentStatus.ACCEPTED) {
-            return null;
-        }
-        return switch (assignment.getRepairRequest().getStatus()) {
-            case ASSIGNED, SCHEDULED -> inline(List.of(List.of(
-                    button(msg(language, "action_start"), "tstart:" + requestId))));
-            case IN_PROGRESS -> inline(List.of(
-                    List.of(button(msg(language, "action_diagnosis"), "tdiagnosis:" + requestId),
-                            button(msg(language, "action_wait"), "twait:" + requestId)),
-                    List.of(button(msg(language, "action_diag_photo"), "tdiagphoto:" + requestId),
-                            button(msg(language, "action_complete"), "twork:" + requestId))));
-            case WAITING_FOR_PARTS -> inline(List.of(List.of(
-                    button(msg(language, "action_resume"), "tresume:" + requestId),
-                    button(msg(language, "action_diagnosis"), "tdiagnosis:" + requestId))));
-            case NEW, COMPLETED, CANCELLED -> null;
-        };
+        rows.add(List.of(button(msg(language, "back_to_jobs"), "tlist:" + origin + ":" + page)));
+        rows.add(List.of(button(msg(language, "main_menu_button"), "tmenu:main")));
+        return inline(rows);
     }
 
-    private String completeKeyboard(Long requestId, LanguageCode language) {
-        return inline(List.of(List.of(button(msg(language, "action_complete"), "tcomplete:" + requestId))));
+    private String completeKeyboard(Long requestId, String origin, int page, LanguageCode language) {
+        String suffix = ":" + origin + ":" + page;
+        return inline(List.of(
+                List.of(button(msg(language, "action_complete"), "tcomplete:" + requestId + suffix)),
+                List.of(button(msg(language, "cancel_input"), "tcancelinput:" + requestId + suffix))));
     }
 
     private String inline(List<List<String>> rows) {
@@ -705,6 +1192,10 @@ public class TelegramTechnicianBotService {
         return "{\"text\":\"" + json(text) + "\",\"callback_data\":\"" + json(callbackData) + "\"}";
     }
 
+    private String urlButton(String text, String url) {
+        return "{\"text\":\"" + json(text) + "\",\"url\":\"" + json(url) + "\"}";
+    }
+
     private String json(String value) {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
@@ -725,8 +1216,15 @@ public class TelegramTechnicianBotService {
                 case MENU_RECENT -> "Recent";
                 case MENU_LANGUAGE -> "Language";
                 case "jobs" -> "Jobs";
+                case "jobs_pending_title" -> "🧰 Pending assignments\n\nSelect a job:";
+                case "jobs_active_title" -> "🔧 Active jobs\n\nSelect a job:";
+                case "jobs_recent_title" -> "📋 Recent jobs\n\nSelect a job:";
                 case "empty_jobs" -> "No jobs found.";
                 case "open" -> "Open";
+                case "previous" -> "◀️ Previous";
+                case "next" -> "Next ▶️";
+                case "back_to_jobs" -> "◀️ Back to jobs";
+                case "main_menu_button" -> "🏠 Main menu";
                 case "action_accept" -> "Accept";
                 case "action_reject" -> "Reject";
                 case "action_start" -> "Start";
@@ -752,6 +1250,10 @@ public class TelegramTechnicianBotService {
                 case "completion_photo_saved" -> "Completion photo saved.";
                 case "completed" -> "Repair completed.";
                 case "cancelled" -> "Cancelled.";
+                case "cancel_input" -> "Cancel";
+                case "finish_current_input_first" -> "Please finish or cancel the current input for the other request first.";
+                case "open_on_map" -> "🗺 Open on map";
+                case "location_attached" -> "Location attached";
                 case "invalid_assignment" -> "Assignment is not available.";
                 case "link_invalid" -> "This link is invalid or expired.";
                 case "link_conflict" -> "This Telegram profile cannot be linked.";
@@ -774,8 +1276,15 @@ public class TelegramTechnicianBotService {
                 case MENU_RECENT -> "Недавние";
                 case MENU_LANGUAGE -> "Язык";
                 case "jobs" -> "Заявки";
+                case "jobs_pending_title" -> "🧰 Ожидающие заявки\n\nВыберите заявку:";
+                case "jobs_active_title" -> "🔧 Активные работы\n\nВыберите работу:";
+                case "jobs_recent_title" -> "📋 Недавние работы\n\nВыберите работу:";
                 case "empty_jobs" -> "Заявок нет.";
                 case "open" -> "Открыть";
+                case "previous" -> "◀️ Назад";
+                case "next" -> "Далее ▶️";
+                case "back_to_jobs" -> "◀️ Назад к заявкам";
+                case "main_menu_button" -> "🏠 Главное меню";
                 case "action_accept" -> "Принять";
                 case "action_reject" -> "Отклонить";
                 case "action_start" -> "Начать";
@@ -801,6 +1310,10 @@ public class TelegramTechnicianBotService {
                 case "completion_photo_saved" -> "Фото завершения сохранено.";
                 case "completed" -> "Ремонт завершен.";
                 case "cancelled" -> "Отменено.";
+                case "cancel_input" -> "Отменить";
+                case "finish_current_input_first" -> "Пожалуйста, сначала завершите или отмените ввод для другой заявки.";
+                case "open_on_map" -> "🗺 Открыть на карте";
+                case "location_attached" -> "Местоположение указано";
                 case "invalid_assignment" -> "Заявка недоступна.";
                 case "link_invalid" -> "Ссылка недействительна или истекла.";
                 case "link_conflict" -> "Этот Telegram-профиль нельзя привязать.";
@@ -823,8 +1336,15 @@ public class TelegramTechnicianBotService {
                 case MENU_RECENT -> "So'nggi";
                 case MENU_LANGUAGE -> "Til";
                 case "jobs" -> "Ishlar";
+                case "jobs_pending_title" -> "🧰 Kutilayotgan topshiriqlar\n\nTopshiriqni tanlang:";
+                case "jobs_active_title" -> "🔧 Faol ishlar\n\nIshni tanlang:";
+                case "jobs_recent_title" -> "📋 So'nggi ishlar\n\nIshni tanlang:";
                 case "empty_jobs" -> "Ishlar topilmadi.";
                 case "open" -> "Ochish";
+                case "previous" -> "◀️ Oldingi";
+                case "next" -> "Keyingi ▶️";
+                case "back_to_jobs" -> "◀️ Ishlar ro'yxatiga qaytish";
+                case "main_menu_button" -> "🏠 Asosiy menyu";
                 case "action_accept" -> "Qabul qilish";
                 case "action_reject" -> "Rad etish";
                 case "action_start" -> "Boshlash";
@@ -850,6 +1370,10 @@ public class TelegramTechnicianBotService {
                 case "completion_photo_saved" -> "Yakunlash fotosurati saqlandi.";
                 case "completed" -> "Ta'mirlash yakunlandi.";
                 case "cancelled" -> "Bekor qilindi.";
+                case "cancel_input" -> "Bekor qilish";
+                case "finish_current_input_first" -> "Iltimos, avval boshqa ariza uchun kiritishni yakunlang yoki bekor qiling.";
+                case "open_on_map" -> "🗺 Xaritada ochish";
+                case "location_attached" -> "Joylashuv biriktirilgan";
                 case "invalid_assignment" -> "Topshiriq mavjud emas.";
                 case "link_invalid" -> "Havola yaroqsiz yoki muddati tugagan.";
                 case "link_conflict" -> "Bu Telegram profilini bog'lab bo'lmaydi.";
@@ -913,6 +1437,7 @@ public class TelegramTechnicianBotService {
             };
         };
     }
+
     private LanguageCode parseLanguage(String code) {
         try {
             return LanguageCode.valueOf(code.toUpperCase(Locale.ROOT));
@@ -921,11 +1446,19 @@ public class TelegramTechnicianBotService {
         }
     }
 
-    private Long parseId(String data, String prefix) {
+    private Long parseLong(String value) {
         try {
-            return Long.valueOf(data.substring(prefix.length()));
+            return Long.valueOf(value);
         } catch (RuntimeException exception) {
             throw new BusinessRuleException("INVALID_CALLBACK", "Invalid callback.", 400);
+        }
+    }
+
+    private int parseInt(String value, int fallback) {
+        try {
+            return Integer.parseInt(value);
+        } catch (RuntimeException exception) {
+            return fallback;
         }
     }
 

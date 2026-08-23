@@ -110,9 +110,18 @@ public class TelegramWebhookService {
     }
 
     private void respond(TelegramUpdatePayload update, BusinessRuleException exception, TelegramUserMode forcedMode) {
-        if (forcedMode == TelegramUserMode.TECHNICIAN
+        boolean isTechnician = forcedMode == TelegramUserMode.TECHNICIAN
                 || currentMode(update) == TelegramUserMode.TECHNICIAN
-                || isTechnicianCommand(update)) {
+                || isTechnicianCommand(update);
+        if (update.callbackQuery() != null) {
+            if (isTechnician) {
+                technicianBotService.respondBusinessErrorCallback(update.callbackQuery(), exception);
+            } else {
+                businessErrorResponder.respondCallback(update.callbackQuery(), exception);
+            }
+            return;
+        }
+        if (isTechnician) {
             technicianBotService.respondBusinessError(update, exception);
             return;
         }

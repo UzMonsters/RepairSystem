@@ -9,5 +9,14 @@ public enum TelegramTechnicianSessionState {
     AWAITING_RESUME_NOTE,
     AWAITING_WORK_PERFORMED,
     AWAITING_DIAGNOSIS_PHOTO,
-    AWAITING_COMPLETION_PHOTO
+    AWAITING_COMPLETION_PHOTO;
+
+    public boolean isAwaitingInput() {
+        return this == AWAITING_REJECTION_REASON
+                || this == AWAITING_DIAGNOSIS
+                || this == AWAITING_WAIT_REASON
+                || this == AWAITING_WORK_PERFORMED
+                || this == AWAITING_DIAGNOSIS_PHOTO
+                || this == AWAITING_COMPLETION_PHOTO;
+    }
 }
