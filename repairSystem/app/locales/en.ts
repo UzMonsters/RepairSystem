@@ -65,7 +65,7 @@ const en = {
   'english': 'English',
   'signIn': 'Sign in',
   'rememberMe': 'Remember me',
-  'loginTitle': 'Welcome to the Repair System',
+  'loginTitle': 'Welcome to the Repair System1',
   'loginSubtitle': 'Enter your account to open the dashboard',
   'loginFieldsRequired': 'Enter your email and password.',
   'notAuthorized': 'You are not authorized to access this page.',
