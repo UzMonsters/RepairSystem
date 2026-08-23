@@ -12,6 +12,14 @@ const { data: recentRequests } = useAsyncData('dashboard-recent', () =>
   apiFetch<Page<RepairRequest>>('/requests', { query: { page: 0, size: 6, sort: 'createdAt,desc' } })
 )
 
+const dashboardStatuses = ['NEW', 'IN_PROGRESS', 'WAITING_FOR_PARTS', 'COMPLETED', 'CANCELLED']
+const { data: statusCounts } = useAsyncData('dashboard-status-counts', async () => {
+  const responses = await Promise.all(dashboardStatuses.map(status =>
+    apiFetch<Page<RepairRequest>>('/requests', { query: { page: 0, size: 1, status } })
+  ))
+  return Object.fromEntries(dashboardStatuses.map((status, index) => [status, responses[index]?.totalElements ?? 0])) as Record<string, number>
+})
+
 const completionRate = computed(() => {
   const total = data.value?.totalRequests ?? 0
   if (!total) return null
@@ -30,26 +38,26 @@ const averageRating = computed(() => {
 })
 
 const stats = computed(() => [
-  { icon: 'bi-clipboard-check', title: t('totalRequests'), value: data.value?.totalRequests ?? 0, sub: t('all') },
-  { icon: 'bi-plus-circle', title: t('newToday'), value: data.value?.newToday ?? 0, sub: data.value?.businessDate ? formatDate(data.value.businessDate) : '-' },
-  { icon: 'bi-folder2-open', title: t('openRequests'), value: data.value?.openRequests ?? 0, sub: t('all') },
-  { icon: 'bi-gear', title: t('inProgress'), value: data.value?.inProgress ?? 0, sub: t('all') },
-  { icon: 'bi-hourglass-split', title: t('waitingForParts'), value: data.value?.waitingForParts ?? 0, sub: t('all') },
-  { icon: 'bi-check-circle', title: t('completedTotal'), value: data.value?.completedTotal ?? 0, rate: completionRate.value ? `${completionRate.value}%` : undefined, isUp: true },
-  { icon: 'bi-calendar-check', title: t('completedToday'), value: data.value?.completedToday ?? 0, sub: t('today') },
-  { icon: 'bi-x-circle', title: t('cancelledTotal'), value: data.value?.cancelledTotal ?? 0, rate: cancellationRate.value ? `${cancellationRate.value}%` : undefined, isUp: false },
-  { icon: 'bi-star', title: t('averageRating'), value: averageRating.value, sub: `${data.value?.totalReviews ?? 0} ${t('reviews')}` },
-  { icon: 'bi-chat-quote', title: t('totalReviews'), value: data.value?.totalReviews ?? 0, sub: t('all') },
-  { icon: 'bi-person-wrench', title: t('activeTechnicians'), value: data.value?.activeTechnicians ?? 0, sub: t('all') },
-  { icon: 'bi-person-check', title: t('techniciansWithActiveWork'), value: data.value?.techniciansWithActiveWork ?? 0, sub: t('all') }
+  { icon: 'bi-clipboard-check', title: t('totalRequests'), value: data.value?.totalRequests ?? 0, sub: t('all'), to: '/admin/requests' },
+  { icon: 'bi-plus-circle', title: t('newToday'), value: data.value?.newToday ?? 0, sub: data.value?.businessDate ? formatDate(data.value.businessDate) : '-', to: '/admin/requests?status=NEW' },
+  { icon: 'bi-folder2-open', title: t('openRequests'), value: data.value?.openRequests ?? 0, sub: t('all'), to: '/admin/requests' },
+  { icon: 'bi-gear', title: t('inProgress'), value: data.value?.inProgress ?? 0, sub: t('all'), to: '/admin/requests?status=IN_PROGRESS' },
+  { icon: 'bi-hourglass-split', title: t('waitingForParts'), value: data.value?.waitingForParts ?? 0, sub: t('all'), to: '/admin/requests?status=WAITING_FOR_PARTS' },
+  { icon: 'bi-check-circle', title: t('completedTotal'), value: data.value?.completedTotal ?? 0, rate: completionRate.value ? `${completionRate.value}%` : undefined, isUp: true, to: '/admin/requests?status=COMPLETED' },
+  { icon: 'bi-calendar-check', title: t('completedToday'), value: data.value?.completedToday ?? 0, sub: t('today'), to: '/admin/requests?status=COMPLETED' },
+  { icon: 'bi-x-circle', title: t('cancelledTotal'), value: data.value?.cancelledTotal ?? 0, rate: cancellationRate.value ? `${cancellationRate.value}%` : undefined, isUp: false, to: '/admin/requests?status=CANCELLED' },
+  { icon: 'bi-star', title: t('averageRating'), value: averageRating.value, sub: `${data.value?.totalReviews ?? 0} ${t('reviews')}`, to: '/admin/reviews' },
+  { icon: 'bi-chat-quote', title: t('totalReviews'), value: data.value?.totalReviews ?? 0, sub: t('all'), to: '/admin/reviews' },
+  { icon: 'bi-person-wrench', title: t('activeTechnicians'), value: data.value?.activeTechnicians ?? 0, sub: t('all'), to: '/admin/technicians' },
+  { icon: 'bi-person-check', title: t('techniciansWithActiveWork'), value: data.value?.techniciansWithActiveWork ?? 0, sub: t('all'), to: '/admin/technicians' }
 ])
 
 const statusSummary = computed(() => [
-  { status: 'NEW', label: t('status.NEW'), value: data.value?.newToday ?? 0, badge: 'status-new' },
-  { status: 'IN_PROGRESS', label: t('status.IN_PROGRESS'), value: data.value?.inProgress ?? 0, badge: 'status-in-progress' },
-  { status: 'WAITING_FOR_PARTS', label: t('status.WAITING_FOR_PARTS'), value: data.value?.waitingForParts ?? 0, badge: 'status-waiting' },
-  { status: 'COMPLETED', label: t('status.COMPLETED'), value: data.value?.completedTotal ?? 0, badge: 'status-completed' },
-  { status: 'CANCELLED', label: t('status.CANCELLED'), value: data.value?.cancelledTotal ?? 0, badge: 'status-cancelled' }
+  { status: 'NEW', label: t('status.NEW'), value: statusCounts.value?.NEW ?? 0, badge: 'status-new' },
+  { status: 'IN_PROGRESS', label: t('status.IN_PROGRESS'), value: statusCounts.value?.IN_PROGRESS ?? 0, badge: 'status-in-progress' },
+  { status: 'WAITING_FOR_PARTS', label: t('status.WAITING_FOR_PARTS'), value: statusCounts.value?.WAITING_FOR_PARTS ?? 0, badge: 'status-waiting' },
+  { status: 'COMPLETED', label: t('status.COMPLETED'), value: statusCounts.value?.COMPLETED ?? 0, badge: 'status-completed' },
+  { status: 'CANCELLED', label: t('status.CANCELLED'), value: statusCounts.value?.CANCELLED ?? 0, badge: 'status-cancelled' }
 ])
 
 const errorMessage = computed(() => {
@@ -107,6 +115,7 @@ function openStatus(status: string) {
           :rate="s.rate"
           :is-up="s.isUp"
           :sub="s.sub"
+          :to="s.to"
         />
       </div>
 
@@ -161,7 +170,7 @@ function openStatus(status: string) {
                     >
                       {{ r.description || categoryName(r.category) }}
                     </td>
-                    <td>{{ r.customer?.fullName || '-' }}</td>
+                    <td>{{ r.customer?.fullName || r.customerFullName || '-' }}</td>
                     <td>{{ categoryName(r.category) }}</td>
                     <td><StatusBadge :status="r.status" /></td>
                     <td class="text-nowrap">

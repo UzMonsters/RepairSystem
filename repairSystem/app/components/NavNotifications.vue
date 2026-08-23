@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import type { NotificationSummary } from '~/types'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   notifications?: NotificationSummary[]
   seeAllUrl?: string
   seeAllText?: string
@@ -12,6 +12,26 @@ withDefaults(defineProps<{
 })
 
 const { t } = useLocale()
+const { user } = useAuth()
+const readIds = ref<number[]>([])
+const readStorageKey = computed(() => `repair_notification_read_ids:${user.value?.id ?? 'anonymous'}`)
+const unreadCount = computed(() => props.notifications.filter(n => !readIds.value.includes(n.id)).length)
+
+onMounted(() => {
+  try {
+    const stored = localStorage.getItem(readStorageKey.value)
+      ?? localStorage.getItem('repair_notification_read_ids')
+    readIds.value = JSON.parse(stored || '[]')
+  } catch {
+    readIds.value = []
+  }
+})
+
+function markRead(id: number) {
+  if (readIds.value.includes(id)) return
+  readIds.value = [...readIds.value, id]
+  localStorage.setItem(readStorageKey.value, JSON.stringify(readIds.value))
+}
 
 function shortKey(value?: string) {
   if (!value) return '-'
@@ -39,34 +59,31 @@ function timeAgo(value?: string) {
     >
       <i class="bi bi-bell-fill" />
       <span
-        v-if="notifications.length"
+        v-if="unreadCount"
         class="navbar-badge badge text-bg-warning"
-      >{{ notifications.length }}</span>
+      >{{ unreadCount }}</span>
     </a>
     <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-      <span class="dropdown-item dropdown-header">{{ notifications.length }} {{ t('notifications') }}</span>
+      <span class="dropdown-item dropdown-header">{{ unreadCount }} {{ t('unread') }}</span>
       <template
-        v-for="(n, idx) in notifications"
-        :key="idx"
+        v-for="n in props.notifications"
+        :key="n.id"
       >
         <div class="dropdown-divider" />
         <NuxtLink
           :to="n.repairRequest?.id ? `/admin/requests/${n.repairRequest.id}` : '/admin/notifications'"
           class="dropdown-item"
+          @click="markRead(n.id)"
         >
           <i class="bi bi-bell me-2" />
           <span
             class="d-inline-block"
             style="max-width: 220px;"
           >
-            {{ shortKey(n.type) }}
-            <span
-              v-if="n.repairRequest?.id"
-              class="float-end text-secondary fs-7"
-            >#{{ n.repairRequest.id }}</span>
+            {{ n.title || shortKey(n.type) }}
           </span>
           <span class="d-block text-secondary fs-7">
-            {{ n.deliveryStatus }}
+            {{ n.message || t(`notificationStatus.${n.deliveryStatus}`) }}
             <span class="float-end">{{ timeAgo(n.createdAt) }}</span>
           </span>
         </NuxtLink>

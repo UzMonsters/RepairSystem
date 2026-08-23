@@ -2,11 +2,13 @@
 import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
 import type { AssignmentDetail, Attachment, RepairExecution, RepairRequest, StatusHistoryItem, Technician } from '~/types'
+import type { RealtimeEvent } from '~/types/realtime'
 
 const route = useRoute()
 const id = Number(route.params.id)
 
 const { t } = useLocale()
+const realtime = useRealtime()
 
 const { data: request, pending, error, refresh } = await useAsyncData(`request-${id}`, () =>
   apiFetch<RepairRequest>(`/requests/${id}`)
@@ -90,6 +92,19 @@ async function deleteRequest() {
   }
 }
 
+let stopRealtime: (() => boolean) | undefined
+onMounted(() => {
+  stopRealtime = realtime.subscribe((event: RealtimeEvent) => {
+    const payload = event.payload as { requestId?: number }
+    const requestEvents = ['REQUEST_UPDATED', 'REQUEST_ASSIGNED', 'REQUEST_UNASSIGNED', 'REQUEST_STATUS_CHANGED']
+    if (payload.requestId === id && requestEvents.includes(event.type)) {
+      void refreshRequestData()
+    }
+  })
+})
+
+onBeforeUnmount(() => stopRealtime?.())
+
 const categoryName = computed(() => {
   const c = request.value?.category
   if (!c) return '-'
@@ -104,6 +119,10 @@ const locationCoordinates = computed(() => {
   const longitude = request.value?.location?.longitude ?? request.value?.longitude
   return latitude != null && longitude != null ? `${latitude}, ${longitude}` : '-'
 })
+const locationMapUrl = computed(() => {
+  if (locationCoordinates.value === '-') return ''
+  return `https://www.google.com/maps?q=${locationCoordinates.value}`
+})
 const assignedTechnician = computed(() => request.value?.currentAssignment?.technician ?? null)
 const isAssignmentPending = computed(() =>
   request.value?.status === 'ASSIGNED' && request.value?.currentAssignment?.status === 'PENDING'
@@ -111,6 +130,28 @@ const isAssignmentPending = computed(() =>
 
 function formatDate(value?: string) {
   return formatApiDate(value, true)
+}
+
+function assignmentStatusLabel(status: string) {
+  return t(`assignmentStatus.${status}`)
+}
+
+function assignmentStatusClass(status: string) {
+  if (status === 'ACCEPTED' || status === 'COMPLETED') return 'text-bg-success'
+  if (status === 'PENDING') return 'text-bg-warning'
+  if (status === 'CANCELLED' || status === 'REJECTED' || status === 'UNASSIGNED') return 'text-bg-danger'
+  return 'text-bg-secondary'
+}
+
+function historyReason(reason?: string) {
+  if (!reason) return '-'
+  const known: Record<string, string> = {
+    'Technician assigned.': 'history.technicianAssigned',
+    'Technician assigned': 'history.technicianAssigned',
+    'Telegram request created.': 'history.telegramRequestCreated',
+    'Telegram request created': 'history.telegramRequestCreated'
+  }
+  return known[reason] ? t(known[reason]) : reason
 }
 
 const savingAccept = ref(false)
@@ -388,17 +429,24 @@ function can(action: string) {
                   </dt>
                   <dd class="col-sm-8">
                     {{ locationAddress }}
+                    <a
+                      v-if="locationMapUrl"
+                      :href="locationMapUrl"
+                      class="map-location-link d-inline-flex align-items-center gap-1 mt-2"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <i class="bi bi-geo-alt-fill" />
+                      {{ t('openOnMap') }}
+                      <i class="bi bi-box-arrow-up-right" />
+                    </a>
                   </dd>
                   <template v-if="locationCoordinates !== '-'">
                     <dt class="col-sm-4">
                       {{ t('coordinates') }}
                     </dt>
                     <dd class="col-sm-8">
-                      <a
-                        :href="`https://www.google.com/maps?q=${locationCoordinates}`"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >{{ locationCoordinates }}</a>
+                      <span>{{ locationCoordinates }}</span>
                     </dd>
                   </template>
                   <dt class="col-sm-4">
@@ -431,7 +479,7 @@ function can(action: string) {
                     {{ t('priority') }}
                   </dt>
                   <dd class="col-7">
-                    {{ request.priority }}
+                    {{ t(`priority.${request.priority}`) }}
                   </dd>
                   <dt class="col-5">
                     {{ t('categories') }}
@@ -591,6 +639,13 @@ function can(action: string) {
                 </div>
               </div>
             </div>
+
+            <ManagerChatBox
+              v-if="request"
+              :request-id="id"
+              :request-status="request.status"
+              class="mb-4"
+            />
 
             <div class="card mb-4">
               <div class="card-header">
@@ -840,11 +895,11 @@ function can(action: string) {
                 <strong>{{ assignment.technician.fullName }}</strong>
                 <span
                   class="badge"
-                  :class="assignment.status === 'COMPLETED' ? 'text-bg-success' : 'text-bg-secondary'"
-                >{{ assignment.status }}</span>
+                  :class="assignmentStatusClass(assignment.status)"
+                >{{ assignmentStatusLabel(assignment.status) }}</span>
               </div>
               <div class="small text-muted">
-                {{ formatDate(assignment.assignedAt) }} В· {{ assignment.rejectionReason || assignment.closureReason || '-' }}
+                {{ formatDate(assignment.assignedAt) }} · {{ historyReason(assignment.rejectionReason || assignment.closureReason) }}
               </div>
               <div
                 v-if="assignment.scheduledVisitAt"
@@ -884,7 +939,7 @@ function can(action: string) {
                 v-if="item.reason"
                 class="small mt-1"
               >
-                {{ item.reason }}
+                {{ historyReason(item.reason) }}
               </div>
             </div>
           </div>

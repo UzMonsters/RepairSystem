@@ -119,13 +119,13 @@ async function saveSettings() {
                   :disabled="loading"
                 >
                   <option value="DD_SLASH_MM_SLASH_YYYY">
-                    dd/mm/yyyy (14/08/2026)
+                    {{ t('dateFormat.DD_SLASH_MM_SLASH_YYYY') }}
                   </option>
                   <option value="DD_MM_YYYY">
-                    dd_mm_yyyy (14.08.2026)
+                    {{ t('dateFormat.DD_MM_YYYY') }}
                   </option>
                   <option value="YYYY_MM_DD">
-                    yyyy_mm_dd (2026-08-14)
+                    {{ t('dateFormat.YYYY_MM_DD') }}
                   </option>
                 </select>
               </div>

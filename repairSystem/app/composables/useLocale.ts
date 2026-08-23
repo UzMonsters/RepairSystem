@@ -23,10 +23,12 @@ const translations: Record<Locale, TranslationMap> = {
 }
 
 export function useLocale() {
-  const locale = useState<Locale>('app:locale', () => getStoredLocale() || 'uz')
+  const localeCookie = useCookie<Locale | null>('repair_lang', { default: () => null })
+  const locale = useState<Locale>('app:locale', () => getStoredLocale() || localeCookie.value || 'uz')
 
   function setLocale(lang: string) {
     locale.value = lang === 'ru' || lang === 'en' ? lang : 'uz'
+    localeCookie.value = locale.value
     if (!import.meta.client) return
     try {
       localStorage.setItem('repair_lang', locale.value)

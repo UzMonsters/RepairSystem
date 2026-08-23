@@ -4,11 +4,13 @@ import { getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
 
 const { t } = useLocale()
+const { user } = useAuth()
 const page = ref(1)
-const size = ref(10)
+const size = ref(100)
 const status = ref('')
 const readTab = ref<'all' | 'unread' | 'read'>('all')
 const readIds = ref<number[]>([])
+const readStorageKey = computed(() => `repair_notification_read_ids:${user.value?.id ?? 'anonymous'}`)
 
 const query = computed(() => ({
   page: page.value - 1,
@@ -44,7 +46,9 @@ onBeforeUnmount(() => {
 
 onMounted(() => {
   try {
-    readIds.value = JSON.parse(localStorage.getItem('repair_notification_read_ids') || '[]')
+    const stored = localStorage.getItem(readStorageKey.value)
+      ?? localStorage.getItem('repair_notification_read_ids')
+    readIds.value = JSON.parse(stored || '[]')
   } catch {
     readIds.value = []
   }
@@ -74,6 +78,11 @@ function changeSize(s: number) {
   refresh()
 }
 
+function selectReadTab(tab: 'all' | 'unread' | 'read') {
+  readTab.value = tab
+  page.value = 1
+}
+
 function formatDate(value?: string) {
   return formatApiDate(value, true)
 }
@@ -81,14 +90,14 @@ function formatDate(value?: string) {
 function openNotification(notification: NotificationSummary) {
   if (!readIds.value.includes(notification.id)) {
     readIds.value = [...readIds.value, notification.id]
-    localStorage.setItem('repair_notification_read_ids', JSON.stringify(readIds.value))
+    localStorage.setItem(readStorageKey.value, JSON.stringify(readIds.value))
   }
   if (notification.repairRequest?.id) {
     navigateTo(`/admin/requests/${notification.repairRequest.id}`)
   }
 }
 
-const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
+const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED'] as const
 </script>
 
 <template>
@@ -119,7 +128,7 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
             type="button"
             class="nav-link"
             :class="{ active: readTab === tab.value }"
-            @click="readTab = tab.value as 'all' | 'unread' | 'read'"
+            @click="selectReadTab(tab.value as 'all' | 'unread' | 'read')"
           >
             {{ tab.label }}
           </button>
@@ -142,7 +151,7 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
               :key="s"
               :value="s"
             >
-              {{ s }}
+              {{ t(`notificationStatus.${s}`) }}
             </option>
           </select>
         </div>
@@ -208,7 +217,7 @@ const statuses = ['PENDING', 'DELIVERED', 'FAILED', 'SKIPPED']
       </div>
 
       <AppPagination
-        v-if="!error"
+        v-if="!error && readTab === 'all'"
         :page="page"
         :size="size"
         :total="totalElements"

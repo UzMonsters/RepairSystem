@@ -908,6 +908,19 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   background: var(--bs-primary);
 }
 
+.map-location-link {
+  color: var(--rs-primary) !important;
+  font-size: .875rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.map-location-link:hover,
+.map-location-link:focus-visible {
+  color: var(--rs-primary-dark) !important;
+  text-decoration: underline;
+}
+
 .status-summary-item:last-child {
   border-bottom: 0;
 }
@@ -1366,6 +1379,19 @@ select option {
 .table-row-link { cursor: pointer; }
 .table-row-link:hover { background-color: rgba(203, 60, 255, 0.06); }
 .table-row-link.is-disabled { cursor: default; }
+
+.kpi-card-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.kpi-card-link:hover,
+.kpi-card-link:focus-visible {
+  color: inherit;
+  text-decoration: none;
+  border-color: var(--rs-primary);
+  transform: translateY(-2px);
+}
 .list-group-item-action.category-request-link,
 .list-group-item-action.category-request-link:hover,
 .list-group-item-action.category-request-link:focus {

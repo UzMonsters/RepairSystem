@@ -11,6 +11,7 @@
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
+    "@stomp/stompjs": "^7.3.0",
     "admin-lte": "^4.1.0",
     "apexcharts": "^6.6.1",
     "bootstrap": "^5.3.8",

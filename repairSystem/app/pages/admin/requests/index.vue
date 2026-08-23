@@ -7,7 +7,7 @@ import { formatDate } from '~/utils/date'
 const { t } = useLocale()
 const route = useRoute()
 const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
-const status = ref('')
+const status = ref(typeof route.query.status === 'string' ? route.query.status : '')
 const priority = ref('')
 const categoryId = ref('')
 const page = ref(1)
@@ -47,6 +47,14 @@ watch(() => route.query.search, (value) => {
   const nextSearch = typeof value === 'string' ? value : ''
   if (search.value === nextSearch) return
   search.value = nextSearch
+  page.value = 1
+  refresh()
+})
+
+watch(() => route.query.status, (value) => {
+  const nextStatus = typeof value === 'string' ? value : ''
+  if (status.value === nextStatus) return
+  status.value = nextStatus
   page.value = 1
   refresh()
 })

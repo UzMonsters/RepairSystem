@@ -548,41 +548,68 @@ class JobActions extends StatelessWidget {
   );
 }
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key, required this.repo});
   final NotificationRepository repo;
   @override
-  Widget build(
-    BuildContext context,
-  ) => FutureBuilder<PageResponse<NotificationItem>>(
-    future: repo.list(),
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  late Future<PageResponse<NotificationItem>> future;
+
+  @override
+  void initState() {
+    super.initState();
+    future = widget.repo.list();
+  }
+
+  Future<void> reload() async {
+    setState(() => future = widget.repo.list());
+    await future;
+  }
+
+  Future<void> markAllRead() async {
+    await widget.repo.markAllRead();
+    await reload();
+  }
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<PageResponse<NotificationItem>>(
+    future: future,
     builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
       }
       if (snapshot.hasError) return Center(child: Text('${snapshot.error}'));
       return RefreshIndicator(
-        onRefresh: () async {
-          await repo.list();
-        },
+        onRefresh: reload,
         child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: repo.markAllRead,
+              child: FilledButton.tonalIcon(
+                onPressed: markAllRead,
+                icon: const Icon(Icons.done_all),
                 child: const Text('Mark all read'),
               ),
             ),
             ...(snapshot.data?.content ?? []).map(
-              (n) => ListTile(
-                title: Text(n.title),
-                subtitle: Text(n.body),
-                trailing: n.read ? null : const Icon(Icons.circle, size: 10),
-                onTap: () async {
-                  await repo.markRead(n.id);
-                  if (context.mounted) Navigator.pop(context);
-                },
+              (n) => Card(
+                margin: const EdgeInsets.only(top: 10),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    child: Icon(n.read ? Icons.notifications_none : Icons.notifications_active),
+                  ),
+                  title: Text(n.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(n.body),
+                  trailing: n.read ? null : const Icon(Icons.circle, size: 10),
+                  onTap: () async {
+                    if (!n.read) await widget.repo.markRead(n.id);
+                    await reload();
+                  },
+                ),
               ),
             ),
           ],

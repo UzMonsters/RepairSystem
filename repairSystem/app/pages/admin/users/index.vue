@@ -416,7 +416,10 @@ async function toggleActive(u: CrmUser) {
           >
         </div>
 
-        <div class="mb-3">
+        <div
+          v-if="editingId == null"
+          class="mb-3"
+        >
           <label
             for="user-password"
             class="form-label"

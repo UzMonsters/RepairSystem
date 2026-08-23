@@ -6,11 +6,16 @@ defineProps<{
   rate?: string
   isUp?: boolean
   sub?: string
+  to?: string
 }>()
 </script>
 
 <template>
-  <div class="kpi-card">
+  <NuxtLink
+    v-if="to"
+    :to="to"
+    class="kpi-card kpi-card-link"
+  >
     <div class="kpi-top">
       <div class="kpi-head">
         <span class="kpi-icon">
@@ -18,9 +23,35 @@ defineProps<{
         </span>
         <span class="kpi-title">{{ title }}</span>
       </div>
-      <span class="kpi-menu">
-        <i class="bi bi-three-dots" />
+    </div>
+
+    <div class="kpi-bottom">
+      <span class="kpi-value">{{ value }}</span>
+      <span
+        v-if="rate"
+        class="rate-chip"
+        :class="isUp ? 'rate-up' : 'rate-down'"
+      >
+        <i :class="`bi ${isUp ? 'bi-arrow-up-short' : 'bi-arrow-down-short'}`" />
+        {{ rate }}
       </span>
+      <span
+        v-else-if="sub"
+        class="kpi-sub"
+      >{{ sub }}</span>
+    </div>
+  </NuxtLink>
+  <div
+    v-else
+    class="kpi-card"
+  >
+    <div class="kpi-top">
+      <div class="kpi-head">
+        <span class="kpi-icon">
+          <i :class="`bi ${icon}`" />
+        </span>
+        <span class="kpi-title">{{ title }}</span>
+      </div>
     </div>
 
     <div class="kpi-bottom">

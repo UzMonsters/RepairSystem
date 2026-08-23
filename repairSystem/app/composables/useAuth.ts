@@ -51,6 +51,7 @@ export function useAuth() {
           method: 'POST',
           credentials: 'include'
         })
+        if (import.meta.client) void useRealtime().reconnect()
         return true
       } catch {
         user.value = null
@@ -103,6 +104,7 @@ export function useAuth() {
   }
 
   async function logout() {
+    if (import.meta.client) await useRealtime().disconnect()
     try {
       await useWebPush().unregister()
     } catch {
@@ -122,6 +124,7 @@ export function useAuth() {
   }
 
   async function logoutAll() {
+    if (import.meta.client) await useRealtime().disconnect()
     await apiFetch('/auth/logout-all', { method: 'POST' })
     user.value = null
     clearAvatarObjectUrl()

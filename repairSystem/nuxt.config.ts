@@ -3,7 +3,8 @@ export default defineNuxtConfig({
 
   plugins: [
     { src: '~/plugins/adminlte.client', mode: 'client' },
-    { src: '~/plugins/web-push.client', mode: 'client' }
+    { src: '~/plugins/web-push.client', mode: 'client' },
+    { src: '~/plugins/realtime.client', mode: 'client' }
   ],
 
   devtools: {
@@ -48,6 +49,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
+      realtimeUrl: process.env.NUXT_PUBLIC_REALTIME_URL || '',
       telegramBotUsername: process.env.NUXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'repairauto_bot',
       firebaseApiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,
       firebaseAuthDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN,

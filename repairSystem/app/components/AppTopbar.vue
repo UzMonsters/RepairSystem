@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { LanguageCode, NotificationSummary, Page, UserSettings } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
+import type { RealtimeEvent } from '~/types/realtime'
 
 const { user, logout, avatarObjectUrl } = useAuth()
 const { locale, setLocale, t } = useLocale()
 const { isDark, toggleTheme } = useTheme()
+const realtime = useRealtime()
 
 const displayName = computed(() => user.value?.fullName || 'Administrator')
 const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
@@ -53,14 +55,26 @@ async function changeLanguage(lang: LanguageCode) {
   }
 }
 
-onMounted(async () => {
+async function loadNotifications() {
   try {
     const page = await apiFetch<Page<NotificationSummary>>('/notifications', { query: { page: 0, size: 5 } })
     notifications.value = page.content ?? []
   } catch (e) {
     void e
   }
+}
+
+let stopRealtime: (() => boolean) | undefined
+onMounted(async () => {
+  await loadNotifications()
+  stopRealtime = realtime.subscribe((event: RealtimeEvent) => {
+    if (event.type === 'NOTIFICATION_CREATED' || event.type === 'NOTIFICATION_READ') {
+      void loadNotifications()
+    }
+  })
 })
+
+onBeforeUnmount(() => stopRealtime?.())
 </script>
 
 <template>
