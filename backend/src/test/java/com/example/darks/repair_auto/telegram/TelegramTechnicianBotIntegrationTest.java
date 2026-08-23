@@ -379,7 +379,7 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         assertThat(technicianRepository.findById(technicianId).orElseThrow().getTelegramUserId()).isEqualTo(9401L);
         assertThat(countUsedTechnicianTokens()).isEqualTo(1);
-        assertThat(telegramBotClient.lastText()).contains("bog'lab");
+        assertThat(telegramBotClient.lastCallbackAnswer().text()).contains("bog'lab");
     }
 
     @Test
@@ -399,7 +399,7 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(callback(51, 9501, 19501, "cb-second-tech", "tlang:EN"));
 
         assertThat(technicianRepository.findById(secondTechnicianId).orElseThrow().getTelegramUserId()).isNull();
-        assertThat(telegramBotClient.lastText()).contains("cannot be linked");
+        assertThat(telegramBotClient.lastCallbackAnswer().text()).contains("cannot be linked");
     }
 
     @Test
@@ -414,7 +414,7 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
                 requestId,
                 RepairAssignmentRepository.ACTIVE_STATUSES).orElseThrow();
         assertThat(assignment.getStatus()).isEqualTo(AssignmentStatus.PENDING);
-        assertThat(telegramBotClient.lastText()).contains("inactive");
+        assertThat(telegramBotClient.lastCallbackAnswer().text()).contains("inactive");
     }
 
     @Test
@@ -723,13 +723,17 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
 
     static final class FakeTelegramBotClient implements TelegramBotClient {
 
+        record CallbackAnswer(String callbackQueryId, String text, boolean showAlert) { }
+
         private final List<SentMessage> messages = new CopyOnWriteArrayList<>();
+        private final List<CallbackAnswer> callbackAnswers = new CopyOnWriteArrayList<>();
         private final List<SentPhoto> photos = new CopyOnWriteArrayList<>();
         private final List<SentMediaGroup> mediaGroups = new CopyOnWriteArrayList<>();
         private final List<SentLocation> locations = new CopyOnWriteArrayList<>();
 
         void clear() {
             messages.clear();
+            callbackAnswers.clear();
             photos.clear();
             mediaGroups.clear();
             locations.clear();
@@ -737,6 +741,14 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         List<SentMessage> messages() {
             return messages;
+        }
+
+        List<CallbackAnswer> callbackAnswers() {
+            return callbackAnswers;
+        }
+
+        CallbackAnswer lastCallbackAnswer() {
+            return callbackAnswers.isEmpty() ? null : callbackAnswers.getLast();
         }
 
         List<SentPhoto> photos() {
@@ -769,10 +781,12 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+            answerCallback(callbackQueryId, text, false);
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
+            callbackAnswers.add(new CallbackAnswer(callbackQueryId, text, showAlert));
         }
 
         @Override

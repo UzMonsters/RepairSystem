@@ -1051,6 +1051,107 @@ class TelegramCustomerBotServiceTest {
                 .contains("🏠 Main menu");
     }
 
+    @Test
+    void givenCustomerDescriptionTextWhenSentThenPhotoPromptIsSentAsNewMessageWithoutEditingDescriptionPrompt() {
+        TelegramCustomerSession session = linkedSession(21022L, 25022L);
+        session.state(TelegramCustomerSessionState.AWAITING_DESCRIPTION, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.draftCategory(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(21022L)).thenReturn(Optional.of(session));
+
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(message(234L, 21022L, 25022L, "My machine makes loud noises."));
+
+        assertThat(botClient.sends()).isNotEmpty();
+        assertThat(botClient.edits()).isEmpty();
+        assertThat(botClient.last().text()).contains("Send up to 3 problem photos, or skip.");
+        assertThat(botClient.last().replyMarkupJson()).contains("photo:skip");
+    }
+
+    @Test
+    void givenCustomerPhotoWhenSentThenProgressIsSentAsNewMessageWithoutEditingPreviousPrompt() {
+        TelegramCustomerSession session = linkedSession(21023L, 25023L);
+        session.state(TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.draftCategory(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.draftDescription("Washer noise.", OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(21023L)).thenReturn(Optional.of(session));
+
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                mock(RepairRequestRepository.class),
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(photo(235L, 21023L, 25023L, "file-123", 1024L));
+
+        assertThat(botClient.sends()).isNotEmpty();
+        assertThat(botClient.edits()).isEmpty();
+        assertThat(botClient.last().text()).contains("Photo 1/3 received.");
+    }
+
+    @Test
+    void givenCustomerReviewCommentWhenSentThenConfirmationIsSentAsNewMessage() {
+        TelegramCustomerSession session = linkedSession(21024L, 25024L);
+        session.state(TelegramCustomerSessionState.AWAITING_REVIEW_COMMENT, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        RepairRequest requestEntity = mock(RepairRequest.class);
+        when(requestEntity.getId()).thenReturn(103L);
+        when(requestEntity.getCategory()).thenReturn(category());
+        session.reviewRequest(requestEntity, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.draftReviewRating(5, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        TelegramCustomerSessionRepository sessions = mock(TelegramCustomerSessionRepository.class);
+        RepairRequestRepository requestRepository = mock(RepairRequestRepository.class);
+        when(requestRepository.findWithRelationsById(103L)).thenReturn(Optional.of(requestEntity));
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        when(sessions.findByTelegramUserIdForUpdate(21024L)).thenReturn(Optional.of(session));
+
+        TelegramCustomerBotService service = new TelegramCustomerBotService(
+                sessions,
+                mock(RepairCategoryRepository.class),
+                requestRepository,
+                mock(CustomerService.class),
+                mock(RepairRequestService.class),
+                mock(RepairReviewService.class),
+                mock(TelegramCustomerPhotoService.class),
+                botClient,
+                new TelegramMessages(),
+                new TelegramKeyboards(),
+                new TelegramProperties(),
+                ZoneId.of("Asia/Tashkent"),
+                Clock.fixed(Instant.parse("2026-08-06T10:00:00Z"), ZoneOffset.UTC));
+
+        service.handle(message(236L, 21024L, 25024L, "Super fast repair!"));
+
+        assertThat(botClient.sends()).isNotEmpty();
+        assertThat(botClient.edits()).isEmpty();
+        assertThat(botClient.last().text()).contains("Rating: 5/5").contains("Comment: Super fast repair!");
+    }
+
     private TelegramCustomerSession linkedSession(Long userId, Long chatId) {
         OffsetDateTime now = OffsetDateTime.parse("2026-08-06T10:00:00Z");
         Customer customer = Customer.telegram("Reply Action", "+998902020202", userId, chatId, LanguageCode.EN, now);
@@ -1185,9 +1286,19 @@ class TelegramCustomerBotServiceTest {
     private static final class RecordingTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new ArrayList<>();
+        private final List<SentMessage> sends = new ArrayList<>();
+        private final List<SentMessage> edits = new ArrayList<>();
 
         List<SentMessage> messages() {
             return messages;
+        }
+
+        List<SentMessage> sends() {
+            return sends;
+        }
+
+        List<SentMessage> edits() {
+            return edits;
         }
 
         SentMessage last() {
@@ -1196,13 +1307,17 @@ class TelegramCustomerBotServiceTest {
 
         @Override
         public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            SentMessage msg = new SentMessage(chatId, text, replyMarkupJson);
+            messages.add(msg);
+            sends.add(msg);
             return (long) messages.size();
         }
 
         @Override
         public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            SentMessage msg = new SentMessage(chatId, text, replyMarkupJson);
+            messages.add(msg);
+            edits.add(msg);
             return messageId;
         }
 

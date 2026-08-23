@@ -49,8 +49,5 @@ public class TelegramBusinessErrorResponder {
         }
         String errorMsg = messages.businessError(language, exception.code());
         botClient.answerCallback(callback.id(), errorMsg, true);
-        if (callback.message() != null && callback.message().chat() != null && callback.message().chat().id() != null) {
-            botClient.sendMessage(callback.message().chat().id(), errorMsg, null);
-        }
     }
 }
