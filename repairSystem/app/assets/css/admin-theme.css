@@ -1246,6 +1246,30 @@ select option {
   color: var(--rs-text);
 }
 
+.notification-dropdown-title,
+.notification-dropdown-message {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.notification-dropdown-title,
+.notification-dropdown-message-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-dropdown-message-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.notification-dropdown-time {
+  flex: 0 0 auto;
+  margin-left: 0.5rem;
+}
+
 /* ------------------------------------------------------------
    Misc text
    ------------------------------------------------------------ */

@@ -42,10 +42,10 @@ function timeAgo(value?: string) {
   const diff = Date.now() - new Date(value).getTime()
   const mins = Math.floor(diff / 60000)
   if (mins < 1) return t('justNow')
-  if (mins < 60) return `${mins}m`
+  if (mins < 60) return `${mins}${t('time.minuteShort')}`
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h`
-  return `${Math.floor(hours / 24)}d`
+  if (hours < 24) return `${hours}${t('time.hourShort')}`
+  return `${Math.floor(hours / 24)}${t('time.dayShort')}`
 }
 </script>
 
@@ -76,15 +76,14 @@ function timeAgo(value?: string) {
           @click="markRead(n.id)"
         >
           <i class="bi bi-bell me-2" />
-          <span
-            class="d-inline-block"
-            style="max-width: 220px;"
-          >
+          <span class="notification-dropdown-title">
             {{ n.title || shortKey(n.type) }}
           </span>
-          <span class="d-block text-secondary fs-7">
-            {{ n.message || t(`notificationStatus.${n.deliveryStatus}`) }}
-            <span class="float-end">{{ timeAgo(n.createdAt) }}</span>
+          <span class="notification-dropdown-message text-secondary fs-7">
+            <span class="notification-dropdown-message-text">
+              {{ n.message || t(`notificationStatus.${n.deliveryStatus}`) }}
+            </span>
+            <span class="notification-dropdown-time">{{ timeAgo(n.createdAt) }}</span>
           </span>
         </NuxtLink>
       </template>
