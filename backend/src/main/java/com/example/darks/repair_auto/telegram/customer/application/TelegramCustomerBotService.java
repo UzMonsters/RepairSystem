@@ -4,8 +4,8 @@ import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
 import com.example.darks.repair_auto.catalog.category.infrastructure.RepairCategoryRepository;
 import com.example.darks.repair_auto.customer.application.CustomerService;
 import com.example.darks.repair_auto.customer.domain.Customer;
+import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestCategorySummary;
 import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestDetailResponse;
-import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestSummaryResponse;
 import com.example.darks.repair_auto.repair.request.application.RepairRequestQuery;
 import com.example.darks.repair_auto.repair.request.application.RepairRequestService;
 import com.example.darks.repair_auto.repair.request.domain.RepairRequest;
@@ -44,6 +44,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class TelegramCustomerBotService {
 
     private static final int HISTORY_PAGE_SIZE = 5;
+    private static final DateTimeFormatter LIST_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    private static final DateTimeFormatter DETAILS_DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm");
     private static final DateTimeFormatter TELEGRAM_DATE_FORMATTER =
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
 
@@ -58,6 +62,8 @@ public class TelegramCustomerBotService {
     private final TelegramMessages messages;
     private final TelegramKeyboards keyboards;
     private final TelegramProperties properties;
+    private final DateTimeFormatter listDateFormatter;
+    private final DateTimeFormatter detailsDateFormatter;
     private final DateTimeFormatter telegramDateFormatter;
     private final Clock clock;
 
@@ -116,6 +122,8 @@ public class TelegramCustomerBotService {
         this.messages = messages;
         this.keyboards = keyboards;
         this.properties = properties;
+        this.listDateFormatter = LIST_DATE_FORMATTER.withZone(businessZone);
+        this.detailsDateFormatter = DETAILS_DATE_FORMATTER.withZone(businessZone);
         this.telegramDateFormatter = TELEGRAM_DATE_FORMATTER.withZone(businessZone);
         this.clock = clock;
     }
@@ -557,35 +565,45 @@ public class TelegramCustomerBotService {
             send(session, "send_contact", contactKeyboard(session));
             return;
         }
+        int safePage = Math.max(page, 0);
         var response = repairRequestService.customerHistory(
                 session.getCustomerId(),
                 new RepairRequestQuery(null, null, null, null, null, null, null, null, null, null, null),
-                PageRequest.of(Math.max(page, 0), HISTORY_PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(safePage, HISTORY_PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt")));
         if (response.content().isEmpty()) {
-            send(session, "empty_history", mainKeyboard(session));
+            if (safePage > 0) {
+                showHistory(session, 0);
+                return;
+            }
+            botClient.sendMessage(
+                    session.getTelegramChatId(),
+                    messages.get(session.getLanguage(), "my_requests_empty"),
+                    keyboards.emptyHistory(messages, session.getLanguage()));
             return;
         }
-        session.historyPage(page, now());
-        RepairRequestSummaryResponse first = response.content().get(0);
+        session.historyPage(safePage, now());
         botClient.sendMessage(
                 session.getTelegramChatId(),
-                historyText(response.content(), session.getLanguage()),
-                keyboards.history(first.id(), page, !response.last(), messages, session.getLanguage()));
+                messages.get(session.getLanguage(), "my_requests_prompt"),
+                keyboards.history(response.content(), safePage, !response.last(), messages, session.getLanguage(), listDateFormatter));
     }
 
     private void showRequestDetails(TelegramCustomerSession session, String data) {
-        Long requestId = parseLong(data.substring("req:".length()));
-        RepairRequestDetailResponse details = repairRequestService.get(requestId);
-        if (!details.customer().id().equals(session.getCustomerId())) {
+        String payload = data.substring("req:".length());
+        String[] parts = payload.split(":");
+        Long requestId = parseLong(parts[0]);
+        int page = parts.length > 1 ? parseInt(parts[1], 0) : 0;
+        if (!registered(session) || requestRepository.findByIdAndCustomerId(requestId, session.getCustomerId()).isEmpty()) {
             send(session, "invalid_action", mainKeyboard(session));
             return;
         }
+        RepairRequestDetailResponse details = repairRequestService.get(requestId);
         CustomerReviewSummary review = reviewService.customerReview(session.getCustomerId(), requestId);
         boolean canReview = details.status() == RepairRequestStatus.COMPLETED && review == null
                 && reviewService.canReview(session.getCustomerId(), requestId);
         String text = detailsText(details, session.getLanguage());
         if (review != null) {
-            text += "\n" + messages.format(
+            text += "\n\n" + messages.format(
                     session.getLanguage(),
                     "your_review",
                     review.rating(),
@@ -594,7 +612,7 @@ public class TelegramCustomerBotService {
         botClient.sendMessage(
                 session.getTelegramChatId(),
                 text,
-                keyboards.requestDetails(requestId, canReview, messages, session.getLanguage()));
+                keyboards.requestDetails(requestId, page, canReview, messages, session.getLanguage()));
     }
 
     private void showProfile(TelegramCustomerSession session) {
@@ -840,46 +858,57 @@ public class TelegramCustomerBotService {
         }
     }
 
-    private String historyText(List<RepairRequestSummaryResponse> requests, LanguageCode language) {
-        StringBuilder builder = new StringBuilder(messages.get(language, "my_requests"));
-        for (RepairRequestSummaryResponse request : requests) {
-            builder.append("\n")
-                    .append(escape(categoryLabel(request, language)))
-                    .append(" | ")
-                    .append(escape(messages.requestStatus(request.status(), language)))
-                    .append(" | ")
-                    .append(formatTelegramDate(request.createdAt()));
+    private String detailsText(RepairRequestDetailResponse details, LanguageCode language) {
+        StringBuilder builder = new StringBuilder();
+        String category = details.category() == null ? "" : categorySummaryLabel(details.category(), language);
+        if (!category.isBlank()) {
+            builder.append("🔧 ").append(escape(category)).append("\n\n");
         }
+        String statusText = messages.statusIcon(details.status()) + " " + messages.requestStatus(details.status(), language);
+        builder.append(escape(statusText)).append("\n\n");
+
+        builder.append(messages.get(language, "detail.problem")).append("\n");
+        builder.append(escape(details.description() == null ? "" : details.description())).append("\n\n");
+
+        String locationDisplay = extractLocationDisplay(details, language);
+        if (locationDisplay != null && !locationDisplay.isBlank()) {
+            builder.append(messages.get(language, "detail.location")).append("\n");
+            builder.append(escape(locationDisplay)).append("\n\n");
+        }
+
+        builder.append(messages.get(language, "detail.created")).append("\n");
+        builder.append(formatDetailsDate(details.createdAt()));
+
         return builder.toString();
     }
 
-    private String detailsText(RepairRequestDetailResponse details, LanguageCode language) {
-        String locationDisplay;
+    private String extractLocationDisplay(RepairRequestDetailResponse details, LanguageCode language) {
         if (details.location() != null) {
             if (details.location().address() != null && !details.location().address().isBlank()) {
-                locationDisplay = details.location().address();
-            } else if (details.location().latitude() != null && details.location().longitude() != null) {
-                locationDisplay = "📍 " + details.location().latitude() + ", " + details.location().longitude();
-            } else {
-                locationDisplay = messages.get(language, "request.location.not_provided");
+                return details.location().address();
             }
-        } else if (details.address() != null && !details.address().isBlank()) {
-            locationDisplay = details.address();
-        } else if (details.latitude() != null && details.longitude() != null) {
-            locationDisplay = "📍 " + details.latitude() + ", " + details.longitude();
-        } else {
-            locationDisplay = messages.get(language, "request.location.not_provided");
+            if (details.location().latitude() != null && details.location().longitude() != null) {
+                return "📍 " + details.location().latitude() + ", " + details.location().longitude();
+            }
         }
-        return field(language, "field.category", escape(categoryLabel(details, language)))
-                + "\n" + field(language, "field.description", escape(details.description()))
-                + "\n" + field(language, "field.status", escape(messages.requestStatus(details.status(), language)))
-                + "\n" + field(language, "field.priority", escape(messages.requestPriority(details.priority(), language)))
-                + "\n" + field(language, "field.location", escape(locationDisplay))
-                + "\n" + field(language, "field.created", formatTelegramDate(details.createdAt()));
+        if (details.address() != null && !details.address().isBlank()) {
+            return details.address();
+        }
+        if (details.latitude() != null && details.longitude() != null) {
+            return "📍 " + details.latitude() + ", " + details.longitude();
+        }
+        return null;
     }
 
     private String field(LanguageCode language, String key, String value) {
         return messages.get(language, key) + ": " + value;
+    }
+
+    private String formatDetailsDate(OffsetDateTime value) {
+        if (value == null) {
+            return "";
+        }
+        return detailsDateFormatter.format(Instant.from(value));
     }
 
     private String formatTelegramDate(OffsetDateTime value) {
@@ -889,20 +918,31 @@ public class TelegramCustomerBotService {
         return telegramDateFormatter.format(Instant.from(value));
     }
 
-    private String categoryLabel(RepairRequestSummaryResponse request, LanguageCode language) {
-        return switch (language) {
-            case EN -> request.category().nameEn();
-            case RU -> request.category().nameRu();
-            case UZ -> request.category().nameUz();
+    private String categorySummaryLabel(RepairRequestCategorySummary category, LanguageCode language) {
+        if (category == null) {
+            return "";
+        }
+        String name = switch (language) {
+            case EN -> category.nameEn();
+            case RU -> category.nameRu();
+            case UZ -> category.nameUz();
         };
-    }
-
-    private String categoryLabel(RepairRequestDetailResponse request, LanguageCode language) {
-        return switch (language) {
-            case EN -> request.category().nameEn();
-            case RU -> request.category().nameRu();
-            case UZ -> request.category().nameUz();
-        };
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        if (category.name() != null && !category.name().isBlank()) {
+            return category.name();
+        }
+        if (category.nameUz() != null && !category.nameUz().isBlank()) {
+            return category.nameUz();
+        }
+        if (category.nameRu() != null && !category.nameRu().isBlank()) {
+            return category.nameRu();
+        }
+        if (category.nameEn() != null && !category.nameEn().isBlank()) {
+            return category.nameEn();
+        }
+        return "";
     }
 
     private boolean registered(TelegramCustomerSession session) {

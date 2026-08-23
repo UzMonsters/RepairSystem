@@ -29,8 +29,16 @@ public class TelegramMessages {
                 entry("help_button", "Help"),
                 entry("help", "Send /cancel to reset the current draft or /menu to return to the menu."),
                 entry("open", "Open"),
-                entry("previous", "Previous"),
-                entry("next", "Next"),
+                entry("previous", "◀️ Previous"),
+                entry("next", "Next ▶️"),
+                entry("my_requests_prompt", "📋 My requests\n\nSelect a request to view:"),
+                entry("my_requests_empty", "📋 My requests\n\nYou do not have repair requests yet."),
+                entry("detail.problem", "📝 Problem"),
+                entry("detail.location", "📍 Location"),
+                entry("detail.created", "🕒 Created"),
+                entry("back_to_requests", "◀️ Back to my requests"),
+                entry("leave_review_detail", "⭐ Leave a review"),
+                entry("main_menu_button", "🏠 Main menu"),
                 entry("field.category", "Category"),
                 entry("field.description", "Description"),
                 entry("field.status", "Status"),
@@ -123,8 +131,16 @@ public class TelegramMessages {
                 entry("help_button", "Помощь"),
                 entry("help", "Отправьте /cancel для сброса черновика или /menu для меню."),
                 entry("open", "Открыть"),
-                entry("previous", "Назад"),
-                entry("next", "Далее"),
+                entry("previous", "◀️ Назад"),
+                entry("next", "Далее ▶️"),
+                entry("my_requests_prompt", "📋 Мои заявки\n\nВыберите заявку для просмотра:"),
+                entry("my_requests_empty", "📋 Мои заявки\n\nУ вас пока нет заявок."),
+                entry("detail.problem", "📝 Описание"),
+                entry("detail.location", "📍 Адрес"),
+                entry("detail.created", "🕒 Создано"),
+                entry("back_to_requests", "◀️ Вернуться к заявкам"),
+                entry("leave_review_detail", "⭐ Оставить отзыв"),
+                entry("main_menu_button", "🏠 Главное меню"),
                 entry("field.category", "Категория"),
                 entry("field.description", "Описание"),
                 entry("field.status", "Статус"),
@@ -217,8 +233,16 @@ public class TelegramMessages {
                 entry("help_button", "Yordam"),
                 entry("help", "/cancel qoralamani tozalaydi, /menu menyuga qaytaradi."),
                 entry("open", "Ochish"),
-                entry("previous", "Oldingi"),
-                entry("next", "Keyingi"),
+                entry("previous", "◀️ Oldingi"),
+                entry("next", "Keyingi ▶️"),
+                entry("my_requests_prompt", "📋 Mening arizalarim\n\nArizani ko‘rish uchun tanlang:"),
+                entry("my_requests_empty", "📋 Mening arizalarim\n\nHozircha arizalaringiz yo‘q."),
+                entry("detail.problem", "📝 Muammo"),
+                entry("detail.location", "📍 Manzil"),
+                entry("detail.created", "🕒 Yaratilgan"),
+                entry("back_to_requests", "◀️ Arizalarimga qaytish"),
+                entry("leave_review_detail", "⭐ Sharh qoldirish"),
+                entry("main_menu_button", "🏠 Asosiy menyu"),
                 entry("field.category", "Kategoriya"),
                 entry("field.description", "Tavsif"),
                 entry("field.status", "Holat"),
@@ -308,6 +332,21 @@ public class TelegramMessages {
 
     public String format(LanguageCode language, String key, Object... args) {
         return get(language, key).formatted(args);
+    }
+
+    public String statusIcon(RepairRequestStatus status) {
+        if (status == null) {
+            return "📋";
+        }
+        return switch (status) {
+            case NEW -> "🆕";
+            case ASSIGNED -> "🔧";
+            case SCHEDULED -> "🗓";
+            case IN_PROGRESS -> "🛠";
+            case WAITING_FOR_PARTS -> "⏸";
+            case COMPLETED -> "✅";
+            case CANCELLED -> "❌";
+        };
     }
 
     public String requestStatus(RepairRequestStatus status, LanguageCode language) {

@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'jacoco'
     id 'checkstyle'
+    id 'info.solidsoft.pitest' version '1.19.0'
     id 'org.springframework.boot' version '4.1.0'
     id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -64,6 +65,35 @@ jacocoTestReport {
         html.required = true
         csv.required = false
     }
+}
+
+def pitestTargets = providers.gradleProperty('pitestTargetClasses')
+        .map { value -> value.split(',').collect { target -> target.trim() }.findAll { !it.isBlank() } }
+        .orElse([
+                'com.example.darks.repair_auto.identity.*',
+                'com.example.darks.repair_auto.notification.*',
+                'com.example.darks.repair_auto.repair.*',
+                'com.example.darks.repair_auto.telegram.*',
+        ])
+
+def pitestTests = providers.gradleProperty('pitestTargetTests')
+        .map { value -> value.split(',').collect { target -> target.trim() }.findAll { !it.isBlank() } }
+        .orElse(['com.example.darks.repair_auto.*'])
+
+pitest {
+    targetClasses = pitestTargets.get()
+    targetTests = pitestTests.get()
+    junit5PluginVersion = '1.2.3'
+    outputFormats = ['XML', 'HTML']
+    timestampedReports = false
+    mutationThreshold = 0
+    coverageThreshold = 0
+    threads = 4
+    jvmArgs = [
+            '-Dfile.encoding=UTF-8',
+            '-Dapp.firebase.enabled=false',
+            '-Dapp.storage.enabled=false',
+    ]
 }
 
 checkstyle {

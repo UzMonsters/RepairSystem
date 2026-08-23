@@ -33,6 +33,7 @@ import com.example.darks.repair_auto.notification.infrastructure.persistence.Not
 import com.example.darks.repair_auto.notification.infrastructure.persistence.NotificationOutboxRepository;
 import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationWorker;
 import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationWorkerTransactions;
+import com.example.darks.repair_auto.notification.infrastructure.worker.PushNotificationWorkerTransactions;
 import com.example.darks.repair_auto.repair.assignment.api.dto.AssignmentRequest;
 import com.example.darks.repair_auto.repair.assignment.api.dto.ReassignmentRequest;
 import com.example.darks.repair_auto.repair.assignment.api.dto.ScheduleRequest;
@@ -134,6 +135,9 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Autowired
     private NotificationWorkerTransactions workerTransactions;
+
+    @Autowired
+    private PushNotificationWorkerTransactions pushWorkerTransactions;
 
     @Autowired
     private UserRepository userRepository;
@@ -625,6 +629,32 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void pushWorkerOverlapClaimsDoNotDuplicateNotifications() throws Exception {
+        var request = createRequest();
+        jdbcTemplate.update("delete from notification_delivery_attempts");
+        jdbcTemplate.update("delete from notification_outbox");
+        Long firstPushId = pushNotification(request.id(), "push-overlap-1");
+        Long secondPushId = pushNotification(request.id(), "push-overlap-2");
+
+        var executor = Executors.newFixedThreadPool(2);
+        try {
+            var first = executor.submit(() -> pushWorkerTransactions.claim("push-worker-a"));
+            var second = executor.submit(() -> pushWorkerTransactions.claim("push-worker-b"));
+            var firstBatch = first.get(5, TimeUnit.SECONDS);
+            var secondBatch = second.get(5, TimeUnit.SECONDS);
+            Set<Long> claimedIds = new HashSet<>();
+            firstBatch.forEach(notification -> claimedIds.add(notification.getId()));
+            secondBatch.forEach(notification -> claimedIds.add(notification.getId()));
+
+            assertThat(claimedIds).contains(firstPushId, secondPushId);
+            assertThat(claimedIds).hasSize(firstBatch.size() + secondBatch.size());
+        } finally {
+            executor.shutdownNow();
+        }
+        assertThat(pushWorkerTransactions.claim("push-worker-c")).isEmpty();
+    }
+
+    @Test
     void expiredProcessingLeaseRecoversAndAttemptsRemainAppendOnly() {
         createRequest();
         assertThat(workerTransactions.claim("worker-a")).hasSize(1);
@@ -742,6 +772,23 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
         jdbcTemplate.update(
                 "update notification_outbox set next_attempt_at = now() - interval '1 second' where id = ?",
                 notificationId);
+    }
+
+    private Long pushNotification(Long requestId, String eventKey) {
+        return jdbcTemplate.queryForObject("""
+                insert into notification_outbox (
+                    event_key, notification_type, channel, recipient_type, recipient_id,
+                    repair_request_id, template_key, payload_json, payload_version, language,
+                    rendered_title, rendered_message, attempt_count, status,
+                    next_attempt_at, created_at, updated_at
+                ) values (
+                    ?, 'REQUEST_CREATED', 'PUSH', 'CUSTOMER', ?,
+                    ?, 'notification.request.created', '{}', 1, 'UZ',
+                    'Push title', 'Push body', 0, 'PENDING',
+                    now(), now(), now()
+                )
+                returning id
+                """, Long.class, eventKey, customerId, requestId);
     }
 
     private void rollbackAfter(Runnable action) {

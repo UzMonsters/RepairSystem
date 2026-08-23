@@ -54,6 +54,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
@@ -68,6 +69,9 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Autowired
     private RepairAssignmentRepository repairAssignmentRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private RepairRequestService repairRequestService;
@@ -327,9 +331,23 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
                 () -> repairAssignmentService.assign(requestId, new AssignmentRequest(secondTechnicianId, null), new AuthenticatedUser(manager)));
 
         assertThat(results).anyMatch(result -> result instanceof BusinessRuleException);
-        assertThat(repairAssignmentRepository.findByRepairRequestIdOrderByCreatedAtDesc(requestId))
-                .filteredOn(assignment -> assignment.isActive())
-                .hasSize(1);
+        assertCoherentAssignmentState(requestId, 1);
+        assertThat(statusHistoryCount(requestId, "ASSIGNED")).isEqualTo(1);
+        assertThat(notificationCount(requestId, "TECHNICIAN_ASSIGNED")).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    void givenConcurrentDuplicateAssignmentsToSameTechnicianThenNoDuplicateRowsOrSideEffectsRemain() throws Exception {
+        List<Object> results = runConcurrently(
+                () -> repairAssignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(admin)),
+                () -> repairAssignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(manager)));
+
+        assertThat(results).filteredOn(result -> !(result instanceof Exception)).hasSize(1);
+        assertThat(results).anyMatch(result -> result instanceof BusinessRuleException);
+        assertCoherentAssignmentState(requestId, 1);
+        assertThat(repairAssignmentRepository.findByRepairRequestIdOrderByCreatedAtDesc(requestId)).hasSize(1);
+        assertThat(statusHistoryCount(requestId, "ASSIGNED")).isEqualTo(1);
+        assertThat(notificationCount(requestId, "TECHNICIAN_ASSIGNED")).isLessThanOrEqualTo(2);
     }
 
     @Test
@@ -347,6 +365,114 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(repairAssignmentRepository.countByTechnicianIdAndStatusIn(
                 limitedTechnician,
                 RepairAssignmentRepository.ACTIVE_STATUSES)).isEqualTo(1);
+        assertThat(List.of(firstRequest, secondRequest))
+                .filteredOn(candidate -> activeAssignments(candidate) == 1)
+                .hasSize(1);
+    }
+
+    @Test
+    void givenConcurrentAssignAndUnassignThenFinalRequestAndHistoryRemainCoherent() throws Exception {
+        repairAssignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(admin));
+
+        List<Object> results = runConcurrently(
+                () -> repairAssignmentService.assign(requestId, new AssignmentRequest(secondTechnicianId, null), new AuthenticatedUser(admin)),
+                () -> repairAssignmentService.unassign(
+                        requestId,
+                        new UnassignmentRequest("customer asked to pause assignment"),
+                        new AuthenticatedUser(manager)));
+
+        assertThat(results).hasSize(2);
+        assertCoherentAssignmentState(requestId, 1);
+        assertThat(repairRequestService.get(requestId).status()).isIn(RepairRequestStatus.NEW, RepairRequestStatus.ASSIGNED);
+        assertThat(statusHistoryCount(requestId, "ASSIGNED")).isLessThanOrEqualTo(1);
+        assertThat(statusHistoryCount(requestId, "NEW")).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    void givenConcurrentReassignAndAcceptThenObsoleteAssignmentCannotRemainAcceptedAndActive() throws Exception {
+        repairAssignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(admin));
+
+        List<Object> results = runConcurrently(
+                () -> repairAssignmentService.reassign(
+                        requestId,
+                        new ReassignmentRequest(secondTechnicianId, null, "race reassign"),
+                        new AuthenticatedUser(admin)),
+                () -> repairAssignmentService.accept(requestId, new AuthenticatedUser(manager)));
+
+        assertThat(results).hasSize(2);
+        assertCoherentAssignmentState(requestId, 1);
+        assertThat(repairAssignmentRepository.findByRepairRequestIdOrderByCreatedAtDesc(requestId))
+                .filteredOn(assignment -> assignment.getTechnician().getId().equals(technicianId)
+                        && assignment.getStatus() == AssignmentStatus.ACCEPTED)
+                .allMatch(assignment -> assignment.isActive());
+        assertThat(activeAssignments(requestId)).isLessThanOrEqualTo(1);
+    }
+
+    @Test
+    void givenConcurrentReassignAndRejectThenObsoleteAssignmentCannotRejectNewAssignment() throws Exception {
+        repairAssignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(admin));
+
+        List<Object> results = runConcurrently(
+                () -> repairAssignmentService.reassign(
+                        requestId,
+                        new ReassignmentRequest(secondTechnicianId, null, "race reassign"),
+                        new AuthenticatedUser(admin)),
+                () -> repairAssignmentService.reject(
+                        requestId,
+                        new AssignmentRejectionRequest("race reject"),
+                        new AuthenticatedUser(manager)));
+
+        assertThat(results).hasSize(2);
+        assertCoherentAssignmentState(requestId, 1);
+        assertThat(repairRequestService.get(requestId).status()).isIn(RepairRequestStatus.NEW, RepairRequestStatus.ASSIGNED);
+        assertThat(statusHistoryCount(requestId, "NEW")).isLessThanOrEqualTo(2);
+        assertThat(statusHistoryCount(requestId, "ASSIGNED")).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    void givenConcurrentAcceptAndRejectThenOnlyOneResponseWins() throws Exception {
+        repairAssignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(admin));
+
+        List<Object> results = runConcurrently(
+                () -> repairAssignmentService.accept(requestId, new AuthenticatedUser(admin)),
+                () -> repairAssignmentService.reject(
+                        requestId,
+                        new AssignmentRejectionRequest("race reject"),
+                        new AuthenticatedUser(manager)));
+
+        assertThat(results).filteredOn(result -> !(result instanceof Exception)).hasSize(1);
+        assertThat(results).anyMatch(result -> result instanceof BusinessRuleException);
+        assertThat(repairAssignmentRepository.findByRepairRequestIdOrderByCreatedAtDesc(requestId))
+                .extracting(assignment -> assignment.getStatus())
+                .filteredOn(status -> status == AssignmentStatus.ACCEPTED || status == AssignmentStatus.REJECTED)
+                .hasSize(1);
+        assertCoherentAssignmentState(requestId, 1);
+    }
+
+    @Test
+    void givenConcurrentScheduleAndUnassignThenInactiveAssignmentCannotKeepScheduleAsCurrent() throws Exception {
+        repairAssignmentService.assign(requestId, new AssignmentRequest(technicianId, null), new AuthenticatedUser(admin));
+        OffsetDateTime visit = OffsetDateTime.now(ZoneOffset.UTC).plusDays(2).withNano(0);
+
+        List<Object> results = runConcurrently(
+                () -> repairAssignmentService.schedule(
+                        requestId,
+                        new ScheduleRequest(visit, false),
+                        new AuthenticatedUser(admin)),
+                () -> repairAssignmentService.unassign(
+                        requestId,
+                        new UnassignmentRequest("schedule raced with unassign"),
+                        new AuthenticatedUser(manager)));
+
+        assertThat(results).hasSize(2);
+        assertCoherentAssignmentState(requestId, 1);
+        var detail = repairRequestService.get(requestId);
+        if (detail.status() == RepairRequestStatus.NEW) {
+            assertThat(detail.currentAssignment()).isNull();
+        } else {
+            assertThat(detail.currentAssignment()).isNotNull();
+            assertThat(detail.currentAssignment().scheduledVisitAt()).isEqualTo(visit.withOffsetSameInstant(ZoneOffset.UTC));
+        }
     }
 
     @Test
@@ -475,6 +601,43 @@ class RepairAssignmentIntegrationTest extends PostgreSqlIntegrationTest {
                 role,
                 true,
                 OffsetDateTime.now(ZoneOffset.UTC)));
+    }
+
+    private long activeAssignments(Long requestId) {
+        return repairAssignmentRepository.findByRepairRequestIdOrderByCreatedAtDesc(requestId)
+                .stream()
+                .filter(assignment -> assignment.isActive())
+                .count();
+    }
+
+    private void assertCoherentAssignmentState(Long requestId, int maxActiveAssignments) {
+        var active = repairAssignmentRepository.findByRepairRequestIdOrderByCreatedAtDesc(requestId)
+                .stream()
+                .filter(assignment -> assignment.isActive())
+                .toList();
+        assertThat(active).hasSizeLessThanOrEqualTo(maxActiveAssignments);
+        var status = repairRequestService.get(requestId).status();
+        if (active.isEmpty()) {
+            assertThat(status).isIn(RepairRequestStatus.NEW, RepairRequestStatus.CANCELLED, RepairRequestStatus.COMPLETED);
+        } else {
+            assertThat(status).isIn(RepairRequestStatus.ASSIGNED, RepairRequestStatus.SCHEDULED);
+        }
+    }
+
+    private int statusHistoryCount(Long requestId, String status) {
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from repair_request_status_history
+                where repair_request_id = ? and to_status = ?
+                """, Integer.class, requestId, status);
+        return count == null ? 0 : count;
+    }
+
+    private int notificationCount(Long requestId, String notificationType) {
+        Integer count = jdbcTemplate.queryForObject("""
+                select count(*) from notification_outbox
+                where repair_request_id = ? and notification_type = ?
+                """, Integer.class, requestId, notificationType);
+        return count == null ? 0 : count;
     }
 
     private Object runCatching(Callable<?> action) {

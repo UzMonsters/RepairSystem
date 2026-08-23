@@ -5,6 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.example.darks.repair_auto.PostgreSqlIntegrationTest;
 import com.example.darks.repair_auto.shared.cleanup.TechnicalDataCleanupService;
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +80,26 @@ class TechnicalDataCleanupServiceIntegrationTest extends PostgreSqlIntegrationTe
         assertThat(countWhere("notification_delivery_attempts", "notification_id = " + pendingNotificationId))
                 .isEqualTo(1);
         assertThat(count("auth_throttle_entries")).isZero();
+    }
+
+    @Test
+    void givenOverlappingCleanupRunsThenRowsReachTerminalCleanupState() throws Exception {
+        Long userId = user();
+        Long requestId = request(userId, customer(), category());
+        OffsetDateTime old = OffsetDateTime.now().minusHours(3);
+        attachment(requestId, userId, "UPLOADING", "cleanup/overlap-stale", old);
+        attachment(requestId, userId, "DELETED", "cleanup/overlap-deleted", old);
+
+        List<TechnicalDataCleanupService.CleanupResult> results = runConcurrently(
+                cleanupService::runOnce,
+                cleanupService::runOnce);
+
+        int staleUploads = results.stream().mapToInt(TechnicalDataCleanupService.CleanupResult::staleUploadsFailed).sum();
+        int deletedObjects = results.stream().mapToInt(TechnicalDataCleanupService.CleanupResult::deletedObjectsPurged).sum();
+        assertThat(staleUploads).isLessThanOrEqualTo(1);
+        assertThat(deletedObjects).isGreaterThanOrEqualTo(1);
+        assertThat(attachmentStatus("cleanup/overlap-stale")).isEqualTo("FAILED");
+        assertThat(objectPurgedAt("cleanup/overlap-deleted")).isNotNull();
     }
 
     private Long user() {
@@ -220,5 +245,24 @@ class TechnicalDataCleanupServiceIntegrationTest extends PostgreSqlIntegrationTe
         Long count = jdbcTemplate.queryForObject("select count(*) from " + tableName + " where " + predicate,
                 Long.class);
         return count == null ? 0 : count;
+    }
+
+    private List<TechnicalDataCleanupService.CleanupResult> runConcurrently(
+            Callable<TechnicalDataCleanupService.CleanupResult> firstAction,
+            Callable<TechnicalDataCleanupService.CleanupResult> secondAction) throws Exception {
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> runAfterStart(firstAction, start));
+            var second = executor.submit(() -> runAfterStart(secondAction, start));
+            start.countDown();
+            return List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+        }
+    }
+
+    private TechnicalDataCleanupService.CleanupResult runAfterStart(
+            Callable<TechnicalDataCleanupService.CleanupResult> action,
+            CountDownLatch start) throws Exception {
+        start.await(5, TimeUnit.SECONDS);
+        return action.call();
     }
 }

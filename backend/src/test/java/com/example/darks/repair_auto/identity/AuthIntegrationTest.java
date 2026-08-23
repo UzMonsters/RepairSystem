@@ -184,6 +184,68 @@ class AuthIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void givenConcurrentRefreshAndLogoutWhenUsingSameTokenThenAtMostOneUsableDescendantRemains() throws Exception {
+        LoginResponse login = authenticationService.login("admin@example.com", "AdminPass123!", null, null);
+
+        List<Object> results = runConcurrently(
+                () -> authenticationService.refresh(login.refreshToken(), null, null),
+                () -> {
+                    authenticationService.logout(login.refreshToken());
+                    return "LOGOUT";
+                });
+
+        assertThat(results).hasSize(2);
+        assertThat(activeRefreshSessions(admin.getId())).isLessThanOrEqualTo(1);
+        assertThat(refreshSessionRepository.findByTokenHash(tokenHashService.hash(login.refreshToken())).orElseThrow())
+                .matches(session -> session.isRevoked() || session.isUsed());
+    }
+
+    @Test
+    void givenConcurrentRefreshAndLogoutAllThenNoMoreThanOneSessionSurvivesAndOriginalTokenIsNotUsable() throws Exception {
+        LoginResponse login = authenticationService.login("admin@example.com", "AdminPass123!", null, null);
+
+        List<Object> results = runConcurrently(
+                () -> authenticationService.refresh(login.refreshToken(), null, null),
+                () -> {
+                    authenticationService.logoutAll(admin.getId());
+                    return "LOGOUT_ALL";
+                });
+
+        assertThat(results).hasSize(2);
+        assertThat(activeRefreshSessions(admin.getId())).isLessThanOrEqualTo(1);
+        BusinessRuleException exception = org.assertj.core.api.Assertions.catchThrowableOfType(
+                () -> authenticationService.refresh(login.refreshToken(), null, null),
+                BusinessRuleException.class);
+        assertThat(exception.code()).isIn("REFRESH_TOKEN_REVOKED", "REFRESH_TOKEN_REUSE_DETECTED");
+    }
+
+    @Test
+    void givenConcurrentRefreshAndPasswordChangeThenOldPasswordAndOldTokenFamilyCannotBothRemainValid()
+            throws Exception {
+        LoginResponse login = authenticationService.login("admin@example.com", "AdminPass123!", null, null);
+
+        List<Object> results = runConcurrently(
+                () -> authenticationService.refresh(login.refreshToken(), null, null),
+                () -> {
+                    authenticationService.changePassword(
+                            admin.getId(),
+                            "AdminPass123!",
+                            "ChangedPass123!",
+                            "ChangedPass123!");
+                    return "PASSWORD_CHANGED";
+                });
+
+        assertThat(results).hasSize(2);
+        assertThat(activeRefreshSessions(admin.getId())).isLessThanOrEqualTo(1);
+        assertThat(passwordService.matches("ChangedPass123!", userRepository.findById(admin.getId()).orElseThrow()
+                .getPasswordHash())
+                || passwordService.matches("AdminPass123!", userRepository.findById(admin.getId()).orElseThrow()
+                .getPasswordHash())).isTrue();
+        assertThat(refreshSessionRepository.findByTokenHash(tokenHashService.hash(login.refreshToken())).orElseThrow())
+                .matches(session -> session.isRevoked() || session.isUsed());
+    }
+
+    @Test
     void givenLogoutWhenRepeatedThenItIsIdempotentAndTokenCannotRefresh() {
         LoginResponse login = authenticationService.login("admin@example.com", "AdminPass123!", null, null);
 
@@ -219,6 +281,32 @@ class AuthIntegrationTest extends PostgreSqlIntegrationTest {
 
         assertThat(wrong.code()).isEqualTo("INVALID_CURRENT_PASSWORD");
         assertThat(reused.code()).isEqualTo("PASSWORD_REUSE_NOT_ALLOWED");
+    }
+
+    private long activeRefreshSessions(Long userId) {
+        return refreshSessionRepository.findByUserId(userId)
+                .stream()
+                .filter(session -> !session.isRevoked() && !session.isUsed())
+                .count();
+    }
+
+    private List<Object> runConcurrently(Callable<?> firstAction, Callable<?> secondAction) throws Exception {
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> runAfterStart(firstAction, start));
+            var second = executor.submit(() -> runAfterStart(secondAction, start));
+            start.countDown();
+            return List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS));
+        }
+    }
+
+    private Object runAfterStart(Callable<?> action, CountDownLatch start) throws Exception {
+        start.await(5, TimeUnit.SECONDS);
+        try {
+            return action.call();
+        } catch (Exception exception) {
+            return exception;
+        }
     }
 
     private User createUser(String fullName, String email, String password, UserRole role, boolean active) {

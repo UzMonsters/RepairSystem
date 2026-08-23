@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -136,6 +137,57 @@ class PushEndpointServiceTest {
     }
 
     @Test
+    void givenCustomerEndpoint_whenStaffRegistersSameFid_thenTransfersOwnershipToStaff() {
+        PushEndpoint existing = PushEndpoint.forCustomer(
+                customer,
+                PushClientType.CUSTOMER_MOBILE,
+                PushPlatform.ANDROID,
+                PushFirebaseApp.CUSTOMER_ANDROID,
+                "shared-fid",
+                "1.0.0",
+                NOW.minusDays(2));
+        ReflectionTestUtils.setField(existing, "id", 111L);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(staffAdmin));
+        when(repository.findByFirebaseAppKeyAndFcmRegistrationToken(PushFirebaseApp.ADMIN_WEB, "shared-fid"))
+                .thenReturn(Optional.of(existing));
+        when(repository.saveAndFlush(existing)).thenReturn(existing);
+
+        PushEndpointRegisterRequest request = new PushEndpointRegisterRequest(
+                "shared-fid",
+                PushClientType.ADMIN_WEB,
+                PushPlatform.WEB,
+                PushFirebaseApp.ADMIN_WEB,
+                "2.0.0");
+
+        PushEndpointResponse response = service.registerForStaff(1L, request);
+
+        assertThat(response.id()).isEqualTo(111L);
+        assertThat(existing.isOwnedByStaff(1L)).isTrue();
+        assertThat(existing.getCustomer()).isNull();
+        assertThat(existing.getClientType()).isEqualTo(PushClientType.ADMIN_WEB);
+        assertThat(existing.getPlatform()).isEqualTo(PushPlatform.WEB);
+        assertThat(existing.getFirebaseAppKey()).isEqualTo(PushFirebaseApp.ADMIN_WEB);
+    }
+
+    @Test
+    void givenIncompatibleStaffRegistration_whenRegister_thenThrowsAndDoesNotSave() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(staffAdmin));
+
+        PushEndpointRegisterRequest request = new PushEndpointRegisterRequest(
+                "bad-staff-fid",
+                PushClientType.CUSTOMER_MOBILE,
+                PushPlatform.ANDROID,
+                PushFirebaseApp.CUSTOMER_ANDROID,
+                "1.0.0");
+
+        assertThatThrownBy(() -> service.registerForStaff(1L, request))
+                .isInstanceOf(BusinessException.class)
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.VALIDATION_ERROR);
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
     void givenCustomerAndroid_whenRegister_thenCreatesCustomerPushEndpoint() {
         AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.CUSTOMER, 42L, "+998901234567", true);
         when(customerRepository.findById(42L)).thenReturn(Optional.of(customer));
@@ -190,6 +242,24 @@ class PushEndpointServiceTest {
     }
 
     @Test
+    void givenIncompatibleCustomerRegistration_whenRegister_thenThrowsAndDoesNotSave() {
+        AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.CUSTOMER, 42L, "+998901234567", true);
+        when(customerRepository.findById(42L)).thenReturn(Optional.of(customer));
+
+        PushEndpointRegisterRequest request = new PushEndpointRegisterRequest(
+                "bad-customer-fid",
+                PushClientType.CUSTOMER_MOBILE,
+                PushPlatform.WEB,
+                PushFirebaseApp.ADMIN_WEB,
+                "1.0.0");
+
+        assertThatThrownBy(() -> service.registerForMobile(actor, request))
+                .isInstanceOf(BusinessException.class)
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.VALIDATION_ERROR);
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
     void givenTechnicianAndroid_whenRegister_thenCreatesTechnicianPushEndpoint() {
         AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 17L, "+998901112233", true);
         when(technicianRepository.findById(17L)).thenReturn(Optional.of(technician));
@@ -214,6 +284,24 @@ class PushEndpointServiceTest {
         assertThat(response.clientType()).isEqualTo(PushClientType.TECHNICIAN_MOBILE);
         assertThat(response.platform()).isEqualTo(PushPlatform.ANDROID);
         assertThat(response.firebaseAppKey()).isEqualTo(PushFirebaseApp.TECHNICIAN_ANDROID);
+    }
+
+    @Test
+    void givenIncompatibleTechnicianRegistration_whenRegister_thenThrowsAndDoesNotSave() {
+        AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 17L, "+998901112233", true);
+        when(technicianRepository.findById(17L)).thenReturn(Optional.of(technician));
+
+        PushEndpointRegisterRequest request = new PushEndpointRegisterRequest(
+                "bad-technician-fid",
+                PushClientType.TECHNICIAN_MOBILE,
+                PushPlatform.ANDROID,
+                PushFirebaseApp.CUSTOMER_ANDROID,
+                "1.0.0");
+
+        assertThatThrownBy(() -> service.registerForMobile(actor, request))
+                .isInstanceOf(BusinessException.class)
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.VALIDATION_ERROR);
+        verify(repository, never()).saveAndFlush(any());
     }
 
     @Test

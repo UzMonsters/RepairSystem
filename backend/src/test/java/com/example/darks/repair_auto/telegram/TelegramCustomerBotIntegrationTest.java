@@ -30,6 +30,7 @@ import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient
 import com.example.darks.repair_auto.telegram.core.application.TelegramFileMetadata;
 import com.example.darks.repair_auto.telegram.core.domain.TelegramUpdateStatus;
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramUpdateRepository;
+import com.example.darks.repair_auto.telegram.customer.domain.TelegramCustomerSessionState;
 import com.example.darks.repair_auto.telegram.customer.infrastructure.TelegramCustomerSessionRepository;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -198,6 +199,33 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
+    void givenStartDuringActiveRequestWizardThenDraftIsResetWithoutCreatingRequest() throws Exception {
+        register(19020, 23020, "+998902020203", "Restart Wizard", LanguageCode.EN);
+        send(callback(212, 19020, 23020, "cb-create-restart", "menu:create"));
+        send(callback(213, 19020, 23020, "cb-cat-restart", "cat:" + categoryId));
+        send(update(214, 19020, 23020, "Draft description before restart"));
+
+        send(update(215, 19020, 23020, "/start"));
+
+        assertThat(requestRepository.findAll()).isEmpty();
+        assertThat(sessionRepository.findByTelegramUserId(19020L).orElseThrow().getDraftDescription()).isNull();
+        assertThat(telegramBotClient.messages().getLast().replyMarkupJson()).contains("inline_keyboard");
+    }
+
+    @Test
+    void givenCategoryBecomesInactiveBeforeCategoryCallbackThenRequestWizardRejectsIt() throws Exception {
+        register(19021, 23021, "+998902020204", "Inactive Callback", LanguageCode.EN);
+        send(callback(216, 19021, 23021, "cb-create-inactive-callback", "menu:create"));
+        categoryService.changeActivation(categoryId, false, "Inactive before category callback.");
+
+        send(callback(217, 19021, 23021, "cb-cat-inactive-callback", "cat:" + categoryId));
+
+        assertThat(requestRepository.findAll()).isEmpty();
+        assertThat(sessionRepository.findByTelegramUserId(19021L).orElseThrow().getDraftCategoryId()).isNull();
+        assertThat(telegramBotClient.lastText()).contains("no longer available");
+    }
+
+    @Test
     void givenForeignContactThenRegistrationIsRejectedWithoutCustomerCreation() throws Exception {
         send(update(20, 2002, 6002, "/start"));
         send(callback(21, 2002, 6002, "cb-lang", "lang:EN"));
@@ -234,6 +262,11 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         assertThat(attachmentStatus(attachment.getId())).isEqualTo(AttachmentStatus.AVAILABLE.name());
         assertThat(attachmentUploadedByUserId(attachment.getId())).isNull();
         assertThat(attachmentUploadedByCustomerId(attachment.getId())).isEqualTo(requestCustomerId(request.getId()));
+        var session = sessionRepository.findByTelegramUserId(3003L).orElseThrow();
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.MAIN_MENU);
+        assertThat(session.getDraftCategoryId()).isNull();
+        assertThat(session.getDraftDescription()).isNull();
+        assertThat(session.photoFileIds()).isEmpty();
         assertThat(telegramBotClient.messages()).noneMatch(message -> message.text().contains(request.getRequestNumber()));
     }
 
@@ -326,8 +359,8 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         Long otherRequestId = createTelegramRequest(5005, 9005, 61, "Other internal text");
 
         send(callback(70, 4004, 8004, "cb-history", "menu:history"));
-        send(callback(71, 4004, 8004, "cb-open", "req:" + ownRequestId));
-        send(callback(72, 4004, 8004, "cb-cross", "req:" + otherRequestId));
+        send(callback(71, 4004, 8004, "cb-open", "req:" + ownRequestId + ":0"));
+        send(callback(72, 4004, 8004, "cb-cross", "req:" + otherRequestId + ":0"));
 
         assertThat(telegramBotClient.messages())
                 .filteredOn(message -> message.chatId().equals(8004L))
@@ -396,6 +429,41 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
                 .singleElement()
                 .extracting(record -> record.getStatus())
                 .isEqualTo(TelegramUpdateStatus.PROCESSED);
+    }
+
+    @Test
+    void givenCustomerBecomesInactiveBeforeConfirmationThenRequestIsNotCreated() throws Exception {
+        register(7017, 11017, "+998907017017", "Inactive Customer Before Confirm");
+        send(callback(97, 7017, 11017, "cb-create-inactive-customer", "menu:create"));
+        send(callback(98, 7017, 11017, "cb-cat-inactive-customer", "cat:" + categoryId));
+        send(update(99, 7017, 11017, "Inactive customer confirmation text"));
+        send(callback(100, 7017, 11017, "cb-skip-inactive-customer", "photo:skip"));
+        send(location(101, 7017, 11017, "41.311081", "69.240562"));
+        Long customerId = customerRepository.findByTelegramUserId(7017L).orElseThrow().getId();
+        customerService.changeActivation(customerId, false, "Inactive before Telegram confirmation.");
+
+        send(callback(102, 7017, 11017, "cb-confirm-inactive-customer", "confirm:create"));
+
+        assertThat(requestRepository.findAll()).isEmpty();
+        assertThat(telegramBotClient.lastText()).contains("could not complete this action");
+    }
+
+    @Test
+    void givenPersistedSessionWhenWizardContinuesInLaterWebhookThenDraftIsReloadedAndRequestIsCreated() throws Exception {
+        register(7027, 11027, "+998907027027", "Persisted Session");
+        send(callback(103, 7027, 11027, "cb-create-persisted", "menu:create"));
+        send(callback(104, 7027, 11027, "cb-cat-persisted", "cat:" + categoryId));
+        send(update(105, 7027, 11027, "Persisted session request text"));
+
+        assertThat(sessionRepository.findByTelegramUserId(7027L).orElseThrow().getDraftDescription())
+                .isEqualTo("Persisted session request text");
+
+        send(callback(106, 7027, 11027, "cb-skip-persisted", "photo:skip"));
+        send(location(107, 7027, 11027, "41.311081", "69.240562"));
+        send(callback(108, 7027, 11027, "cb-confirm-persisted", "confirm:create"));
+
+        assertThat(requestRepository.findAll()).hasSize(1);
+        assertThat(requestRepository.findAll().getFirst().getDescription()).isEqualTo("Persisted session request text");
     }
 
     @Test
@@ -475,12 +543,11 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         Long requestId = createTelegramRequest(11011, 15011, 131, "Localized status details");
 
         send(callback(140, 11011, 15011, "cb-history-status", "menu:history"));
-        send(callback(141, 11011, 15011, "cb-details-status", "req:" + requestId));
+        send(callback(141, 11011, 15011, "cb-details-status", "req:" + requestId + ":0"));
 
         assertThat(telegramBotClient.messages())
                 .filteredOn(message -> message.chatId().equals(15011L))
                 .anyMatch(message -> message.text().contains("New"))
-                .anyMatch(message -> message.text().contains("Priority: Normal"))
                 .noneMatch(message -> message.text().contains("NEW"));
         assertThat(telegramBotClient.messages())
                 .filteredOn(message -> message.chatId().equals(15011L))
@@ -496,27 +563,67 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         SentMessage history = telegramBotClient.messages().getLast();
 
         assertThat(history.text())
-                .contains("Новая")
+                .contains("📋 Мои заявки")
+                .contains("Выберите заявку для просмотра:")
                 .doesNotContain("REP-")
                 .doesNotContain("NEW");
         assertThat(history.replyMarkupJson())
-                .contains("Открыть")
-                .doesNotContain("Open");
+                .contains("🆕 Стиральная машина ·")
+                .contains("🏠 Главное меню")
+                .doesNotContain("Open")
+                .doesNotContain("Открыть");
 
-        send(callback(241, 11112, 15112, "cb-details-ru", "req:" + requestId));
+        send(callback(241, 11112, 15112, "cb-details-ru", "req:" + requestId + ":0"));
         SentMessage details = telegramBotClient.messages().getLast();
 
         assertThat(details.text())
-                .contains("Категория:")
-                .contains("Описание:")
-                .contains("Статус: Новая")
-                .contains("Приоритет: Обычный")
-                .contains("Местоположение:")
-                .contains("Создано:")
+                .contains("🔧 Стиральная машина")
+                .contains("🆕 Новая")
+                .contains("📝 Описание")
+                .contains("Russian localized details")
+                .contains("🕒 Создано")
                 .doesNotContain("REP-")
                 .doesNotContain("Category:")
                 .doesNotContain("Status:")
                 .doesNotContain("NORMAL");
+        assertThat(details.replyMarkupJson())
+                .contains("◀️ Вернуться к заявкам")
+                .contains("hist:0")
+                .contains("🏠 Главное меню");
+    }
+
+    @Test
+    void givenMultipleRequestsWhenCustomerNavigatesHistoryPagesAndSelectsExactRequestThenDetailsAndBackWork() throws Exception {
+        register(11212, 15212, "+998901234567", "Multi Request Customer", LanguageCode.EN);
+        Long req1 = createTelegramRequest(11212, 15212, 301, "First request description");
+        Long req2 = createTelegramRequest(11212, 15212, 311, "Second request description");
+
+        // Open history
+        send(callback(321, 11212, 15212, "cb-hist-multi", "menu:history"));
+        SentMessage historyMsg = telegramBotClient.messages().getLast();
+        assertThat(historyMsg.text()).contains("📋 My requests");
+        assertThat(historyMsg.replyMarkupJson())
+                .contains("req:" + req1 + ":0")
+                .contains("req:" + req2 + ":0")
+                .contains("🏠 Main menu");
+
+        // Click exact request 2
+        send(callback(322, 11212, 15212, "cb-req2", "req:" + req2 + ":0"));
+        SentMessage req2Details = telegramBotClient.messages().getLast();
+        assertThat(req2Details.text())
+                .contains("Second request description")
+                .doesNotContain("First request description");
+        assertThat(req2Details.replyMarkupJson())
+                .contains("hist:0")
+                .contains("◀️ Back to my requests");
+
+        // Click Back
+        send(callback(323, 11212, 15212, "cb-back", "hist:0"));
+        SentMessage backHistory = telegramBotClient.messages().getLast();
+        assertThat(backHistory.text()).contains("📋 My requests");
+        assertThat(backHistory.replyMarkupJson())
+                .contains("req:" + req1 + ":0")
+                .contains("req:" + req2 + ":0");
     }
 
     @Test

@@ -221,6 +221,15 @@ class CustomerRepairRequestControllerTest {
     }
 
     @Test
+    void givenCrossCustomer_whenGetTimeline_thenReturns404NotFound() throws Exception {
+        when(facade.getRequestTimeline(eq(currentActor), eq(9999L)))
+                .thenThrow(new BusinessException(ErrorCode.REPAIR_REQUEST_NOT_FOUND));
+
+        mockMvc.perform(get("/api/v1/mobile/me/repair-requests/9999/timeline"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
     void givenCustomerAuth_whenPostReview_thenReturns201Created() throws Exception {
         CustomerReviewCreateRequest request = new CustomerReviewCreateRequest(5, "Fast and quality repair!");
         CustomerReviewResponse response = new CustomerReviewResponse(71L, 5, "Fast and quality repair!", NOW);
