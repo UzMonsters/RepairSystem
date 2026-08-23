@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.telegram.technician.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -440,6 +441,137 @@ class TelegramTechnicianBotServiceTest {
         assertThat(session.getDraftText()).isEqualTo("Tugadi");
     }
 
+    @Test
+    void givenHistoricalRejectedAssignmentWhenOpenedThenReadOnlyCardIsShownWithoutActionButtons() {
+        TelegramTechnicianSession session = linkedSession(93020L, 94020L);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairAssignment rejectedAssignment = assignment(
+                session,
+                AssignmentStatus.REJECTED,
+                RepairRequestStatus.NEW);
+        TelegramTechnicianBotService service = service(session, botClient, List.of(rejectedAssignment));
+
+        service.handle(callback(30L, 93020L, 94020L, "cb-recent-rejected", "tjob:123:r:0"));
+
+        assertThat(botClient.last().text())
+                .contains("Status: ❌ Rejected")
+                .contains("Customer: Repair Customer");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("tlist:r:0")
+                .contains("tmenu:main")
+                .doesNotContain("taccept:")
+                .doesNotContain("treject:")
+                .doesNotContain("tstart:")
+                .doesNotContain("twork:")
+                .doesNotContain("tdiagnosis:");
+    }
+
+    @Test
+    void givenHistoricalCompletedAssignmentWhenOpenedThenReadOnlyCardIsShownWithoutActionButtons() {
+        TelegramTechnicianSession session = linkedSession(93021L, 94021L);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairAssignment completedAssignment = assignment(
+                session,
+                AssignmentStatus.COMPLETED,
+                RepairRequestStatus.COMPLETED);
+        TelegramTechnicianBotService service = service(session, botClient, List.of(completedAssignment));
+
+        service.handle(callback(31L, 93021L, 94021L, "cb-recent-completed", "tjob:123:r:0"));
+
+        assertThat(botClient.last().text())
+                .contains("Status: ✅ Completed")
+                .contains("Customer: Repair Customer");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("tlist:r:0")
+                .contains("tmenu:main")
+                .doesNotContain("taccept:")
+                .doesNotContain("treject:")
+                .doesNotContain("tstart:")
+                .doesNotContain("twork:");
+    }
+
+    @Test
+    void givenHistoricalCancelledAssignmentWhenOpenedThenReadOnlyCardIsShownWithoutActionButtons() {
+        TelegramTechnicianSession session = linkedSession(93022L, 94022L);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairAssignment cancelledAssignment = assignment(
+                session,
+                AssignmentStatus.CANCELLED,
+                RepairRequestStatus.CANCELLED);
+        TelegramTechnicianBotService service = service(session, botClient, List.of(cancelledAssignment));
+
+        service.handle(callback(32L, 93022L, 94022L, "cb-recent-cancelled", "tjob:123:r:0"));
+
+        assertThat(botClient.last().text())
+                .contains("Status: 🚫 Cancelled")
+                .contains("Customer: Repair Customer");
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("tlist:r:0")
+                .contains("tmenu:main")
+                .doesNotContain("tstart:")
+                .doesNotContain("twork:");
+    }
+
+    @Test
+    void givenTechnicianRejectionInputWhenReasonProvidedThenResultIsSentAsNewMessage() {
+        TelegramTechnicianSession session = linkedSession(93023L, 94023L);
+        session.pendingRequest(123L, 888L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.state(TelegramTechnicianSessionState.AWAITING_REJECTION_REASON, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairAssignment assignment = assignment(session, AssignmentStatus.PENDING, RepairRequestStatus.ASSIGNED);
+        TelegramTechnicianBotService service = service(session, botClient, List.of(assignment));
+
+        service.handle(message(33L, 93023L, 94023L, "Cannot do this repair"));
+
+        assertThat(botClient.sends()).isNotEmpty();
+        assertThat(botClient.edits()).isEmpty();
+        assertThat(botClient.messages()).anyMatch(m -> m.text().contains("Assignment rejected"));
+    }
+
+    @Test
+    void givenTechnicianDiagnosisInputWhenDiagnosisProvidedThenResultIsSentAsNewMessage() {
+        TelegramTechnicianSession session = linkedSession(93024L, 94024L);
+        session.pendingRequest(123L, 888L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.state(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairAssignment assignment = assignment(session, AssignmentStatus.ACCEPTED, RepairRequestStatus.IN_PROGRESS);
+        TelegramTechnicianBotService service = service(session, botClient, List.of(assignment));
+
+        service.handle(message(34L, 93024L, 94024L, "Broken motor"));
+
+        assertThat(botClient.sends()).isNotEmpty();
+        assertThat(botClient.edits()).isEmpty();
+        assertThat(botClient.last().text()).contains("Diagnosis saved");
+    }
+
+    @Test
+    void givenTechnicianWaitReasonInputWhenReasonProvidedThenResultIsSentAsNewMessage() {
+        TelegramTechnicianSession session = linkedSession(93025L, 94025L);
+        session.pendingRequest(123L, 888L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.state(TelegramTechnicianSessionState.AWAITING_WAIT_REASON, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        RepairAssignment assignment = assignment(session, AssignmentStatus.ACCEPTED, RepairRequestStatus.IN_PROGRESS);
+        TelegramTechnicianBotService service = service(session, botClient, List.of(assignment));
+
+        service.handle(message(35L, 93025L, 94025L, "Need spare motor"));
+
+        assertThat(botClient.sends()).isNotEmpty();
+        assertThat(botClient.edits()).isEmpty();
+        assertThat(botClient.last().text()).contains("Moved to waiting for parts");
+    }
+
+    @Test
+    void givenHistoricalAssignmentBelongsToAnotherTechnicianWhenOpenedThenAccessDenied() {
+        TelegramTechnicianSession session = linkedSession(93026L, 94026L);
+        RecordingTelegramBotClient botClient = new RecordingTelegramBotClient();
+        TelegramTechnicianBotService service = service(session, botClient, List.of());
+
+        assertThatThrownBy(() -> service.handle(callback(36L, 93026L, 94026L, "cb-other-tech", "tjob:999:r:0")))
+                .isInstanceOf(com.example.darks.repair_auto.shared.error.BusinessRuleException.class)
+                .extracting(e -> ((com.example.darks.repair_auto.shared.error.BusinessRuleException) e).code())
+                .isEqualTo("ASSIGNMENT_NOT_FOUND");
+    }
+
     private TelegramTechnicianBotService service(
             TelegramTechnicianSession session,
             RecordingTelegramBotClient botClient,
@@ -475,6 +607,9 @@ class TelegramTechnicianBotServiceTest {
             when(assignmentRepository.findActiveByRequestId(
                     eq(assignment.getRepairRequest().getId()),
                     any())).thenReturn(Optional.of(assignment));
+            when(assignmentRepository.findByRepairRequestIdAndTechnicianIdOrderByCreatedAtDesc(
+                    eq(assignment.getRepairRequest().getId()),
+                    eq(session.getTechnicianId()))).thenReturn(List.of(assignment));
             when(requestService.get(assignment.getRepairRequest().getId())).thenReturn(detail(true));
         }
         return new TelegramTechnicianBotService(
@@ -637,6 +772,8 @@ class TelegramTechnicianBotServiceTest {
     private static final class RecordingTelegramBotClient implements TelegramBotClient {
 
         private final List<SentMessage> messages = new ArrayList<>();
+        private final List<SentMessage> sends = new ArrayList<>();
+        private final List<SentMessage> edits = new ArrayList<>();
         private long lastDownloadMaxSizeBytes = -1;
 
         SentMessage last() {
@@ -647,19 +784,31 @@ class TelegramTechnicianBotServiceTest {
             return messages;
         }
 
+        List<SentMessage> sends() {
+            return sends;
+        }
+
+        List<SentMessage> edits() {
+            return edits;
+        }
+
         long lastDownloadMaxSizeBytes() {
             return lastDownloadMaxSizeBytes;
         }
 
         @Override
         public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            SentMessage msg = new SentMessage(chatId, text, replyMarkupJson);
+            messages.add(msg);
+            sends.add(msg);
             return (long) messages.size();
         }
 
         @Override
         public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
-            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            SentMessage msg = new SentMessage(chatId, text, replyMarkupJson);
+            messages.add(msg);
+            edits.add(msg);
             return messageId;
         }
 
