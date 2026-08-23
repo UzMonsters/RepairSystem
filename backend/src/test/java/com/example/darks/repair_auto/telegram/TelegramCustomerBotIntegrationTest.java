@@ -681,7 +681,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
     void givenUnexpectedCallbackStateThenLocalizedInvalidActionIsReturned() throws Exception {
         register(15015, 19015, "+998901616161", "Invalid State", LanguageCode.EN);
 
-        send(callback(181, 15015, 19015, "cb-invalid-state", "cat:" + categoryId));
+        send(callback(181, 15015, 19015, "cb-invalid-state", "revrate:5"));
 
         assertThat(telegramBotClient.lastText()).contains("no longer available");
         assertThat(updateRepository.findAll())
@@ -722,7 +722,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         assertThat(reviewRepository.findAll()).hasSize(1);
         assertThat(reviewRepository.findAll().getFirst().getRating()).isEqualTo(5);
-        assertThat(telegramBotClient.lastText()).contains("Thank you");
+        assertThat(telegramBotClient.messages()).anyMatch(m -> m.text().contains("Thank you"));
 
         send(callback(196, 16016, 20016, "cb-review-again", "menu:review"));
         assertThat(telegramBotClient.lastText()).contains("There are no completed requests");
@@ -995,16 +995,31 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         }
 
         @Override
-        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
             if (failNextSend) {
                 failNextSend = false;
                 throw new TelegramApiException("Temporary Telegram send failure.");
             }
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return (long) messages.size();
+        }
+
+        @Override
+        public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
+            if (failNextSend) {
+                failNextSend = false;
+                throw new TelegramApiException("Temporary Telegram send failure.");
+            }
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return messageId;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+        }
+
+        @Override
+        public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
         }
 
         @Override

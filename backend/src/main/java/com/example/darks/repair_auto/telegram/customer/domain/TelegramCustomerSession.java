@@ -83,6 +83,9 @@ public class TelegramCustomerSession {
     @Column(name = "draft_review_comment", length = 1000)
     private String draftReviewComment;
 
+    @Column(name = "active_workflow_message_id")
+    private Long activeWorkflowMessageId;
+
     @Column(name = "history_page", nullable = false)
     private int historyPage;
 
@@ -181,6 +184,10 @@ public class TelegramCustomerSession {
         return draftReviewComment;
     }
 
+    public Long getActiveWorkflowMessageId() {
+        return activeWorkflowMessageId;
+    }
+
     public int getHistoryPage() {
         return historyPage;
     }
@@ -255,6 +262,11 @@ public class TelegramCustomerSession {
         this.updatedAt = now;
     }
 
+    public void activeWorkflowMessageId(Long messageId, OffsetDateTime now) {
+        this.activeWorkflowMessageId = messageId;
+        this.updatedAt = now;
+    }
+
     public void historyPage(int page, OffsetDateTime now) {
         this.historyPage = Math.max(page, 0);
         this.updatedAt = now;
@@ -288,6 +300,7 @@ public class TelegramCustomerSession {
         this.reviewRequest = null;
         this.draftReviewRating = null;
         this.draftReviewComment = null;
+        this.activeWorkflowMessageId = null;
         this.historyPage = 0;
         this.updatedAt = now;
     }
@@ -296,6 +309,7 @@ public class TelegramCustomerSession {
         this.reviewRequest = null;
         this.draftReviewRating = null;
         this.draftReviewComment = null;
+        this.activeWorkflowMessageId = null;
         this.updatedAt = now;
     }
 }

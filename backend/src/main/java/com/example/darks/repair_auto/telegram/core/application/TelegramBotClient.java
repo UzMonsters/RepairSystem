@@ -5,9 +5,13 @@ import java.util.List;
 
 public interface TelegramBotClient {
 
-    void sendMessage(Long chatId, String text, String replyMarkupJson);
+    Long sendMessage(Long chatId, String text, String replyMarkupJson);
+
+    Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson);
 
     void answerCallback(String callbackQueryId, String text);
+
+    void answerCallback(String callbackQueryId, String text, boolean showAlert);
 
     TelegramFileMetadata getFile(String fileId);
 

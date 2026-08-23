@@ -74,10 +74,6 @@ class TelegramTechnicianBotServiceTest {
         service.handle(message(2L, 93001L, 94001L, "Pending"));
 
         assertThat(botClient.last().text()).contains("No jobs found");
-        assertThat(botClient.last().replyMarkupJson())
-                .contains("\"keyboard\"")
-                .contains("Pending")
-                .doesNotContain("\"inline_keyboard\"");
     }
 
     @Test
@@ -92,10 +88,10 @@ class TelegramTechnicianBotServiceTest {
         service.handle(message(8L, 93002L, 94002L, "Pending"));
 
         assertThat(botClient.last().text())
-                .contains("1. Washer | Assigned")
+                .contains("Pending assignments")
                 .doesNotContain("REP-2026-000002");
         assertThat(botClient.last().replyMarkupJson())
-                .contains("Open 1")
+                .contains("Washer")
                 .doesNotContain("REP-2026-000002");
     }
 
@@ -111,13 +107,12 @@ class TelegramTechnicianBotServiceTest {
         service.handle(message(15L, 93009L, 94009L, "Kutilayotgan"));
 
         assertThat(botClient.last().text())
-                .contains("Ishlar")
-                .contains("1. Kir yuvish mashinasi | Biriktirilgan")
+                .contains("Kutilayotgan topshiriqlar")
                 .doesNotContain("Jobs")
-                .doesNotContain("Assigned");
+                .doesNotContain("Pending");
         assertThat(botClient.last().replyMarkupJson())
-                .contains("Ochish 1")
-                .doesNotContain("Open 1");
+                .contains("Kir yuvish mashinasi")
+                .doesNotContain("Washer");
     }
 
     @Test
@@ -129,9 +124,9 @@ class TelegramTechnicianBotServiceTest {
                 AssignmentStatus.ACCEPTED,
                 RepairRequestStatus.ASSIGNED)));
 
-        service.handle(callback(9L, 93003L, 94003L, "cb-accept", "taccept:123"));
+        service.handle(callback(9L, 93003L, 94003L, "cb-accept", "taccept:123:p:0"));
 
-        assertThat(botClient.last().text()).contains("Assignment accepted");
+        assertThat(botClient.last().text()).contains("Customer: Repair Customer");
         assertThat(botClient.last().replyMarkupJson())
                 .contains("Start")
                 .doesNotContain("Accept")
@@ -150,12 +145,12 @@ class TelegramTechnicianBotServiceTest {
                 AssignmentStatus.ACCEPTED,
                 RepairRequestStatus.ASSIGNED)));
 
-        service.handle(callback(16L, 93010L, 94010L, "cb-accept", "taccept:123"));
+        service.handle(callback(16L, 93010L, 94010L, "cb-accept", "taccept:123:p:0"));
 
         assertThat(session.getLanguage()).isEqualTo(LanguageCode.UZ);
         assertThat(botClient.last().text())
-                .contains("Topshiriq qabul qilindi")
-                .doesNotContain("Assignment accepted");
+                .contains("Mijoz: Repair Customer")
+                .doesNotContain("Customer: ");
         assertThat(botClient.last().replyMarkupJson())
                 .contains("Boshlash")
                 .doesNotContain("Start");
@@ -170,9 +165,9 @@ class TelegramTechnicianBotServiceTest {
                 AssignmentStatus.ACCEPTED,
                 RepairRequestStatus.IN_PROGRESS)));
 
-        service.handle(callback(10L, 93004L, 94004L, "cb-start", "tstart:123"));
+        service.handle(callback(10L, 93004L, 94004L, "cb-start", "tstart:123:a:0"));
 
-        assertThat(botClient.last().text()).contains("Repair started");
+        assertThat(botClient.last().text()).contains("Customer: Repair Customer");
         assertThat(botClient.last().replyMarkupJson())
                 .contains("Diagnosis")
                 .contains("Wait")
@@ -187,7 +182,7 @@ class TelegramTechnicianBotServiceTest {
     @Test
     void givenWaitingAssignmentThenOnlyResumeAndDiagnosisActionsAreShown() {
         TelegramTechnicianSession session = linkedSession(93005L, 94005L);
-        session.selectRequest(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.pendingRequest(123L, null, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         session.state(
                 TelegramTechnicianSessionState.AWAITING_WAIT_REASON,
                 OffsetDateTime.parse("2026-08-06T10:00:00Z"));
@@ -217,9 +212,9 @@ class TelegramTechnicianBotServiceTest {
                 AssignmentStatus.ACCEPTED,
                 RepairRequestStatus.IN_PROGRESS)));
 
-        service.handle(callback(13L, 93007L, 94007L, "cb-resume", "tresume:123"));
+        service.handle(callback(13L, 93007L, 94007L, "cb-resume", "tresume:123:a:0"));
 
-        assertThat(botClient.last().text()).contains("Repair resumed");
+        assertThat(botClient.last().text()).contains("Customer: Repair Customer");
         assertThat(botClient.last().replyMarkupJson())
                 .contains("Diagnosis")
                 .contains("Complete");
@@ -230,7 +225,7 @@ class TelegramTechnicianBotServiceTest {
     @Test
     void givenTechnicianAwaitingWorkTextWhenOpeningActiveThenDraftStateIsCleared() {
         TelegramTechnicianSession session = linkedSession(93008L, 94008L);
-        session.selectRequest(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.pendingRequest(123L, null, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         session.state(
                 TelegramTechnicianSessionState.AWAITING_WORK_PERFORMED,
                 OffsetDateTime.parse("2026-08-06T10:00:00Z"));
@@ -242,7 +237,7 @@ class TelegramTechnicianBotServiceTest {
 
         service.handle(message(14L, 93008L, 94008L, "Active"));
 
-        assertThat(botClient.last().text()).contains("Jobs");
+        assertThat(botClient.last().text()).contains("Active jobs");
         assertThat(session.getState()).isEqualTo(TelegramTechnicianSessionState.MAIN_MENU);
         assertThat(session.getSelectedRequestId()).isNull();
     }
@@ -250,7 +245,7 @@ class TelegramTechnicianBotServiceTest {
     @Test
     void givenWorkTextSentThenCompletionPhotoPromptDoesNotRepeatActionPanel() {
         TelegramTechnicianSession session = linkedSession(93006L, 94006L);
-        session.selectRequest(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.pendingRequest(123L, null, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         session.state(
                 TelegramTechnicianSessionState.AWAITING_WORK_PERFORMED,
                 OffsetDateTime.parse("2026-08-06T10:00:00Z"));
@@ -263,7 +258,9 @@ class TelegramTechnicianBotServiceTest {
         service.handle(message(12L, 93006L, 94006L, "Work done."));
 
         assertThat(botClient.last().text()).contains("Send completion photo");
-        assertThat(botClient.last().replyMarkupJson()).isNull();
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("tcancelinput:123")
+                .doesNotContain("tcomplete:123");
     }
 
     @Test
@@ -282,7 +279,7 @@ class TelegramTechnicianBotServiceTest {
                 .contains("Язык")
                 .doesNotContain("Pending");
         assertThat(botClient.last().text()).contains("Заявок нет");
-        assertThat(botClient.last().replyMarkupJson()).contains("Ожидающие");
+        assertThat(botClient.last().replyMarkupJson()).contains("tmenu:main");
     }
 
     @Test
@@ -301,7 +298,7 @@ class TelegramTechnicianBotServiceTest {
                 .contains("Til")
                 .doesNotContain("Pending");
         assertThat(botClient.last().text()).contains("Ishlar topilmadi");
-        assertThat(botClient.last().replyMarkupJson()).contains("Kutilayotgan");
+        assertThat(botClient.last().replyMarkupJson()).contains("tmenu:main");
     }
 
     @Test
@@ -318,7 +315,7 @@ class TelegramTechnicianBotServiceTest {
 
         assertThat(session.getLanguage()).isEqualTo(LanguageCode.RU);
         assertThat(session.getPendingTokenHash()).isNull();
-        assertThat(botClient.last().text()).contains("Профиль техника привязан");
+        assertThat(botClient.messages()).anyMatch(m -> m.text().contains("Профиль техника привязан"));
         assertThat(botClient.last().replyMarkupJson())
                 .contains("Ожидающие")
                 .doesNotContain("Pending");
@@ -352,7 +349,7 @@ class TelegramTechnicianBotServiceTest {
     @Test
     void givenTelegramFileMetadataWithoutSizeThenWebhookPhotoSizeIsUsedForTechnicianUpload() {
         TelegramTechnicianSession session = linkedSession(99005L, 99006L, LanguageCode.EN);
-        session.selectRequest(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.pendingRequest(123L, null, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         session.state(
                 TelegramTechnicianSessionState.AWAITING_COMPLETION_PHOTO,
                 OffsetDateTime.parse("2026-08-06T10:00:00Z"));
@@ -395,7 +392,7 @@ class TelegramTechnicianBotServiceTest {
     @Test
     void givenCompletionPhotoWithoutDiagnosisThenBotPromptsDiagnosisBeforeFinalComplete() {
         TelegramTechnicianSession session = linkedSession(99007L, 99008L, LanguageCode.UZ);
-        session.selectRequest(123L, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
+        session.pendingRequest(123L, null, OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         session.draftText("Tugadi", OffsetDateTime.parse("2026-08-06T10:00:00Z"));
         session.state(
                 TelegramTechnicianSessionState.AWAITING_COMPLETION_PHOTO,
@@ -428,7 +425,9 @@ class TelegramTechnicianBotServiceTest {
         service.handle(photo(21L, 99007L, 99008L, "completion-photo", 3456L));
 
         assertThat(botClient.last().text()).contains("Tashxis matnini yuboring");
-        assertThat(botClient.last().replyMarkupJson()).isNull();
+        assertThat(botClient.last().replyMarkupJson())
+                .contains("tcancelinput:123")
+                .doesNotContain("tcomplete:123");
         assertThat(session.getState()).isEqualTo(TelegramTechnicianSessionState.AWAITING_DIAGNOSIS);
         assertThat(session.getDraftText()).isEqualTo("Tugadi");
 
@@ -461,6 +460,11 @@ class TelegramTechnicianBotServiceTest {
         when(technicians.findById(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
         when(technicians.findByIdForUpdate(session.getTechnicianId())).thenReturn(Optional.of(session.getTechnician()));
         RepairRequestService requestService = mock(RepairRequestService.class);
+        org.springframework.data.domain.Page<RepairAssignment> page = new org.springframework.data.domain.PageImpl<>(assignments);
+        when(assignmentRepository.findJobsByTechnicianIdAndStatusIn(
+                eq(session.getTechnicianId()),
+                any(),
+                any())).thenReturn(page);
         when(assignmentRepository.findByTechnicianIdAndStatusOrderByCreatedAtDesc(
                 session.getTechnicianId(),
                 AssignmentStatus.PENDING)).thenReturn(assignments);
@@ -500,8 +504,10 @@ class TelegramTechnicianBotServiceTest {
                 null,
                 null,
                 null,
-                null,
-                null,
+                new com.example.darks.repair_auto.repair.request.api.dto.RepairRequestCustomerSummary(
+                        11111L, "Repair Customer", "+998901111111", LanguageCode.EN, true),
+                new com.example.darks.repair_auto.repair.request.api.dto.RepairRequestCategorySummary(
+                        10L, "Washer", "Washer", "Washer", "Стиральная машина", "Kir yuvish mashinasi", true),
                 null,
                 new RepairExecutionSummary(
                         1L,
@@ -623,6 +629,7 @@ class TelegramTechnicianBotServiceTest {
                         null,
                         null,
                         null,
+                        null,
                         List.of(new TelegramUpdatePayload.TelegramPhotoSize(fileId, null, 800, 600, size))),
                 null);
     }
@@ -645,12 +652,23 @@ class TelegramTechnicianBotServiceTest {
         }
 
         @Override
-        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return (long) messages.size();
+        }
+
+        @Override
+        public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return messageId;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+        }
+
+        @Override
+        public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
         }
 
         @Override

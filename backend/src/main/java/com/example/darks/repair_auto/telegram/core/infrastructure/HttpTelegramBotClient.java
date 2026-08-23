@@ -14,7 +14,10 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -22,9 +25,12 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 class HttpTelegramBotClient implements TelegramBotClient {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(HttpTelegramBotClient.class);
 
     private final TelegramProperties properties;
     private final TelegramProperties.Bot bot;
@@ -38,35 +44,82 @@ class HttpTelegramBotClient implements TelegramBotClient {
     }
 
     @Override
-    public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+    public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
         Map<String, Object> body = replyMarkupJson == null || replyMarkupJson.isBlank()
                 ? Map.of("chat_id", chatId, "text", text)
                 : Map.of("chat_id", chatId, "text", text, "reply_markup", replyMarkupJson);
         try {
-            TelegramResponse<?> response = restClient.post()
+            TelegramMessageResponse response = restClient.post()
                     .uri(apiUri("sendMessage"))
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(TelegramResponse.class);
-            validate(response);
+                    .body(TelegramMessageResponse.class);
+            validateMessage(response);
+            return response.result() != null ? response.result().messageId() : null;
         } catch (RestClientException exception) {
             throw new TelegramApiException("Telegram API request failed.", exception);
         }
     }
 
     @Override
+    public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("chat_id", chatId);
+        body.put("message_id", messageId);
+        body.put("text", text);
+        if (replyMarkupJson != null && !replyMarkupJson.isBlank()) {
+            body.put("reply_markup", replyMarkupJson);
+        }
+        try {
+            TelegramMessageResponse response = restClient.post()
+                    .uri(apiUri("editMessageText"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(TelegramMessageResponse.class);
+            validateMessage(response);
+            return response.result() != null ? response.result().messageId() : messageId;
+        } catch (RestClientResponseException exception) {
+            String responseBody = exception.getResponseBodyAsString();
+            if (responseBody != null && responseBody.toLowerCase(Locale.ROOT).contains("message is not modified")) {
+                return messageId;
+            }
+            throw new TelegramApiException("Telegram API editMessage failed.", exception);
+        } catch (RestClientException exception) {
+            if (exception.getMessage() != null && exception.getMessage().toLowerCase(Locale.ROOT).contains("message is not modified")) {
+                return messageId;
+            }
+            throw new TelegramApiException("Telegram API editMessage failed.", exception);
+        }
+    }
+
+    @Override
     public void answerCallback(String callbackQueryId, String text) {
+        answerCallback(callbackQueryId, text, false);
+    }
+
+    @Override
+    public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
+        if (callbackQueryId == null || callbackQueryId.isBlank()) {
+            return;
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("callback_query_id", callbackQueryId);
+        body.put("text", text == null ? "" : text);
+        if (showAlert) {
+            body.put("show_alert", true);
+        }
         try {
             TelegramResponse<?> response = restClient.post()
                     .uri(apiUri("answerCallbackQuery"))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("callback_query_id", callbackQueryId, "text", text == null ? "" : text))
+                    .body(body)
                     .retrieve()
                     .body(TelegramResponse.class);
             validate(response);
         } catch (RestClientException exception) {
-            throw new TelegramApiException("Telegram API request failed.", exception);
+            LOGGER.debug("Telegram answerCallbackQuery failed for id={}", callbackQueryId, exception);
         }
     }
 
@@ -221,6 +274,12 @@ class HttpTelegramBotClient implements TelegramBotClient {
         }
     }
 
+    private void validateMessage(TelegramMessageResponse response) {
+        if (response == null || !response.ok()) {
+            throw new TelegramApiException("Telegram API request failed.");
+        }
+    }
+
     private void validateFile(TelegramFileResponse response) {
         if (response == null || !response.ok() || response.result() == null) {
             throw new TelegramApiException("Telegram API request failed.");
@@ -228,6 +287,12 @@ class HttpTelegramBotClient implements TelegramBotClient {
     }
 
     private record TelegramResponse<T>(boolean ok, T result) {
+    }
+
+    private record TelegramMessageResponse(boolean ok, TelegramMessageResult result) {
+    }
+
+    private record TelegramMessageResult(@JsonProperty("message_id") Long messageId) {
     }
 
     private record TelegramFileResponse(boolean ok, TelegramFileResult result) {

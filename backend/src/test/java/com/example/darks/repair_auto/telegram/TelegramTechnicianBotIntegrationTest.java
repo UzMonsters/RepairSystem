@@ -756,12 +756,23 @@ class TelegramTechnicianBotIntegrationTest extends PostgreSqlIntegrationTest {
         }
 
         @Override
-        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return (long) messages.size();
+        }
+
+        @Override
+        public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return messageId;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+        }
+
+        @Override
+        public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
         }
 
         @Override

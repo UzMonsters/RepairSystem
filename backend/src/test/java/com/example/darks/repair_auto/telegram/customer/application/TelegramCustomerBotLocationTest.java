@@ -15,6 +15,7 @@ import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.telegram.core.api.TelegramUpdatePayload;
 import com.example.darks.repair_auto.telegram.core.application.TelegramBotClient;
 import com.example.darks.repair_auto.telegram.core.application.TelegramFileMetadata;
+import com.example.darks.repair_auto.telegram.core.application.TelegramScreenService;
 import com.example.darks.repair_auto.telegram.core.infrastructure.TelegramProperties;
 import com.example.darks.repair_auto.telegram.customer.domain.TelegramCustomerSession;
 import com.example.darks.repair_auto.telegram.customer.domain.TelegramCustomerSessionState;
@@ -63,6 +64,7 @@ class TelegramCustomerBotLocationTest {
         messages = new TelegramMessages();
         keyboards = new TelegramKeyboards();
 
+        TelegramScreenService screenService = new TelegramScreenService();
         botService = new TelegramCustomerBotService(
                 sessionRepository,
                 categoryRepository,
@@ -72,6 +74,7 @@ class TelegramCustomerBotLocationTest {
                 repairReviewService,
                 photoService,
                 botClient,
+                screenService,
                 messages,
                 keyboards,
                 new TelegramProperties(),
@@ -125,7 +128,7 @@ class TelegramCustomerBotLocationTest {
         assertThat(session.getDraftAddress()).isNull();
 
         assertThat(botClient.last().text()).contains("Confirm request");
-        assertThat(botClient.last().text()).contains("Location: 📍 41.3110810, 69.2405620");
+        assertThat(botClient.last().text()).contains("Location: Location attached");
     }
 
     @Test
@@ -148,12 +151,11 @@ class TelegramCustomerBotLocationTest {
         botService.handle(payload);
 
         assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_LOCATION_ADDRESS);
-        assertThat(botClient.last().text()).isEqualTo("Please enter your address:");
-        assertThat(botClient.last().replyMarkupJson()).contains("\"remove_keyboard\":true");
+        assertThat(botClient.last().text()).contains("Please enter your address:");
     }
 
     @Test
-    void givenAwaitingLocationAddress_whenAddressTextEntered_thenDraftsAddressAndConfirms() {
+    void givenAwaitingAddress_whenTextSent_thenDraftsAddressAndConfirms() {
         TelegramCustomerSession session = createSessionAwaitingLocation();
         session.state(TelegramCustomerSessionState.AWAITING_LOCATION_ADDRESS, OffsetDateTime.parse("2026-08-19T10:00:00Z"));
 
@@ -163,7 +165,7 @@ class TelegramCustomerBotLocationTest {
                         103L,
                         new TelegramUpdatePayload.TelegramUser(1001L, "John", "Doe"),
                         new TelegramUpdatePayload.TelegramChat(2001L, "private"),
-                        "Chilanzar 9, apt 12, Tashkent",
+                        "Amir Temur avenue 10",
                         null,
                         null,
                         null,
@@ -173,16 +175,16 @@ class TelegramCustomerBotLocationTest {
         botService.handle(payload);
 
         assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.CONFIRMING_REQUEST);
-        assertThat(session.getDraftAddress()).isEqualTo("Chilanzar 9, apt 12, Tashkent");
+        assertThat(session.getDraftAddress()).isEqualTo("Amir Temur avenue 10");
         assertThat(session.getDraftLatitude()).isNull();
         assertThat(session.getDraftLongitude()).isNull();
 
         assertThat(botClient.last().text()).contains("Confirm request");
-        assertThat(botClient.last().text()).contains("Location: Chilanzar 9, apt 12, Tashkent");
+        assertThat(botClient.last().text()).contains("Location: Amir Temur avenue 10");
     }
 
     @Test
-    void givenAwaitingLocation_whenSkipButtonClicked_thenDraftsNullLocationAndConfirms() {
+    void givenAwaitingLocation_whenSkipSent_thenLeavesLocationEmptyAndConfirms() {
         TelegramCustomerSession session = createSessionAwaitingLocation();
 
         TelegramUpdatePayload payload = new TelegramUpdatePayload(
@@ -210,8 +212,9 @@ class TelegramCustomerBotLocationTest {
     }
 
     @Test
-    void givenAwaitingLocation_whenRandomTextSent_thenPromptsWithLocationGuidance() {
+    void givenAwaitingAddress_whenEmptyOrInvalid_thenPromptsAgain() {
         TelegramCustomerSession session = createSessionAwaitingLocation();
+        session.state(TelegramCustomerSessionState.AWAITING_LOCATION_ADDRESS, OffsetDateTime.parse("2026-08-19T10:00:00Z"));
 
         TelegramUpdatePayload payload = new TelegramUpdatePayload(
                 1L,
@@ -219,7 +222,7 @@ class TelegramCustomerBotLocationTest {
                         105L,
                         new TelegramUpdatePayload.TelegramUser(1001L, "John", "Doe"),
                         new TelegramUpdatePayload.TelegramChat(2001L, "private"),
-                        "Hello there",
+                        "   ",
                         null,
                         null,
                         null,
@@ -228,13 +231,12 @@ class TelegramCustomerBotLocationTest {
 
         botService.handle(payload);
 
-        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_LOCATION);
-        assertThat(botClient.last().text()).isEqualTo("Please send your location, enter an address, or skip this step.");
-        assertThat(botClient.last().replyMarkupJson()).contains("request_location");
+        assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.AWAITING_LOCATION_ADDRESS);
+        assertThat(botClient.last().text()).contains("Please check the request description and location, then try again.");
     }
 
     @Test
-    void givenAwaitingLocation_whenVenueSent_thenExtractsCoordinatesAndConfirms() {
+    void givenVenueSent_whenNativeLocationFieldPresent_thenExtractsCoordinates() {
         TelegramCustomerSession session = createSessionAwaitingLocation();
 
         TelegramUpdatePayload payload = new TelegramUpdatePayload(
@@ -258,7 +260,7 @@ class TelegramCustomerBotLocationTest {
         assertThat(session.getState()).isEqualTo(TelegramCustomerSessionState.CONFIRMING_REQUEST);
         assertThat(session.getDraftLatitude()).isEqualTo(new BigDecimal("41.3000000"));
         assertThat(session.getDraftLongitude()).isEqualTo(new BigDecimal("69.2000000"));
-        assertThat(botClient.last().text()).contains("Location: 📍 41.3000000, 69.2000000");
+        assertThat(botClient.last().text()).contains("Location: Location attached");
     }
 
     private static final class RecordingTelegramBotClient implements TelegramBotClient {
@@ -270,12 +272,23 @@ class TelegramCustomerBotLocationTest {
         }
 
         @Override
-        public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+        public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
             messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return (long) messages.size();
+        }
+
+        @Override
+        public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
+            messages.add(new SentMessage(chatId, text, replyMarkupJson));
+            return messageId;
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+        }
+
+        @Override
+        public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
         }
 
         @Override

@@ -10,11 +10,21 @@ import java.util.List;
 class NoopTelegramBotClient implements TelegramBotClient {
 
     @Override
-    public void sendMessage(Long chatId, String text, String replyMarkupJson) {
+    public Long sendMessage(Long chatId, String text, String replyMarkupJson) {
+        return null;
+    }
+
+    @Override
+    public Long editMessage(Long chatId, Long messageId, String text, String replyMarkupJson) {
+        return messageId;
     }
 
     @Override
     public void answerCallback(String callbackQueryId, String text) {
+    }
+
+    @Override
+    public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
     }
 
     @Override
