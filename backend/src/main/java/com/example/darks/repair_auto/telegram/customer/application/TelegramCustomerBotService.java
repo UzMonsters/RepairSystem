@@ -265,11 +265,8 @@ public class TelegramCustomerBotService {
             case AWAITING_DESCRIPTION -> {
                 session.draftDescription(text, now());
                 session.state(TelegramCustomerSessionState.AWAITING_PHOTO_OR_SKIP, now());
-                Long activeId = session.getActiveWorkflowMessageId();
-                Long messageId = screenService.sendOrEdit(
-                        botClient,
+                Long messageId = botClient.sendMessage(
                         session.getTelegramChatId(),
-                        activeId,
                         messages.get(session.getLanguage(), "photo_prompt"),
                         keyboards.photos(messages, session.getLanguage()));
                 session.activeWorkflowMessageId(messageId, now());
@@ -418,22 +415,16 @@ public class TelegramCustomerBotService {
         session.addPhotoFileId(best.fileId(), max, now());
         int acceptedCount = session.photoFileIds().size();
         if (acceptedCount < max) {
-            Long activeId = session.getActiveWorkflowMessageId();
             String photoText = messages.format(session.getLanguage(), "photo_received", acceptedCount, max);
-            Long messageId = screenService.sendOrEdit(
-                    botClient,
+            Long messageId = botClient.sendMessage(
                     session.getTelegramChatId(),
-                    activeId,
                     photoText,
                     keyboards.photos(messages, session.getLanguage()));
             session.activeWorkflowMessageId(messageId, now());
         } else {
-            Long activeId = session.getActiveWorkflowMessageId();
             String photoText = messages.format(session.getLanguage(), "photo_received", acceptedCount, max);
-            screenService.sendOrEdit(
-                    botClient,
+            botClient.sendMessage(
                     session.getTelegramChatId(),
-                    activeId,
                     photoText,
                     null);
             session.state(TelegramCustomerSessionState.AWAITING_LOCATION, now());
@@ -769,11 +760,10 @@ public class TelegramCustomerBotService {
                 + "\n" + field(language, "field.location", location)
                 + "\n" + field(language, "field.photos", String.valueOf(session.photoFileIds().size()))
                 + "\n" + field(language, "field.language", String.valueOf(language));
-        Long targetMessageId = messageIdToEdit != null ? messageIdToEdit : session.getActiveWorkflowMessageId();
         Long resId = screenService.sendOrEdit(
                 botClient,
                 session.getTelegramChatId(),
-                targetMessageId,
+                messageIdToEdit,
                 text,
                 keyboards.confirm(messages, session.getLanguage()));
         session.activeWorkflowMessageId(resId, now());
@@ -941,7 +931,7 @@ public class TelegramCustomerBotService {
         }
         session.draftReviewComment(comment, now());
         session.state(TelegramCustomerSessionState.CONFIRMING_REVIEW, now());
-        sendReviewConfirmation(session, session.getActiveWorkflowMessageId());
+        sendReviewConfirmation(session, null);
     }
 
     private void sendReviewConfirmation(TelegramCustomerSession session, Long messageIdToEdit) {

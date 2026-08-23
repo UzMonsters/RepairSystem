@@ -222,7 +222,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         assertThat(requestRepository.findAll()).isEmpty();
         assertThat(sessionRepository.findByTelegramUserId(19021L).orElseThrow().getDraftCategoryId()).isNull();
-        assertThat(telegramBotClient.lastText()).contains("no longer available");
+        assertThat(telegramBotClient.lastCallbackAnswer().text()).contains("no longer available");
     }
 
     @Test
@@ -423,7 +423,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(callback(96, 7007, 11007, "cb-confirm-inactive", "confirm:create"));
 
         assertThat(requestRepository.findAll()).isEmpty();
-        assertThat(telegramBotClient.lastText()).contains("no longer available");
+        assertThat(telegramBotClient.lastCallbackAnswer().text()).contains("no longer available");
         assertThat(updateRepository.findAll())
                 .filteredOn(record -> record.getTelegramUpdateId().equals(96L))
                 .singleElement()
@@ -445,7 +445,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
         send(callback(102, 7017, 11017, "cb-confirm-inactive-customer", "confirm:create"));
 
         assertThat(requestRepository.findAll()).isEmpty();
-        assertThat(telegramBotClient.lastText()).contains("could not complete this action");
+        assertThat(telegramBotClient.lastCallbackAnswer().text()).contains("could not complete this action");
     }
 
     @Test
@@ -487,7 +487,7 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         send(callback(103, 8008, 12008, "cb-bad-retry", "req:not-a-number"));
 
-        assertThat(telegramBotClient.lastText()).contains("no longer available");
+        assertThat(telegramBotClient.lastCallbackAnswer().text()).contains("no longer available");
         assertThat(updateRepository.findAll())
                 .filteredOn(record -> record.getTelegramUpdateId().equals(103L))
                 .singleElement()
@@ -968,18 +968,30 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
     static final class FakeTelegramBotClient implements TelegramBotClient {
 
+        record CallbackAnswer(String callbackQueryId, String text, boolean showAlert) { }
+
         private final List<SentMessage> messages = new CopyOnWriteArrayList<>();
+        private final List<CallbackAnswer> callbackAnswers = new CopyOnWriteArrayList<>();
         private final List<String> failingFiles = new CopyOnWriteArrayList<>();
         private boolean failNextSend;
 
         void clear() {
             messages.clear();
+            callbackAnswers.clear();
             failingFiles.clear();
             failNextSend = false;
         }
 
         List<SentMessage> messages() {
             return messages;
+        }
+
+        List<CallbackAnswer> callbackAnswers() {
+            return callbackAnswers;
+        }
+
+        CallbackAnswer lastCallbackAnswer() {
+            return callbackAnswers.isEmpty() ? null : callbackAnswers.getLast();
         }
 
         String lastText() {
@@ -1016,10 +1028,16 @@ class TelegramCustomerBotIntegrationTest extends PostgreSqlIntegrationTest {
 
         @Override
         public void answerCallback(String callbackQueryId, String text) {
+            answerCallback(callbackQueryId, text, false);
         }
 
         @Override
         public void answerCallback(String callbackQueryId, String text, boolean showAlert) {
+            if (failNextSend) {
+                failNextSend = false;
+                throw new TelegramApiException("Temporary Telegram send failure.");
+            }
+            callbackAnswers.add(new CallbackAnswer(callbackQueryId, text, showAlert));
         }
 
         @Override

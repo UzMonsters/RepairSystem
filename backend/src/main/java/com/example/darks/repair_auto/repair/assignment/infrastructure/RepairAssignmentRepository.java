@@ -99,6 +99,17 @@ public interface RepairAssignmentRepository extends JpaRepository<RepairAssignme
             @Param("technicianId") Long technicianId,
             @Param("statuses") Collection<AssignmentStatus> statuses);
 
+    @EntityGraph(attributePaths = {"repairRequest", "repairRequest.customer", "repairRequest.category", "technician", "assignedByUser"})
+    @Query("""
+            select a from RepairAssignment a
+            where a.repairRequest.id = :requestId
+              and a.technician.id = :technicianId
+            order by a.createdAt desc
+            """)
+    List<RepairAssignment> findByRepairRequestIdAndTechnicianIdOrderByCreatedAtDesc(
+            @Param("requestId") Long requestId,
+            @Param("technicianId") Long technicianId);
+
     @EntityGraph(attributePaths = {"repairRequest", "repairRequest.customer", "repairRequest.category", "technician"})
     @Query(value = """
             select a from RepairAssignment a
