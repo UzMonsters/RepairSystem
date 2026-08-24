@@ -2,6 +2,7 @@ package com.example.darks.repair_auto.identity.infrastructure.security;
 
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
+import com.example.darks.repair_auto.identity.application.MobileSessionService;
 import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
@@ -16,6 +17,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -29,6 +31,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final CustomerRepository customerRepository;
     private final TechnicianRepository technicianRepository;
     private final SecurityErrorHandler securityErrorHandler;
+    private final MobileSessionService mobileSessionService;
 
     public JwtAuthenticationFilter(
             JwtTokenService jwtTokenService,
@@ -36,11 +39,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             CustomerRepository customerRepository,
             TechnicianRepository technicianRepository,
             SecurityErrorHandler securityErrorHandler) {
+        this(jwtTokenService, userRepository, customerRepository, technicianRepository, securityErrorHandler, null);
+    }
+
+    @Autowired
+    public JwtAuthenticationFilter(
+            JwtTokenService jwtTokenService,
+            UserRepository userRepository,
+            CustomerRepository customerRepository,
+            TechnicianRepository technicianRepository,
+            SecurityErrorHandler securityErrorHandler,
+            MobileSessionService mobileSessionService) {
         this.jwtTokenService = jwtTokenService;
         this.userRepository = userRepository;
         this.customerRepository = customerRepository;
         this.technicianRepository = technicianRepository;
         this.securityErrorHandler = securityErrorHandler;
+        this.mobileSessionService = mobileSessionService;
     }
 
     @Override
@@ -92,11 +107,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (customer.isEmpty() || !customer.get().isActive()) {
                     throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
                 }
+                if (validated.authVersion() == null
+                        || validated.authVersion() != customer.get().getAuthVersion()) {
+                    throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
+                }
+                validateMobileSession(request, validated, customer.get().getId());
                 AuthenticatedMobileActor principal = new AuthenticatedMobileActor(
                         ActorType.CUSTOMER,
                         customer.get().getId(),
                         customer.get().getPhone(),
-                        customer.get().isActive());
+                        customer.get().isActive(),
+                        validated.mobileSessionId(),
+                        validated.clientType());
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(principal, token, principal.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -106,16 +128,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 if (technician.isEmpty() || !technician.get().isActive()) {
                     throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
                 }
+                if (validated.authVersion() == null
+                        || validated.authVersion() != technician.get().getAuthVersion()) {
+                    throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
+                }
+                validateMobileSession(request, validated, technician.get().getId());
                 AuthenticatedMobileActor principal = new AuthenticatedMobileActor(
                         ActorType.TECHNICIAN,
                         technician.get().getId(),
                         technician.get().getPhone(),
-                        technician.get().isActive());
+                        technician.get().isActive(),
+                        validated.mobileSessionId(),
+                        validated.clientType());
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(principal, token, principal.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
             default -> throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
         }
+    }
+
+    private void validateMobileSession(
+            HttpServletRequest request,
+            JwtTokenService.ValidatedAccessToken validated,
+            Long actorId) {
+        if (validated.mobileSessionId() == null || validated.clientType() == null || mobileSessionService == null) {
+            throw new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
+        }
+        mobileSessionService.requireActive(
+                validated.mobileSessionId(),
+                validated.actorType(),
+                actorId,
+                validated.clientType(),
+                request.getRemoteAddr());
     }
 }

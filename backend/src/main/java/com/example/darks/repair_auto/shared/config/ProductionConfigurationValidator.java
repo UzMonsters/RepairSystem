@@ -73,14 +73,22 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
     }
 
     private void validateJwt() {
-        String secret = appProperties.jwt().secret();
+        AppProperties.Jwt jwt = appProperties.jwt();
+        String secret = firstNonBlank(
+                environment.getProperty("app.jwt.secret"),
+                environment.getProperty("APP_JWT_SECRET"),
+                jwt == null ? null : jwt.secret());
         if (secret == null || secret.length() < MIN_SECRET_LENGTH || secret.contains("local-only")) {
             fail("APP_JWT_SECRET must be a strong production secret.");
         }
-        if (appProperties.jwt().accessTokenTtl() == null
-                || appProperties.jwt().accessTokenTtl().isNegative()
-                || appProperties.jwt().accessTokenTtl().isZero()
-                || appProperties.jwt().accessTokenTtl().compareTo(Duration.ofHours(1)) > 0) {
+        Duration accessTokenTtl = environment.getProperty("app.jwt.access-token-ttl", Duration.class);
+        if (accessTokenTtl == null && jwt != null) {
+            accessTokenTtl = jwt.accessTokenTtl();
+        }
+        if (accessTokenTtl == null
+                || accessTokenTtl.isNegative()
+                || accessTokenTtl.isZero()
+                || accessTokenTtl.compareTo(Duration.ofHours(1)) > 0) {
             fail("APP_JWT_ACCESS_TOKEN_TTL must be positive and no longer than PT1H in production.");
         }
     }
@@ -208,11 +216,13 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         }
     }
 
-    private String firstNonBlank(String first, String second) {
-        if (first != null && !first.isBlank()) {
-            return first;
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
         }
-        return second;
+        return null;
     }
 
     private void requireHttpsOrHttp(URI uri, String name) {

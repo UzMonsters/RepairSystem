@@ -9,15 +9,21 @@ import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
 import com.example.darks.repair_auto.identity.application.MobileRefreshSessionService;
 import com.example.darks.repair_auto.identity.domain.ActorType;
+import com.example.darks.repair_auto.identity.domain.MobileAuthProvider;
 import com.example.darks.repair_auto.identity.domain.MobileRefreshRevocationReason;
 import com.example.darks.repair_auto.identity.domain.MobileRefreshSession;
+import com.example.darks.repair_auto.identity.domain.MobileSession;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.MobileRefreshSessionRepository;
+import com.example.darks.repair_auto.identity.infrastructure.persistence.MobileSessionRepository;
+import com.example.darks.repair_auto.notification.push.domain.PushPlatform;
 import com.example.darks.repair_auto.shared.error.BusinessException;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.technician.api.dto.TechnicianCreateRequest;
 import com.example.darks.repair_auto.technician.application.TechnicianService;
 import com.example.darks.repair_auto.technician.domain.Technician;
 import com.example.darks.repair_auto.technician.infrastructure.TechnicianRepository;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -38,6 +44,9 @@ class MobileRefreshSessionConcurrencyIntegrationTest extends PostgreSqlIntegrati
     private MobileRefreshSessionRepository refreshSessionRepository;
 
     @Autowired
+    private MobileSessionRepository mobileSessionRepository;
+
+    @Autowired
     private CustomerService customerService;
 
     @Autowired
@@ -51,10 +60,13 @@ class MobileRefreshSessionConcurrencyIntegrationTest extends PostgreSqlIntegrati
 
     private Customer customer;
     private Technician technician;
+    private MobileSession customerSession;
+    private MobileSession technicianSession;
 
     @BeforeEach
     void setUp() {
         refreshSessionRepository.deleteAll();
+        mobileSessionRepository.deleteAll();
         technicianRepository.deleteAll();
         customerRepository.deleteAll();
         Long customerId = customerService.create(new CustomerCreateRequest(
@@ -71,11 +83,35 @@ class MobileRefreshSessionConcurrencyIntegrationTest extends PostgreSqlIntegrati
                 true)).id();
         customer = customerRepository.findById(customerId).orElseThrow();
         technician = technicianRepository.findById(technicianId).orElseThrow();
+
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        customerSession = mobileSessionRepository.save(MobileSession.forCustomer(
+                customer,
+                MobileAuthProvider.PHONE,
+                PushPlatform.ANDROID,
+                null,
+                null,
+                null,
+                "127.0.0.1",
+                "test-agent",
+                now,
+                now.plusDays(30)));
+        technicianSession = mobileSessionRepository.save(MobileSession.forTechnician(
+                technician,
+                MobileAuthProvider.PHONE,
+                PushPlatform.ANDROID,
+                null,
+                null,
+                null,
+                "127.0.0.1",
+                "test-agent",
+                now,
+                now.plusDays(30)));
     }
 
     @Test
     void givenCustomerMobileRefreshTokenUsedTwiceConcurrentlyThenAtMostOneRotationSucceeds() throws Exception {
-        String rawToken = refreshSessionService.createForCustomer(customer).rawToken();
+        String rawToken = refreshSessionService.createForCustomer(customer, customerSession).rawToken();
 
         List<Object> results = runConcurrently(
                 () -> refreshSessionService.rotate(rawToken),
@@ -92,7 +128,7 @@ class MobileRefreshSessionConcurrencyIntegrationTest extends PostgreSqlIntegrati
 
     @Test
     void givenTechnicianMobileRefreshTokenUsedTwiceConcurrentlyThenAtMostOneRotationSucceeds() throws Exception {
-        String rawToken = refreshSessionService.createForTechnician(technician).rawToken();
+        String rawToken = refreshSessionService.createForTechnician(technician, technicianSession).rawToken();
 
         List<Object> results = runConcurrently(
                 () -> refreshSessionService.rotate(rawToken),
@@ -109,7 +145,7 @@ class MobileRefreshSessionConcurrencyIntegrationTest extends PostgreSqlIntegrati
 
     @Test
     void givenCustomerRefreshAndLogoutRaceThenOriginalTokenCannotRemainUsable() throws Exception {
-        String rawToken = refreshSessionService.createForCustomer(customer).rawToken();
+        String rawToken = refreshSessionService.createForCustomer(customer, customerSession).rawToken();
 
         List<Object> results = runConcurrently(
                 () -> refreshSessionService.rotate(rawToken),
@@ -125,7 +161,7 @@ class MobileRefreshSessionConcurrencyIntegrationTest extends PostgreSqlIntegrati
 
     @Test
     void givenTechnicianRefreshAndLogoutAllRaceThenOwnershipAndFamilyRevocationRemainCoherent() throws Exception {
-        String rawToken = refreshSessionService.createForTechnician(technician).rawToken();
+        String rawToken = refreshSessionService.createForTechnician(technician, technicianSession).rawToken();
 
         List<Object> results = runConcurrently(
                 () -> refreshSessionService.rotate(rawToken),
@@ -140,14 +176,14 @@ class MobileRefreshSessionConcurrencyIntegrationTest extends PostgreSqlIntegrati
         assertThat(activeSessionsForTechnician()).isLessThanOrEqualTo(1);
         assertThat(refreshSessionRepository.findByTechnicianId(technician.getId()))
                 .allMatch(session -> session.getActorType() == ActorType.TECHNICIAN
-                        && session.getTechnician().getId().equals(technician.getId())
-                        && session.getCustomer() == null);
+                && session.getTechnician().getId().equals(technician.getId())
+                && session.getCustomer() == null);
         assertOriginalTokenIsNotUsable(rawToken);
     }
 
     @Test
     void givenCustomerRefreshAndLogoutAllRaceThenOwnershipAndFamilyRevocationRemainCoherent() throws Exception {
-        String rawToken = refreshSessionService.createForCustomer(customer).rawToken();
+        String rawToken = refreshSessionService.createForCustomer(customer, customerSession).rawToken();
 
         List<Object> results = runConcurrently(
                 () -> refreshSessionService.rotate(rawToken),
@@ -162,8 +198,8 @@ class MobileRefreshSessionConcurrencyIntegrationTest extends PostgreSqlIntegrati
         assertThat(activeSessionsForCustomer()).isLessThanOrEqualTo(1);
         assertThat(refreshSessionRepository.findByCustomerId(customer.getId()))
                 .allMatch(session -> session.getActorType() == ActorType.CUSTOMER
-                        && session.getCustomer().getId().equals(customer.getId())
-                        && session.getTechnician() == null);
+                && session.getCustomer().getId().equals(customer.getId())
+                && session.getTechnician() == null);
         assertOriginalTokenIsNotUsable(rawToken);
     }
 

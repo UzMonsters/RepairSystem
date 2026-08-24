@@ -65,6 +65,38 @@ public interface MobileRefreshSessionRepository extends JpaRepository<MobileRefr
             @Param("now") OffsetDateTime now,
             @Param("reason") String reason);
 
+    @Modifying
+    @Query("""
+            update MobileRefreshSession s
+            set s.revokedAt = :now,
+                s.revocationReason = :reason,
+                s.updatedAt = :now
+            where s.customer.id = :customerId
+              and (s.mobileSession is null or s.mobileSession.id <> :excludeSessionId)
+              and s.revokedAt is null
+            """)
+    int revokeOtherSessionsForCustomer(
+            @Param("customerId") Long customerId,
+            @Param("excludeSessionId") UUID excludeSessionId,
+            @Param("now") OffsetDateTime now,
+            @Param("reason") String reason);
+
+    @Modifying
+    @Query("""
+            update MobileRefreshSession s
+            set s.revokedAt = :now,
+                s.revocationReason = :reason,
+                s.updatedAt = :now
+            where s.technician.id = :technicianId
+              and (s.mobileSession is null or s.mobileSession.id <> :excludeSessionId)
+              and s.revokedAt is null
+            """)
+    int revokeOtherSessionsForTechnician(
+            @Param("technicianId") Long technicianId,
+            @Param("excludeSessionId") UUID excludeSessionId,
+            @Param("now") OffsetDateTime now,
+            @Param("reason") String reason);
+
     List<MobileRefreshSession> findByTokenFamilyId(UUID tokenFamilyId);
 
     List<MobileRefreshSession> findByCustomerId(Long customerId);

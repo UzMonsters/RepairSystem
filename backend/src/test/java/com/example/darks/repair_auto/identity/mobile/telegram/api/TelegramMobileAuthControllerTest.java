@@ -1,6 +1,9 @@
 package com.example.darks.repair_auto.identity.mobile.telegram.api;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,7 +69,11 @@ class TelegramMobileAuthControllerTest {
                 2592000L,
                 new MobileActorSummary(ActorType.CUSTOMER, 12L, "Customer Test", "+998901234567", "uz"));
 
-        when(telegramMobileAuthService.loginCustomer("valid-id-token")).thenReturn(response);
+        when(telegramMobileAuthService.loginCustomer(
+                eq("valid-id-token"),
+                isNull(),
+                anyString(),
+                isNull())).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/mobile/auth/telegram/customer")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -98,7 +105,11 @@ class TelegramMobileAuthControllerTest {
                 2592000L,
                 new MobileActorSummary(ActorType.TECHNICIAN, 34L, "Technician Test", "+998909876543", "ru"));
 
-        when(telegramMobileAuthService.loginTechnician("valid-tech-id-token")).thenReturn(response);
+        when(telegramMobileAuthService.loginTechnician(
+                eq("valid-tech-id-token"),
+                isNull(),
+                anyString(),
+                isNull())).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/mobile/auth/telegram/technician")
                         .contentType(MediaType.APPLICATION_JSON)

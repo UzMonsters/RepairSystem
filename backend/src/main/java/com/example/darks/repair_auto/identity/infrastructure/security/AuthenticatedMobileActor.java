@@ -1,9 +1,11 @@
 package com.example.darks.repair_auto.identity.infrastructure.security;
 
 import com.example.darks.repair_auto.identity.domain.ActorType;
+import com.example.darks.repair_auto.notification.push.domain.PushClientType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,7 +14,9 @@ public record AuthenticatedMobileActor(
         ActorType actorType,
         Long actorId,
         String identifier,
-        boolean active
+        boolean active,
+        UUID sessionId,
+        PushClientType clientType
 ) implements UserDetails {
 
     public AuthenticatedMobileActor {
@@ -25,12 +29,16 @@ public record AuthenticatedMobileActor(
         }
     }
 
+    public AuthenticatedMobileActor(ActorType actorType, Long actorId, String identifier, boolean active) {
+        this(actorType, actorId, identifier, active, null, null);
+    }
+
     public AuthenticatedMobileActor(ActorType actorType, Long actorId) {
-        this(actorType, actorId, actorType.name().toLowerCase() + ":" + actorId, true);
+        this(actorType, actorId, actorType.name().toLowerCase() + ":" + actorId, true, null, null);
     }
 
     public AuthenticatedMobileActor(ActorType actorType, Long actorId, String identifier) {
-        this(actorType, actorId, identifier, true);
+        this(actorType, actorId, identifier, true, null, null);
     }
 
     public boolean isCustomer() {

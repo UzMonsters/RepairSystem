@@ -29,7 +29,7 @@ public class MobileProfileController {
         this.mobileProfileService = mobileProfileService;
     }
 
-    @GetMapping
+    @GetMapping({"", "/profile"})
     @Operation(
             summary = "Get Current Mobile Actor Profile",
             description = "Returns profile and account status for the currently authenticated Customer or Technician. "
@@ -43,7 +43,7 @@ public class MobileProfileController {
         return mobileProfileService.getProfile(actor);
     }
 
-    @PatchMapping
+    @PatchMapping({"", "/profile"})
     @Operation(
             summary = "Update Current Mobile Actor Profile",
             description = "Partially updates self-service profile fields. For Customer: fullName and preferredLanguage. "

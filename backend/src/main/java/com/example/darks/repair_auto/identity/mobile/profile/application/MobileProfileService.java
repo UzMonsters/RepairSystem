@@ -137,6 +137,9 @@ public class MobileProfileService {
                 customer.getId(),
                 customer.getFullName(),
                 customer.getPhone(),
+                customer.getPhoneVerifiedAt() != null,
+                customer.getEmail(),
+                customer.getEmailVerifiedAt() != null,
                 lang,
                 customer.isTelegramLinked());
     }
@@ -149,6 +152,9 @@ public class MobileProfileService {
                 technician.getId(),
                 technician.getFullName(),
                 technician.getPhone(),
+                technician.getPhoneVerifiedAt() != null,
+                technician.getEmail(),
+                technician.getEmailVerifiedAt() != null,
                 lang,
                 technician.isTelegramLinked(),
                 technician.getSpecialization(),

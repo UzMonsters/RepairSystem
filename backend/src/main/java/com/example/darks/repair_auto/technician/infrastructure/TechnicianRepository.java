@@ -18,6 +18,8 @@ public interface TechnicianRepository extends JpaRepository<Technician, Long>, J
 
     Optional<Technician> findByTelegramUserId(Long telegramUserId);
 
+    java.util.List<Technician> findByEmailIgnoreCaseAndActiveTrue(String email);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select t from Technician t
@@ -31,6 +33,30 @@ public interface TechnicianRepository extends JpaRepository<Technician, Long>, J
             where t.telegramUserId = :telegramUserId
             """)
     Optional<Technician> findByTelegramUserIdForUpdate(@Param("telegramUserId") Long telegramUserId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select t from Technician t
+            where lower(t.email) = lower(:email)
+              and t.active = true
+            """)
+    java.util.List<Technician> findActiveByEmailForUpdate(@Param("email") String email);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select t from Technician t
+            where t.phone = :phone
+            """)
+    Optional<Technician> findByPhoneForUpdate(@Param("phone") String phone);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("""
+            update Technician t
+            set t.authVersion = t.authVersion + 1,
+                t.updatedAt = :now
+            where t.id = :id
+            """)
+    int incrementAuthVersion(@Param("id") Long id, @Param("now") java.time.OffsetDateTime now);
 
     @Override
     Page<Technician> findAll(Specification<Technician> specification, Pageable pageable);

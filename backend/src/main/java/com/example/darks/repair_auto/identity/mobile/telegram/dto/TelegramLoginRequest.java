@@ -1,6 +1,8 @@
 package com.example.darks.repair_auto.identity.mobile.telegram.dto;
 
+import com.example.darks.repair_auto.identity.mobile.auth.dto.MobileDeviceContextRequest;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -11,6 +13,12 @@ public record TelegramLoginRequest(
         @Schema(
                 description = "Signed Telegram OIDC ID token returned by official Telegram Login SDK",
                 example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")
-        String idToken
+        String idToken,
+
+        @Valid
+        MobileDeviceContextRequest device
 ) {
+        public TelegramLoginRequest(String idToken) {
+                this(idToken, null);
+        }
 }

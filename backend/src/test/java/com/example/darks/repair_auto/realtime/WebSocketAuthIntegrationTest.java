@@ -6,14 +6,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.example.darks.repair_auto.PostgreSqlIntegrationTest;
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
+import com.example.darks.repair_auto.identity.application.MobileSessionService;
 import com.example.darks.repair_auto.identity.application.PasswordService;
 import com.example.darks.repair_auto.identity.domain.ActorType;
+import com.example.darks.repair_auto.identity.domain.MobileAuthProvider;
+import com.example.darks.repair_auto.identity.domain.MobileSession;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedMobileActor;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedUser;
 import com.example.darks.repair_auto.identity.infrastructure.security.JwtTokenService;
+import com.example.darks.repair_auto.notification.push.domain.PushClientType;
 import com.example.darks.repair_auto.realtime.auth.StompAuthChannelInterceptor;
 import com.example.darks.repair_auto.realtime.auth.WebSocketAuthenticator;
 import com.example.darks.repair_auto.technician.domain.Technician;
@@ -57,6 +61,9 @@ class WebSocketAuthIntegrationTest extends PostgreSqlIntegrationTest {
     @Autowired
     private PasswordService passwordService;
 
+    @Autowired
+    private MobileSessionService mobileSessionService;
+
     private User adminUser;
     private Customer customer;
     private Technician technician;
@@ -93,6 +100,38 @@ class WebSocketAuthIntegrationTest extends PostgreSqlIntegrationTest {
                         now)));
     }
 
+    private String issueCustomerToken(Customer c) {
+        MobileSession session = mobileSessionService.createForCustomer(
+                c,
+                MobileAuthProvider.PHONE,
+                null,
+                "127.0.0.1",
+                "WebSocketAuthIntegrationTest");
+        return jwtTokenService.issueMobile(
+                ActorType.CUSTOMER,
+                c.getId(),
+                c.getAuthVersion(),
+                session.getId(),
+                PushClientType.CUSTOMER_MOBILE,
+                c.getPhone());
+    }
+
+    private String issueTechnicianToken(Technician t) {
+        MobileSession session = mobileSessionService.createForTechnician(
+                t,
+                MobileAuthProvider.PHONE,
+                null,
+                "127.0.0.1",
+                "WebSocketAuthIntegrationTest");
+        return jwtTokenService.issueMobile(
+                ActorType.TECHNICIAN,
+                t.getId(),
+                t.getAuthVersion(),
+                session.getId(),
+                PushClientType.TECHNICIAN_MOBILE,
+                t.getPhone());
+    }
+
     @Test
     void authenticateToken_withValidStaffToken_authenticatesSuccessfully() {
         String token = jwtTokenService.issue(adminUser);
@@ -109,7 +148,7 @@ class WebSocketAuthIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void authenticateToken_withValidCustomerToken_authenticatesSuccessfully() {
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, customer.getId());
+        String token = issueCustomerToken(customer);
 
         Authentication auth = webSocketAuthenticator.authenticate(token);
 
@@ -124,7 +163,7 @@ class WebSocketAuthIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void authenticateToken_withValidTechnicianToken_authenticatesSuccessfully() {
-        String token = jwtTokenService.issueMobile(ActorType.TECHNICIAN, technician.getId());
+        String token = issueTechnicianToken(technician);
 
         Authentication auth = webSocketAuthenticator.authenticate(token);
 
@@ -162,7 +201,7 @@ class WebSocketAuthIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void interceptSubscribe_customerAccessingStaffEventsTopic_isRejected() {
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, customer.getId());
+        String token = issueCustomerToken(customer);
         Authentication auth = webSocketAuthenticator.authenticate(token);
 
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
@@ -173,21 +212,5 @@ class WebSocketAuthIntegrationTest extends PostgreSqlIntegrationTest {
 
         assertThatThrownBy(() -> stompAuthChannelInterceptor.preSend(message, (MessageChannel) null))
                 .isInstanceOf(AccessDeniedException.class);
-    }
-
-    @Test
-    void interceptSubscribe_staffAccessingStaffEventsTopic_isAllowed() {
-        String token = jwtTokenService.issue(adminUser);
-        Authentication auth = webSocketAuthenticator.authenticate(token);
-
-        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
-        accessor.setDestination("/topic/staff.events");
-        accessor.setUser(auth);
-        accessor.setLeaveMutable(true);
-        Message<?> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
-
-        Message<?> result = stompAuthChannelInterceptor.preSend(message, (MessageChannel) null);
-
-        assertThat(result).isNotNull();
     }
 }

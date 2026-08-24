@@ -11,10 +11,12 @@ import static org.mockito.Mockito.when;
 
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
+import com.example.darks.repair_auto.identity.application.MobileSessionService;
 import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
+import com.example.darks.repair_auto.notification.push.domain.PushClientType;
 import com.example.darks.repair_auto.shared.error.SecurityErrorHandler;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.technician.domain.Technician;
@@ -25,6 +27,7 @@ import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,7 @@ class JwtAuthenticationFilterTest {
     private CustomerRepository customerRepository;
     private TechnicianRepository technicianRepository;
     private SecurityErrorHandler securityErrorHandler;
+    private MobileSessionService mobileSessionService;
     private JwtAuthenticationFilter filter;
     private FilterChain filterChain;
 
@@ -51,12 +55,14 @@ class JwtAuthenticationFilterTest {
         customerRepository = mock(CustomerRepository.class);
         technicianRepository = mock(TechnicianRepository.class);
         securityErrorHandler = mock(SecurityErrorHandler.class);
+        mobileSessionService = mock(MobileSessionService.class);
         filter = new JwtAuthenticationFilter(
                 jwtTokenService,
                 userRepository,
                 customerRepository,
                 technicianRepository,
-                securityErrorHandler);
+                securityErrorHandler,
+                mobileSessionService);
         filterChain = mock(FilterChain.class);
     }
 
@@ -98,8 +104,6 @@ class JwtAuthenticationFilterTest {
 
         verify(filterChain).doFilter(request, response);
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        // Since doFilterInternal has a finally block that clears context after filterChain,
-        // we verify that the filterChain received execution without writing unauthorized error
         verify(securityErrorHandler, never()).writeUnauthorized(any(), any(), anyString(), any());
     }
 
@@ -113,14 +117,17 @@ class JwtAuthenticationFilterTest {
         Customer customer = new Customer("Customer 1", "+998901112233", LanguageCode.UZ, OffsetDateTime.now(ZoneOffset.UTC));
         ReflectionTestUtils.setField(customer, "id", 20L);
 
+        UUID sessionId = UUID.randomUUID();
         JwtTokenService.ValidatedAccessToken validated = new JwtTokenService.ValidatedAccessToken(
-                ActorType.CUSTOMER, 20L, null, "+998901112233", null, OffsetDateTime.now(ZoneOffset.UTC), null);
+                ActorType.CUSTOMER, 20L, null, "+998901112233", null,
+                OffsetDateTime.now(ZoneOffset.UTC), 0L, sessionId, PushClientType.CUSTOMER_MOBILE);
 
         when(jwtTokenService.validate("valid-customer-token")).thenReturn(validated);
         when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
 
         filter.doFilterInternal(request, response, filterChain);
 
+        verify(mobileSessionService).requireActive(eq(sessionId), eq(ActorType.CUSTOMER), eq(20L), eq(PushClientType.CUSTOMER_MOBILE), any());
         verify(customerRepository).findById(20L);
         verify(userRepository, never()).findById(any());
         verify(technicianRepository, never()).findById(any());
@@ -138,14 +145,17 @@ class JwtAuthenticationFilterTest {
         Technician technician = new Technician("Tech 1", "+998904445566", "Diag", "Notes", 5, LanguageCode.UZ, true, OffsetDateTime.now(ZoneOffset.UTC));
         ReflectionTestUtils.setField(technician, "id", 30L);
 
+        UUID sessionId = UUID.randomUUID();
         JwtTokenService.ValidatedAccessToken validated = new JwtTokenService.ValidatedAccessToken(
-                ActorType.TECHNICIAN, 30L, null, "technician:30", null, OffsetDateTime.now(ZoneOffset.UTC), null);
+                ActorType.TECHNICIAN, 30L, null, "technician:30", null,
+                OffsetDateTime.now(ZoneOffset.UTC), 0L, sessionId, PushClientType.TECHNICIAN_MOBILE);
 
         when(jwtTokenService.validate("valid-technician-token")).thenReturn(validated);
         when(technicianRepository.findById(30L)).thenReturn(Optional.of(technician));
 
         filter.doFilterInternal(request, response, filterChain);
 
+        verify(mobileSessionService).requireActive(eq(sessionId), eq(ActorType.TECHNICIAN), eq(30L), eq(PushClientType.TECHNICIAN_MOBILE), any());
         verify(technicianRepository).findById(30L);
         verify(userRepository, never()).findById(any());
         verify(customerRepository, never()).findById(any());
@@ -163,8 +173,10 @@ class JwtAuthenticationFilterTest {
         customer.setActive(false, OffsetDateTime.now(ZoneOffset.UTC));
         ReflectionTestUtils.setField(customer, "id", 20L);
 
+        UUID sessionId = UUID.randomUUID();
         JwtTokenService.ValidatedAccessToken validated = new JwtTokenService.ValidatedAccessToken(
-                ActorType.CUSTOMER, 20L, null, "+998901112233", null, OffsetDateTime.now(ZoneOffset.UTC), null);
+                ActorType.CUSTOMER, 20L, null, "+998901112233", null,
+                OffsetDateTime.now(ZoneOffset.UTC), 0L, sessionId, PushClientType.CUSTOMER_MOBILE);
 
         when(jwtTokenService.validate("inactive-customer-token")).thenReturn(validated);
         when(customerRepository.findById(20L)).thenReturn(Optional.of(customer));
@@ -184,8 +196,10 @@ class JwtAuthenticationFilterTest {
         Technician technician = new Technician("Inactive Tech", "+998904445566", "Diag", "Notes", 5, LanguageCode.UZ, false, OffsetDateTime.now(ZoneOffset.UTC));
         ReflectionTestUtils.setField(technician, "id", 30L);
 
+        UUID sessionId = UUID.randomUUID();
         JwtTokenService.ValidatedAccessToken validated = new JwtTokenService.ValidatedAccessToken(
-                ActorType.TECHNICIAN, 30L, null, "technician:30", null, OffsetDateTime.now(ZoneOffset.UTC), null);
+                ActorType.TECHNICIAN, 30L, null, "technician:30", null,
+                OffsetDateTime.now(ZoneOffset.UTC), 0L, sessionId, PushClientType.TECHNICIAN_MOBILE);
 
         when(jwtTokenService.validate("inactive-technician-token")).thenReturn(validated);
         when(technicianRepository.findById(30L)).thenReturn(Optional.of(technician));
@@ -202,8 +216,10 @@ class JwtAuthenticationFilterTest {
         request.addHeader("Authorization", "Bearer unknown-customer-token");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
+        UUID sessionId = UUID.randomUUID();
         JwtTokenService.ValidatedAccessToken validated = new JwtTokenService.ValidatedAccessToken(
-                ActorType.CUSTOMER, 999L, null, "customer:999", null, OffsetDateTime.now(ZoneOffset.UTC), null);
+                ActorType.CUSTOMER, 999L, null, "customer:999", null,
+                OffsetDateTime.now(ZoneOffset.UTC), 0L, sessionId, PushClientType.CUSTOMER_MOBILE);
 
         when(jwtTokenService.validate("unknown-customer-token")).thenReturn(validated);
         when(customerRepository.findById(999L)).thenReturn(Optional.empty());
@@ -221,8 +237,10 @@ class JwtAuthenticationFilterTest {
         request.addHeader("Authorization", "Bearer cust-with-tech-id");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
+        UUID sessionId = UUID.randomUUID();
         JwtTokenService.ValidatedAccessToken validated = new JwtTokenService.ValidatedAccessToken(
-                ActorType.CUSTOMER, 55L, null, "customer:55", null, OffsetDateTime.now(ZoneOffset.UTC), null);
+                ActorType.CUSTOMER, 55L, null, "customer:55", null,
+                OffsetDateTime.now(ZoneOffset.UTC), 0L, sessionId, PushClientType.CUSTOMER_MOBILE);
 
         when(jwtTokenService.validate("cust-with-tech-id")).thenReturn(validated);
         when(customerRepository.findById(55L)).thenReturn(Optional.empty());
@@ -242,8 +260,10 @@ class JwtAuthenticationFilterTest {
         request.addHeader("Authorization", "Bearer tech-with-cust-id");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
+        UUID sessionId = UUID.randomUUID();
         JwtTokenService.ValidatedAccessToken validated = new JwtTokenService.ValidatedAccessToken(
-                ActorType.TECHNICIAN, 77L, null, "technician:77", null, OffsetDateTime.now(ZoneOffset.UTC), null);
+                ActorType.TECHNICIAN, 77L, null, "technician:77", null,
+                OffsetDateTime.now(ZoneOffset.UTC), 0L, sessionId, PushClientType.TECHNICIAN_MOBILE);
 
         when(jwtTokenService.validate("tech-with-cust-id")).thenReturn(validated);
         when(technicianRepository.findById(77L)).thenReturn(Optional.empty());

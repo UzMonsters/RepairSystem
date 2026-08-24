@@ -3,6 +3,8 @@ package com.example.darks.repair_auto.identity.application;
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
 import com.example.darks.repair_auto.identity.domain.ActorType;
+import com.example.darks.repair_auto.identity.domain.MobileSession;
+import com.example.darks.repair_auto.identity.domain.MobileSessionRevocationReason;
 import com.example.darks.repair_auto.identity.domain.MobileRefreshRevocationReason;
 import com.example.darks.repair_auto.identity.domain.MobileRefreshSession;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.MobileRefreshSessionRepository;
@@ -35,6 +37,7 @@ public class MobileRefreshSessionService {
     private final TokenHashService tokenHashService;
     private final AppProperties properties;
     private final PushEndpointService pushEndpointService;
+    private final MobileSessionService mobileSessionService;
     private final Clock clock;
 
     @Autowired
@@ -45,8 +48,10 @@ public class MobileRefreshSessionService {
             RefreshTokenGenerator tokenGenerator,
             TokenHashService tokenHashService,
             AppProperties properties,
-            PushEndpointService pushEndpointService) {
-        this(repository, customerRepository, technicianRepository, tokenGenerator, tokenHashService, properties, pushEndpointService, Clock.systemUTC());
+            PushEndpointService pushEndpointService,
+            @Autowired(required = false) MobileSessionService mobileSessionService) {
+        this(repository, customerRepository, technicianRepository, tokenGenerator, tokenHashService, properties, pushEndpointService,
+                mobileSessionService, Clock.systemUTC());
     }
 
     public MobileRefreshSessionService(
@@ -56,7 +61,28 @@ public class MobileRefreshSessionService {
             RefreshTokenGenerator tokenGenerator,
             TokenHashService tokenHashService,
             AppProperties properties) {
-        this(repository, customerRepository, technicianRepository, tokenGenerator, tokenHashService, properties, null, Clock.systemUTC());
+        this(repository, customerRepository, technicianRepository, tokenGenerator, tokenHashService, properties, null, null, Clock.systemUTC());
+    }
+
+    MobileRefreshSessionService(
+            MobileRefreshSessionRepository repository,
+            CustomerRepository customerRepository,
+            TechnicianRepository technicianRepository,
+            RefreshTokenGenerator tokenGenerator,
+            TokenHashService tokenHashService,
+            AppProperties properties,
+            PushEndpointService pushEndpointService,
+            MobileSessionService mobileSessionService,
+            Clock clock) {
+        this.repository = repository;
+        this.customerRepository = customerRepository;
+        this.technicianRepository = technicianRepository;
+        this.tokenGenerator = tokenGenerator;
+        this.tokenHashService = tokenHashService;
+        this.properties = properties;
+        this.pushEndpointService = pushEndpointService;
+        this.mobileSessionService = mobileSessionService;
+        this.clock = clock;
     }
 
     MobileRefreshSessionService(
@@ -68,18 +94,17 @@ public class MobileRefreshSessionService {
             AppProperties properties,
             PushEndpointService pushEndpointService,
             Clock clock) {
-        this.repository = repository;
-        this.customerRepository = customerRepository;
-        this.technicianRepository = technicianRepository;
-        this.tokenGenerator = tokenGenerator;
-        this.tokenHashService = tokenHashService;
-        this.properties = properties;
-        this.pushEndpointService = pushEndpointService;
-        this.clock = clock;
+        this(repository, customerRepository, technicianRepository, tokenGenerator, tokenHashService,
+                properties, pushEndpointService, null, clock);
     }
 
     @Transactional
     public IssuedMobileRefreshToken createForCustomer(Customer customer) {
+        return createForCustomer(customer, null);
+    }
+
+    @Transactional
+    public IssuedMobileRefreshToken createForCustomer(Customer customer, MobileSession mobileSession) {
         OffsetDateTime now = now();
         String rawToken = tokenGenerator.generate();
         String tokenHash = tokenHashService.hash(rawToken);
@@ -91,6 +116,7 @@ public class MobileRefreshSessionService {
                 tokenHash,
                 tokenFamilyId,
                 null,
+                mobileSession,
                 now,
                 expiresAt);
 
@@ -101,6 +127,11 @@ public class MobileRefreshSessionService {
 
     @Transactional
     public IssuedMobileRefreshToken createForTechnician(Technician technician) {
+        return createForTechnician(technician, null);
+    }
+
+    @Transactional
+    public IssuedMobileRefreshToken createForTechnician(Technician technician, MobileSession mobileSession) {
         OffsetDateTime now = now();
         String rawToken = tokenGenerator.generate();
         String tokenHash = tokenHashService.hash(rawToken);
@@ -112,6 +143,7 @@ public class MobileRefreshSessionService {
                 tokenHash,
                 tokenFamilyId,
                 null,
+                mobileSession,
                 now,
                 expiresAt);
 
@@ -137,11 +169,13 @@ public class MobileRefreshSessionService {
                     session.getTokenFamilyId(), session.getActorType());
             if (session.getActorType() == ActorType.CUSTOMER && session.getCustomer() != null) {
                 repository.revokeAllForCustomer(session.getCustomer().getId(), now, MobileRefreshRevocationReason.REUSE_DETECTED.name());
+                revokeMobileSessionsForCustomer(session.getCustomer().getId(), MobileSessionRevocationReason.REFRESH_REUSE_DETECTED);
                 if (pushEndpointService != null) {
                     pushEndpointService.disableAllForCustomer(session.getCustomer().getId());
                 }
             } else if (session.getActorType() == ActorType.TECHNICIAN && session.getTechnician() != null) {
                 repository.revokeAllForTechnician(session.getTechnician().getId(), now, MobileRefreshRevocationReason.REUSE_DETECTED.name());
+                revokeMobileSessionsForTechnician(session.getTechnician().getId(), MobileSessionRevocationReason.REFRESH_REUSE_DETECTED);
                 if (pushEndpointService != null) {
                     pushEndpointService.disableAllForTechnician(session.getTechnician().getId());
                 }
@@ -163,6 +197,17 @@ public class MobileRefreshSessionService {
             throw new BusinessException(ErrorCode.MOBILE_REFRESH_TOKEN_EXPIRED);
         }
 
+        if (session.getMobileSession() == null) {
+            LOGGER.warn("Legacy session-less mobile refresh token rejected for familyId={}", session.getTokenFamilyId());
+            throw new BusinessException(ErrorCode.MOBILE_REFRESH_TOKEN_EXPIRED);
+        }
+
+        if (!session.getMobileSession().isActiveAt(now)) {
+            LOGGER.warn("Mobile refresh token rejected because associated mobile session is inactive for familyId={}",
+                    session.getTokenFamilyId());
+            throw new BusinessException(ErrorCode.SESSION_REVOKED);
+        }
+
         Customer customer = null;
         Technician technician = null;
 
@@ -172,6 +217,7 @@ public class MobileRefreshSessionService {
             if (!customer.isActive()) {
                 LOGGER.info("Customer is inactive during mobile refresh. Revoking session family.");
                 repository.revokeFamily(session.getTokenFamilyId(), now, MobileRefreshRevocationReason.ACCOUNT_INACTIVE.name());
+                revokeSession(session, MobileSessionRevocationReason.ACCOUNT_INACTIVE);
                 throw new BusinessException(ErrorCode.ACCOUNT_INACTIVE);
             }
         } else if (session.getActorType() == ActorType.TECHNICIAN) {
@@ -180,6 +226,7 @@ public class MobileRefreshSessionService {
             if (!technician.isActive()) {
                 LOGGER.info("Technician is inactive during mobile refresh. Revoking session family.");
                 repository.revokeFamily(session.getTokenFamilyId(), now, MobileRefreshRevocationReason.ACCOUNT_INACTIVE.name());
+                revokeSession(session, MobileSessionRevocationReason.ACCOUNT_INACTIVE);
                 throw new BusinessException(ErrorCode.ACCOUNT_INACTIVE);
             }
         } else {
@@ -200,6 +247,7 @@ public class MobileRefreshSessionService {
                     newTokenHash,
                     session.getTokenFamilyId(),
                     session.getId(),
+                    session.getMobileSession(),
                     now,
                     newExpiresAt);
         } else {
@@ -208,6 +256,7 @@ public class MobileRefreshSessionService {
                     newTokenHash,
                     session.getTokenFamilyId(),
                     session.getId(),
+                    session.getMobileSession(),
                     now,
                     newExpiresAt);
         }
@@ -236,19 +285,47 @@ public class MobileRefreshSessionService {
                 .ifPresent(session -> {
                     LOGGER.info("Revoking mobile refresh family for familyId={}", session.getTokenFamilyId());
                     repository.revokeFamily(session.getTokenFamilyId(), now(), MobileRefreshRevocationReason.LOGOUT.name());
+                    revokeSession(session, MobileSessionRevocationReason.LOGOUT);
                 });
+    }
+
+    @Transactional
+    public void revokeOtherFamiliesForActor(
+            UUID currentSessionId,
+            ActorType actorType,
+            Long actorId,
+            MobileRefreshRevocationReason reason) {
+        if (currentSessionId == null) {
+            if (actorType == ActorType.CUSTOMER) {
+                revokeAllForCustomer(actorId, reason);
+            } else {
+                revokeAllForTechnician(actorId, reason);
+            }
+            return;
+        }
+        OffsetDateTime now = now();
+        if (actorType == ActorType.CUSTOMER) {
+            repository.revokeOtherSessionsForCustomer(actorId, currentSessionId, now, reason.name());
+        } else {
+            repository.revokeOtherSessionsForTechnician(actorId, currentSessionId, now, reason.name());
+        }
+        if (mobileSessionService != null) {
+            mobileSessionService.revokeOtherSessionsForActor(currentSessionId, actorType, actorId, toSessionReason(reason));
+        }
     }
 
     @Transactional
     public void revokeAllForCustomer(Long customerId, MobileRefreshRevocationReason reason) {
         LOGGER.info("Revoking all mobile refresh sessions for customerId={}, reason={}", customerId, reason);
         repository.revokeAllForCustomer(customerId, now(), reason.name());
+        revokeMobileSessionsForCustomer(customerId, toSessionReason(reason));
     }
 
     @Transactional
     public void revokeAllForTechnician(Long technicianId, MobileRefreshRevocationReason reason) {
         LOGGER.info("Revoking all mobile refresh sessions for technicianId={}, reason={}", technicianId, reason);
         repository.revokeAllForTechnician(technicianId, now(), reason.name());
+        revokeMobileSessionsForTechnician(technicianId, toSessionReason(reason));
     }
 
     public long remainingTtlSeconds(MobileRefreshSession session) {
@@ -261,6 +338,41 @@ public class MobileRefreshSessionService {
 
     private OffsetDateTime now() {
         return OffsetDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
+    }
+
+    private void revokeSession(MobileRefreshSession session, MobileSessionRevocationReason reason) {
+        if (mobileSessionService != null && session.getMobileSession() != null) {
+            mobileSessionService.revoke(
+                    session.getMobileSession().getId(),
+                    session.getActorType(),
+                    session.getActorId(),
+                    reason);
+        }
+    }
+
+    private void revokeMobileSessionsForCustomer(Long customerId, MobileSessionRevocationReason reason) {
+        if (mobileSessionService != null) {
+            mobileSessionService.revokeAllForCustomer(customerId, reason);
+        }
+    }
+
+    private void revokeMobileSessionsForTechnician(Long technicianId, MobileSessionRevocationReason reason) {
+        if (mobileSessionService != null) {
+            mobileSessionService.revokeAllForTechnician(technicianId, reason);
+        }
+    }
+
+    private MobileSessionRevocationReason toSessionReason(MobileRefreshRevocationReason reason) {
+        return switch (reason) {
+            case LOGOUT -> MobileSessionRevocationReason.LOGOUT;
+            case LOGOUT_ALL -> MobileSessionRevocationReason.LOGOUT_ALL;
+            case REUSE_DETECTED -> MobileSessionRevocationReason.REFRESH_REUSE_DETECTED;
+            case ACCOUNT_INACTIVE -> MobileSessionRevocationReason.ACCOUNT_INACTIVE;
+            case TELEGRAM_IDENTITY_CHANGED, IDENTITY_CHANGED -> MobileSessionRevocationReason.IDENTITY_CHANGED;
+            case CREDENTIAL_CHANGED -> MobileSessionRevocationReason.CREDENTIAL_CHANGED;
+            case AUTH_METHOD_UNLINKED -> MobileSessionRevocationReason.AUTH_METHOD_UNLINKED;
+            default -> MobileSessionRevocationReason.ADMIN_REVOKED;
+        };
     }
 
     public record IssuedMobileRefreshToken(String rawToken, MobileRefreshSession session) {

@@ -18,6 +18,15 @@ public record MobileProfileResponse(
         @Schema(description = "Phone number in international E.164 format", example = "+998901234567")
         String phone,
 
+        @Schema(description = "Whether the phone number has been verified by SMS OTP", example = "true")
+        boolean phoneVerified,
+
+        @Schema(description = "Optional profile email", example = "user@example.com")
+        String email,
+
+        @Schema(description = "Whether the profile email has been verified by RepairAuto email code", example = "true")
+        boolean emailVerified,
+
         @Schema(description = "Preferred interface language code (uz, ru, en)", example = "uz")
         String preferredLanguage,
 
@@ -35,11 +44,26 @@ public record MobileProfileResponse(
             String phone,
             String preferredLanguage,
             boolean telegramLinked) {
+        return forCustomer(id, fullName, phone, false, null, false, preferredLanguage, telegramLinked);
+    }
+
+    public static MobileProfileResponse forCustomer(
+            Long id,
+            String fullName,
+            String phone,
+            boolean phoneVerified,
+            String email,
+            boolean emailVerified,
+            String preferredLanguage,
+            boolean telegramLinked) {
         return new MobileProfileResponse(
                 ActorType.CUSTOMER,
                 id,
                 fullName,
                 phone,
+                phoneVerified,
+                email,
+                emailVerified,
                 preferredLanguage,
                 telegramLinked,
                 null);
@@ -54,11 +78,40 @@ public record MobileProfileResponse(
             String specialization,
             int maxActiveJobs,
             boolean active) {
+        return forTechnician(
+                id,
+                fullName,
+                phone,
+                false,
+                null,
+                false,
+                preferredLanguage,
+                telegramLinked,
+                specialization,
+                maxActiveJobs,
+                active);
+    }
+
+    public static MobileProfileResponse forTechnician(
+            Long id,
+            String fullName,
+            String phone,
+            boolean phoneVerified,
+            String email,
+            boolean emailVerified,
+            String preferredLanguage,
+            boolean telegramLinked,
+            String specialization,
+            int maxActiveJobs,
+            boolean active) {
         return new MobileProfileResponse(
                 ActorType.TECHNICIAN,
                 id,
                 fullName,
                 phone,
+                phoneVerified,
+                email,
+                emailVerified,
                 preferredLanguage,
                 telegramLinked,
                 new TechnicianProfileMetadata(specialization, maxActiveJobs, active));

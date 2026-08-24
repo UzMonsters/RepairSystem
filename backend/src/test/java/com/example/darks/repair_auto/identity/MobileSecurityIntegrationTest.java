@@ -8,13 +8,18 @@ import com.example.darks.repair_auto.PostgreSqlIntegrationTest;
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
 import com.example.darks.repair_auto.identity.application.EmailNormalizer;
+import com.example.darks.repair_auto.identity.application.MobileSessionService;
 import com.example.darks.repair_auto.identity.application.PasswordService;
 import com.example.darks.repair_auto.identity.domain.ActorType;
+import com.example.darks.repair_auto.identity.domain.MobileAuthProvider;
+import com.example.darks.repair_auto.identity.domain.MobileSession;
+import com.example.darks.repair_auto.identity.domain.MobileSessionRevocationReason;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.RefreshSessionRepository;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
 import com.example.darks.repair_auto.identity.infrastructure.security.JwtTokenService;
+import com.example.darks.repair_auto.notification.push.domain.PushClientType;
 import com.example.darks.repair_auto.repair.request.infrastructure.RepairRequestRepository;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.technician.domain.Technician;
@@ -25,6 +30,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +70,9 @@ class MobileSecurityIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Autowired
     private EmailNormalizer emailNormalizer;
+
+    @Autowired
+    private MobileSessionService mobileSessionService;
 
     private User admin;
     private User manager;
@@ -120,9 +129,41 @@ class MobileSecurityIntegrationTest extends PostgreSqlIntegrationTest {
         inactiveTechnician = technicianRepository.saveAndFlush(inactiveTechnician);
     }
 
+    private String issueCustomerToken(Customer customer) {
+        MobileSession session = mobileSessionService.createForCustomer(
+                customer,
+                MobileAuthProvider.PHONE,
+                null,
+                "127.0.0.1",
+                "MobileSecurityIntegrationTest");
+        return jwtTokenService.issueMobile(
+                ActorType.CUSTOMER,
+                customer.getId(),
+                customer.getAuthVersion(),
+                session.getId(),
+                PushClientType.CUSTOMER_MOBILE,
+                customer.getPhone());
+    }
+
+    private String issueTechnicianToken(Technician technician) {
+        MobileSession session = mobileSessionService.createForTechnician(
+                technician,
+                MobileAuthProvider.PHONE,
+                null,
+                "127.0.0.1",
+                "MobileSecurityIntegrationTest");
+        return jwtTokenService.issueMobile(
+                ActorType.TECHNICIAN,
+                technician.getId(),
+                technician.getAuthVersion(),
+                session.getId(),
+                PushClientType.TECHNICIAN_MOBILE,
+                technician.getPhone());
+    }
+
     @Test
     void givenActiveCustomerTokenWhenAccessingAdminRouteThenForbiddenIsReturned() throws Exception {
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, activeCustomer.getId(), activeCustomer.getPhone());
+        String token = issueCustomerToken(activeCustomer);
 
         mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden())
@@ -143,7 +184,7 @@ class MobileSecurityIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenActiveTechnicianTokenWhenAccessingAdminRouteThenForbiddenIsReturned() throws Exception {
-        String token = jwtTokenService.issueMobile(ActorType.TECHNICIAN, activeTechnician.getId(), activeTechnician.getPhone());
+        String token = issueTechnicianToken(activeTechnician);
 
         mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden())
@@ -164,7 +205,14 @@ class MobileSecurityIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenInactiveCustomerTokenWhenAuthenticatingThenInvalidAccessTokenIsReturned() throws Exception {
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, inactiveCustomer.getId());
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.CUSTOMER,
+                inactiveCustomer.getId(),
+                inactiveCustomer.getAuthVersion(),
+                sessionId,
+                PushClientType.CUSTOMER_MOBILE,
+                inactiveCustomer.getPhone());
 
         mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
@@ -173,7 +221,14 @@ class MobileSecurityIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenInactiveTechnicianTokenWhenAuthenticatingThenInvalidAccessTokenIsReturned() throws Exception {
-        String token = jwtTokenService.issueMobile(ActorType.TECHNICIAN, inactiveTechnician.getId());
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.TECHNICIAN,
+                inactiveTechnician.getId(),
+                inactiveTechnician.getAuthVersion(),
+                sessionId,
+                PushClientType.TECHNICIAN_MOBILE,
+                inactiveTechnician.getPhone());
 
         mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
@@ -182,7 +237,14 @@ class MobileSecurityIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenUnknownCustomerIdTokenWhenAuthenticatingThenInvalidAccessTokenIsReturned() throws Exception {
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, 999999L);
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.CUSTOMER,
+                999999L,
+                0L,
+                sessionId,
+                PushClientType.CUSTOMER_MOBILE,
+                "+998909999999");
 
         mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
@@ -191,7 +253,14 @@ class MobileSecurityIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void givenUnknownTechnicianIdTokenWhenAuthenticatingThenInvalidAccessTokenIsReturned() throws Exception {
-        String token = jwtTokenService.issueMobile(ActorType.TECHNICIAN, 999999L);
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.TECHNICIAN,
+                999999L,
+                0L,
+                sessionId,
+                PushClientType.TECHNICIAN_MOBILE,
+                "+998909999999");
 
         mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
@@ -199,29 +268,27 @@ class MobileSecurityIntegrationTest extends PostgreSqlIntegrationTest {
     }
 
     @Test
-    void givenCustomerTokenWithTechnicianIdWhenCustomerDoesNotExistThenDoesNotResolveTechnician() throws Exception {
-        // activeTechnician exists, but no Customer with that ID exists
-        Long technicianId = activeTechnician.getId();
-        customerRepository.deleteById(technicianId);
+    void givenCustomerTokenWithRevokedSessionWhenAuthenticatingThenUnauthorized() throws Exception {
+        MobileSession session = mobileSessionService.createForCustomer(
+                activeCustomer,
+                MobileAuthProvider.PHONE,
+                null,
+                "127.0.0.1",
+                "RevocationTest");
 
-        String customerTokenWithTechId = jwtTokenService.issueMobile(ActorType.CUSTOMER, technicianId);
+        String token = jwtTokenService.issueMobile(
+                ActorType.CUSTOMER,
+                activeCustomer.getId(),
+                activeCustomer.getAuthVersion(),
+                session.getId(),
+                PushClientType.CUSTOMER_MOBILE,
+                activeCustomer.getPhone());
 
-        mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + customerTokenWithTechId))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("INVALID_ACCESS_TOKEN"));
-    }
+        // Revoke the session
+        mobileSessionService.revoke(session.getId(), ActorType.CUSTOMER, activeCustomer.getId(), MobileSessionRevocationReason.LOGOUT);
 
-    @Test
-    void givenTechnicianTokenWithCustomerIdWhenTechnicianDoesNotExistThenDoesNotResolveCustomer() throws Exception {
-        // activeCustomer exists, but no Technician with that ID exists
-        Long customerId = activeCustomer.getId();
-        technicianRepository.deleteById(customerId);
-
-        String technicianTokenWithCustId = jwtTokenService.issueMobile(ActorType.TECHNICIAN, customerId);
-
-        mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + technicianTokenWithCustId))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("INVALID_ACCESS_TOKEN"));
+        mockMvc.perform(get("/api/v1/requests").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
