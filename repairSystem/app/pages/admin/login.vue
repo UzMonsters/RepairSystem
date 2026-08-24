@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getApiErrorMessage } from '~/utils/api'
+import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 
 definePageMeta({ layout: 'auth' })
 const { t } = useLocale()
@@ -14,18 +14,28 @@ const { login } = useAuth()
 
 async function onSubmit() {
   error.value = ''
-  const missingEmail = !email.value.trim()
+  const normalizedEmail = email.value.trim().toLowerCase()
+  const missingEmail = !normalizedEmail
   const missingPassword = !password.value.trim()
   if (missingEmail || missingPassword) {
     error.value = t('loginFieldsRequired')
     return
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    error.value = t('invalidEmail')
+    return
+  }
   loading.value = true
   try {
-    await login(email.value, password.value, rememberMe.value)
+    await login(normalizedEmail, password.value, rememberMe.value)
     await navigateTo('/admin')
   } catch (e) {
-    error.value = getApiErrorMessage(e, 'Login failed. Please check your credentials.')
+    const code = getApiErrorCode(e)
+    error.value = code === 'INVALID_CREDENTIALS'
+      ? t('invalidCredentials')
+      : code === 'AUTH_THROTTLED'
+        ? t('loginTooManyAttempts')
+        : getApiErrorMessage(e, t('loginUnavailable'))
   } finally {
     loading.value = false
   }

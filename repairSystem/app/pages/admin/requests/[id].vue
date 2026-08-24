@@ -74,6 +74,7 @@ const errorMessage = computed(() => {
   if (getApiErrorCode(error.value) === 'REPAIR_REQUEST_NOT_FOUND') return t('requestAlreadyDeleted')
   return getApiErrorMessage(error.value, 'Failed to load request.')
 })
+const isDeletedRequest = computed(() => getApiErrorCode(error.value) === 'REPAIR_REQUEST_NOT_FOUND')
 
 async function deleteRequest() {
   deletingRequest.value = true
@@ -343,11 +344,26 @@ function can(action: string) {
 
 <template>
   <AppContent
-    :title="`#${request?.requestNumber || id}`"
-    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('requests'), to: '/admin/requests' }, { label: `#${request?.requestNumber || id}` }]"
+    :title="isDeletedRequest ? t('requestDeleted') : `#${request?.requestNumber || id}`"
+    :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('requests'), to: '/admin/requests' }, ...(isDeletedRequest ? [] : [{ label: `#${request?.requestNumber || id}` }])]"
   >
     <div
-      v-if="error"
+      v-if="error && isDeletedRequest"
+      class="text-center py-5"
+    >
+      <p class="text-danger mb-3">
+        {{ t('requestAlreadyDeleted') }}
+      </p>
+      <NuxtLink
+        to="/admin/requests"
+        class="btn btn-outline-primary"
+      >
+        {{ t('backToRequests') }}
+      </NuxtLink>
+    </div>
+
+    <div
+      v-else-if="error"
       class="alert alert-danger"
     >
       {{ errorMessage }}
