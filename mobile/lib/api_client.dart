@@ -180,6 +180,13 @@ class ApiClient {
     Object? body,
     Map<String, dynamic>? query,
   }) => request('PATCH', path, body: body, query: query);
+
+  Future<dynamic> put(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? query,
+    Map<String, String>? headers,
+  }) => request('PUT', path, body: body, query: query, headers: headers);
   Future<dynamic> delete(String path, {Object? body}) =>
       request('DELETE', path, body: body);
 

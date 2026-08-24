@@ -38,13 +38,11 @@ class AuthRepository {
   Future<Map<String, dynamic>> requestPhoneOtp({
     required String clientType,
     required String phone,
-    required String language,
   }) async => (await api.post(
         '/auth/phone/request-otp',
         body: {
           'clientType': clientType,
           'phone': phone,
-          'language': language,
         },
       ) as Map).cast<String, dynamic>();
 
@@ -251,10 +249,9 @@ class MobileProfileRepository {
 
   Future<Map<String, dynamic>> requestEmailVerification({
     required String email,
-    required String language,
   }) async => (await api.post(
         '/me/email/request-verification',
-        body: {'email': email, 'language': language},
+        body: {'email': email},
       ) as Map).cast<String, dynamic>();
 
   Future<void> verifyEmail(String challengeId, String code) async {
@@ -268,10 +265,9 @@ class MobileProfileRepository {
 
   Future<Map<String, dynamic>> requestPhoneVerification({
     required String phone,
-    required String language,
   }) async => (await api.post(
         '/me/phone/request-verification',
-        body: {'phone': phone, 'language': language},
+        body: {'phone': phone},
       ) as Map).cast<String, dynamic>();
 
   Future<void> verifyPhone(String challengeId, String code) async {
@@ -282,4 +278,36 @@ class MobileProfileRepository {
   }
 
   Future<void> removePhone() => api.delete('/me/phone');
+
+  Future<void> registerPushEndpoint({
+    required String fcmRegistrationToken,
+    required String clientType,
+    required String platform,
+    required String firebaseAppKey,
+    String? appVersion,
+  }) async {
+    await api.put(
+      '/push-endpoints',
+      body: {
+        'fcmRegistrationToken': fcmRegistrationToken,
+        'clientType': clientType,
+        'platform': platform,
+        'firebaseAppKey': firebaseAppKey,
+        if (appVersion != null) 'appVersion': appVersion,
+      },
+    );
+  }
+
+  Future<void> unregisterPushEndpoint({
+    required String fcmRegistrationToken,
+    required String firebaseAppKey,
+  }) async {
+    await api.delete(
+      '/push-endpoints',
+      body: {
+        'fcmRegistrationToken': fcmRegistrationToken,
+        'firebaseAppKey': firebaseAppKey,
+      },
+    );
+  }
 }

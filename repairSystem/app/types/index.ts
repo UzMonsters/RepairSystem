@@ -61,9 +61,12 @@ export interface LoginResponse {
 export interface Customer {
   id: number
   fullName: string
-  phone: string
+  phone: string | null
+  phoneVerified?: boolean
+  email?: string | null
+  emailVerified?: boolean
   preferredLanguage?: LanguageCode
-  registrationSource?: 'ADMIN' | 'TELEGRAM'
+  registrationSource?: 'ADMIN' | 'TELEGRAM' | 'GOOGLE' | 'PHONE'
   active?: boolean
   telegramLinked?: boolean
   createdAt?: string
@@ -74,6 +77,9 @@ export interface Technician {
   id: number
   fullName: string
   phone: string
+  phoneVerified?: boolean
+  email?: string | null
+  emailVerified?: boolean
   specialization?: string
   maximumConcurrentRequests?: number
   preferredLanguage?: LanguageCode

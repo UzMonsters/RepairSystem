@@ -49,6 +49,7 @@ const editingId = ref<number | null>(null)
 const form = ref({
   fullName: '',
   phone: '',
+  email: '',
   specialization: '',
   notes: '',
   maximumConcurrentRequests: 5,
@@ -74,7 +75,7 @@ function isValidPhone(value: string) {
 
 function openCreate() {
   editingId.value = null
-  form.value = { fullName: '', phone: '', specialization: '', notes: '', maximumConcurrentRequests: 5, preferredLanguage: 'UZ' }
+  form.value = { fullName: '', phone: '', email: '', specialization: '', notes: '', maximumConcurrentRequests: 5, preferredLanguage: 'UZ' }
   resetFormErrors()
   showModal('technician-modal')
 }
@@ -84,6 +85,7 @@ function openEdit(tech: Technician) {
   form.value = {
     fullName: tech.fullName,
     phone: tech.phone,
+    email: tech.email ?? '',
     specialization: tech.specialization ?? '',
     notes: '',
     maximumConcurrentRequests: tech.maximumConcurrentRequests ?? 5,
@@ -110,6 +112,7 @@ async function save() {
     const body = {
       fullName: form.value.fullName.trim(),
       phone: phoneValue,
+      email: form.value.email.trim() || undefined,
       specialization: form.value.specialization || undefined,
       notes: form.value.notes || undefined,
       maximumConcurrentRequests: typeof max === 'number' ? max : undefined,
@@ -291,9 +294,10 @@ function openTechnician(id: number) {
                 v-for="column in [
                   { label: t('fullName'), field: 'fullName' },
                   { label: t('phone'), field: 'phone' },
+                  { label: t('email'), field: 'email' },
                   { label: t('specialization'), field: 'specialization' },
                   { label: t('maxConcurrentRequests'), field: 'maximumConcurrentRequests' },
-                  { label: t('language'), field: 'fullName' },
+                  { label: t('language'), field: 'preferredLanguage' },
                   { label: t('active'), field: 'active' },
                   { label: t('created'), field: 'createdAt' }
                 ]"
@@ -320,7 +324,7 @@ function openTechnician(id: number) {
           <tbody>
             <tr v-if="pending">
               <td
-                colspan="8"
+                colspan="9"
                 class="text-center py-4"
               >
                 <div class="spinner-border spinner-border-sm text-primary" />
@@ -328,7 +332,7 @@ function openTechnician(id: number) {
             </tr>
             <tr v-else-if="!rows.length">
               <td
-                colspan="8"
+                colspan="9"
                 class="text-center py-4"
               >
                 <div class="empty-state">
@@ -351,6 +355,7 @@ function openTechnician(id: number) {
                 </span>
               </td>
               <td>{{ tech.phone }}</td>
+              <td>{{ tech.email || '-' }}</td>
               <td>{{ tech.specialization || '-' }}</td>
               <td>{{ tech.maximumConcurrentRequests ?? '-' }}</td>
               <td>{{ tech.preferredLanguage ? t(`language.${tech.preferredLanguage}`) : '-' }}</td>

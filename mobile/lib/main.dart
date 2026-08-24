@@ -69,7 +69,6 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     final data = await auth.requestPhoneOtp(
       clientType: role == 'CUSTOMER' ? 'CUSTOMER_MOBILE' : 'TECHNICIAN_MOBILE',
       phone: phone,
-      language: 'UZ',
     );
     return data['challengeId'] as String;
   }

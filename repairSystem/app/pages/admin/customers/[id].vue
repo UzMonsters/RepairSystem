@@ -114,7 +114,13 @@ function formatDate(value?: string) {
                   {{ t('phone') }}
                 </dt>
                 <dd class="col-sm-7">
-                  {{ customer.phone }}
+                  {{ customer.phone || '-' }}
+                </dd>
+                <dt class="col-sm-5">
+                  {{ t('email') }}
+                </dt>
+                <dd class="col-sm-7">
+                  {{ customer.email || '-' }}
                 </dd>
                 <dt class="col-sm-5">
                   {{ t('preferredLanguage') }}

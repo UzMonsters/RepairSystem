@@ -86,7 +86,7 @@ export function useWebPush() {
     await apiFetch('/me/push-endpoints', {
       method: 'PUT',
       body: {
-        firebaseInstallationId: token,
+        fcmRegistrationToken: token,
         clientType: 'ADMIN_WEB',
         platform: 'WEB',
         firebaseAppKey: 'ADMIN_WEB',
@@ -103,7 +103,7 @@ export function useWebPush() {
     if (token) {
       await apiFetch('/me/push-endpoints', {
         method: 'DELETE',
-        body: { firebaseInstallationId: token, firebaseAppKey: 'ADMIN_WEB' }
+        body: { fcmRegistrationToken: token, firebaseAppKey: 'ADMIN_WEB' }
       })
     }
     await deleteToken(instance)

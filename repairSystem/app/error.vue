@@ -7,12 +7,12 @@
       <p class="error-message">
         {{ isNotFound ? t('pageNotFound') : error?.message || t('somethingWentWrong') }}
       </p>
-      <NuxtLink
-        to="/admin"
+      <button
         class="back-link"
+        @click="handleError"
       >
         {{ t('backToHome') }}
-      </NuxtLink>
+      </button>
     </div>
   </div>
 </template>
@@ -29,6 +29,8 @@ const { t } = useLocale()
 const isNotFound = computed(() => {
   return props.error?.statusCode === 404
 })
+
+const handleError = () => clearError({ redirect: '/admin' })
 </script>
 
 <style scoped>
