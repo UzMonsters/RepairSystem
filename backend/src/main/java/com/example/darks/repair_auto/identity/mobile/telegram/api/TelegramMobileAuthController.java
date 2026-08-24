@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,8 +44,14 @@ public class TelegramMobileAuthController {
             @ApiResponse(responseCode = "401", description = "Invalid, expired, audience-mismatched, or unlinked Telegram token"),
             @ApiResponse(responseCode = "403", description = "Customer account is inactive")
     })
-    public MobileAuthResponse loginCustomer(@Valid @RequestBody TelegramLoginRequest request) {
-        return authService.loginCustomer(request.idToken());
+    public MobileAuthResponse loginCustomer(
+            @Valid @RequestBody TelegramLoginRequest request,
+            HttpServletRequest httpRequest) {
+        return authService.loginCustomer(
+                request.idToken(),
+                request.device(),
+                httpRequest.getRemoteAddr(),
+                userAgent(httpRequest));
     }
 
     @PostMapping("/telegram/technician")
@@ -60,8 +67,14 @@ public class TelegramMobileAuthController {
             @ApiResponse(responseCode = "401", description = "Invalid, expired, audience-mismatched, or unlinked Telegram token"),
             @ApiResponse(responseCode = "403", description = "Technician account is inactive")
     })
-    public MobileAuthResponse loginTechnician(@Valid @RequestBody TelegramLoginRequest request) {
-        return authService.loginTechnician(request.idToken());
+    public MobileAuthResponse loginTechnician(
+            @Valid @RequestBody TelegramLoginRequest request,
+            HttpServletRequest httpRequest) {
+        return authService.loginTechnician(
+                request.idToken(),
+                request.device(),
+                httpRequest.getRemoteAddr(),
+                userAgent(httpRequest));
     }
 
     @PostMapping("/refresh")
@@ -106,5 +119,9 @@ public class TelegramMobileAuthController {
     public ResponseEntity<Void> logoutAll(@AuthenticationPrincipal AuthenticatedMobileActor actor) {
         authService.logoutAll(actor);
         return ResponseEntity.noContent().build();
+    }
+
+    private String userAgent(HttpServletRequest request) {
+        return request.getHeader("User-Agent");
     }
 }

@@ -5,6 +5,7 @@ import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import com.example.darks.repair_auto.shared.phone.PhoneNumberNormalizer;
+import com.example.darks.repair_auto.identity.application.EmailNormalizer;
 import com.example.darks.repair_auto.technician.api.dto.TechnicianCreateRequest;
 import com.example.darks.repair_auto.technician.api.dto.TechnicianDetailResponse;
 import com.example.darks.repair_auto.technician.api.dto.TechnicianMapper;
@@ -30,22 +31,25 @@ public class TechnicianService {
 
     private final TechnicianRepository technicianRepository;
     private final PhoneNumberNormalizer phoneNumberNormalizer;
+    private final EmailNormalizer emailNormalizer;
     private final com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService;
 
     @org.springframework.beans.factory.annotation.Autowired
     public TechnicianService(
             TechnicianRepository technicianRepository,
             PhoneNumberNormalizer phoneNumberNormalizer,
+            EmailNormalizer emailNormalizer,
             com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService) {
         this.technicianRepository = technicianRepository;
         this.phoneNumberNormalizer = phoneNumberNormalizer;
+        this.emailNormalizer = emailNormalizer;
         this.actorAccessLifecycleService = actorAccessLifecycleService;
     }
 
     public TechnicianService(
             TechnicianRepository technicianRepository,
             PhoneNumberNormalizer phoneNumberNormalizer) {
-        this(technicianRepository, phoneNumberNormalizer, null);
+        this(technicianRepository, phoneNumberNormalizer, new EmailNormalizer(), null);
     }
 
     @Transactional(readOnly = true)
@@ -77,6 +81,7 @@ public class TechnicianService {
         Technician technician = new Technician(
                 request.fullName().trim(),
                 phoneNumberNormalizer.normalize(request.phone()),
+                normalizeEmailOrNull(request.email()),
                 blankToNull(request.specialization()),
                 blankToNull(request.notes()),
                 request.maximumConcurrentRequests(),
@@ -100,6 +105,7 @@ public class TechnicianService {
         technician.updateProfile(
                 request.fullName().trim(),
                 phoneNumberNormalizer.normalize(request.phone()),
+                normalizeEmailOrNull(request.email()),
                 blankToNull(request.specialization()),
                 blankToNull(request.notes()),
                 request.maximumConcurrentRequests(),
@@ -159,6 +165,13 @@ public class TechnicianService {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizeEmailOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return emailNormalizer.normalize(value);
     }
 
     private String normalizeSearchPhone(String search) {

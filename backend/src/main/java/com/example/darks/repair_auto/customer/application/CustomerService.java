@@ -13,6 +13,7 @@ import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import com.example.darks.repair_auto.shared.phone.PhoneNumberNormalizer;
+import com.example.darks.repair_auto.identity.application.EmailNormalizer;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Locale;
@@ -31,20 +32,23 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final PhoneNumberNormalizer phoneNumberNormalizer;
+    private final EmailNormalizer emailNormalizer;
     private final com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService;
 
     @org.springframework.beans.factory.annotation.Autowired
     public CustomerService(
             CustomerRepository customerRepository,
             PhoneNumberNormalizer phoneNumberNormalizer,
+            EmailNormalizer emailNormalizer,
             com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService) {
         this.customerRepository = customerRepository;
         this.phoneNumberNormalizer = phoneNumberNormalizer;
+        this.emailNormalizer = emailNormalizer;
         this.actorAccessLifecycleService = actorAccessLifecycleService;
     }
 
     public CustomerService(CustomerRepository customerRepository, PhoneNumberNormalizer phoneNumberNormalizer) {
-        this(customerRepository, phoneNumberNormalizer, null);
+        this(customerRepository, phoneNumberNormalizer, new EmailNormalizer(), null);
     }
 
     @Transactional(readOnly = true)
@@ -79,9 +83,10 @@ public class CustomerService {
     public CustomerDetailResponse create(CustomerCreateRequest request) {
         Customer customer = new Customer(
                 request.fullName().trim(),
-                phoneNumberNormalizer.normalize(request.phone()),
+                normalizePhoneOrNull(request.phone()),
                 request.preferredLanguage(),
                 now());
+        customer.setEmail(normalizeEmailOrNull(request.email()), null, now());
         try {
             Customer saved = customerRepository.saveAndFlush(customer);
             LOGGER.info("Customer event operation=customer_created result=success customerId={}", saved.getId());
@@ -96,9 +101,10 @@ public class CustomerService {
         Customer customer = customerRepository.findByIdForUpdate(id).orElseThrow(this::notFound);
         customer.updateProfile(
                 request.fullName().trim(),
-                phoneNumberNormalizer.normalize(request.phone()),
+                normalizePhoneOrNull(request.phone()),
                 request.preferredLanguage(),
                 now());
+        customer.setEmail(normalizeEmailOrNull(request.email()), null, now());
         try {
             return CustomerMapper.details(customerRepository.saveAndFlush(customer));
         } catch (DataIntegrityViolationException exception) {
@@ -240,6 +246,20 @@ public class CustomerService {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizePhoneOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return phoneNumberNormalizer.normalize(value);
+    }
+
+    private String normalizeEmailOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return emailNormalizer.normalize(value);
     }
 
     private String normalizeSearchPhone(String search) {

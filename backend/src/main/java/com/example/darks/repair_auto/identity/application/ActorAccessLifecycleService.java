@@ -1,8 +1,10 @@
 package com.example.darks.repair_auto.identity.application;
 
+import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
 import com.example.darks.repair_auto.identity.domain.MobileRefreshRevocationReason;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
 import com.example.darks.repair_auto.notification.push.application.PushEndpointService;
+import com.example.darks.repair_auto.technician.infrastructure.TechnicianRepository;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -21,6 +23,8 @@ public class ActorAccessLifecycleService {
     private final MobileRefreshSessionService mobileRefreshSessionService;
     private final PushEndpointService pushEndpointService;
     private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
+    private final TechnicianRepository technicianRepository;
     private final Clock clock;
 
     @Autowired
@@ -28,8 +32,11 @@ public class ActorAccessLifecycleService {
             RefreshSessionService staffRefreshSessionService,
             MobileRefreshSessionService mobileRefreshSessionService,
             PushEndpointService pushEndpointService,
-            UserRepository userRepository) {
-        this(staffRefreshSessionService, mobileRefreshSessionService, pushEndpointService, userRepository, Clock.systemUTC());
+            UserRepository userRepository,
+            CustomerRepository customerRepository,
+            TechnicianRepository technicianRepository) {
+        this(staffRefreshSessionService, mobileRefreshSessionService, pushEndpointService, userRepository,
+                customerRepository, technicianRepository, Clock.systemUTC());
     }
 
     public ActorAccessLifecycleService(
@@ -38,10 +45,23 @@ public class ActorAccessLifecycleService {
             PushEndpointService pushEndpointService,
             UserRepository userRepository,
             Clock clock) {
+        this(staffRefreshSessionService, mobileRefreshSessionService, pushEndpointService, userRepository, null, null, clock);
+    }
+
+    public ActorAccessLifecycleService(
+            RefreshSessionService staffRefreshSessionService,
+            MobileRefreshSessionService mobileRefreshSessionService,
+            PushEndpointService pushEndpointService,
+            UserRepository userRepository,
+            CustomerRepository customerRepository,
+            TechnicianRepository technicianRepository,
+            Clock clock) {
         this.staffRefreshSessionService = staffRefreshSessionService;
         this.mobileRefreshSessionService = mobileRefreshSessionService;
         this.pushEndpointService = pushEndpointService;
         this.userRepository = userRepository;
+        this.customerRepository = customerRepository;
+        this.technicianRepository = technicianRepository;
         this.clock = clock;
     }
 
@@ -94,6 +114,7 @@ public class ActorAccessLifecycleService {
     public void onCustomerLogoutAll(Long customerId) {
         LOGGER.info("Executing customer logout-all lifecycle for customerId={}", customerId);
         mobileRefreshSessionService.revokeAllForCustomer(customerId, MobileRefreshRevocationReason.LOGOUT_ALL);
+        incrementCustomerAuthVersion(customerId);
         int disabledEndpoints = pushEndpointService.disableAllForCustomer(customerId);
         LOGGER.info("Customer logout-all completed: customerId={}, disabledEndpoints={}", customerId, disabledEndpoints);
     }
@@ -102,6 +123,7 @@ public class ActorAccessLifecycleService {
     public void onCustomerDeactivated(Long customerId) {
         LOGGER.info("Executing customer deactivation lifecycle for customerId={}", customerId);
         mobileRefreshSessionService.revokeAllForCustomer(customerId, MobileRefreshRevocationReason.ACCOUNT_INACTIVE);
+        incrementCustomerAuthVersion(customerId);
         int disabledEndpoints = pushEndpointService.disableAllForCustomer(customerId);
         LOGGER.info("Customer deactivation completed: customerId={}, disabledEndpoints={}", customerId, disabledEndpoints);
     }
@@ -110,6 +132,7 @@ public class ActorAccessLifecycleService {
     public void onTechnicianLogoutAll(Long technicianId) {
         LOGGER.info("Executing technician logout-all lifecycle for technicianId={}", technicianId);
         mobileRefreshSessionService.revokeAllForTechnician(technicianId, MobileRefreshRevocationReason.LOGOUT_ALL);
+        incrementTechnicianAuthVersion(technicianId);
         int disabledEndpoints = pushEndpointService.disableAllForTechnician(technicianId);
         LOGGER.info("Technician logout-all completed: technicianId={}, disabledEndpoints={}", technicianId, disabledEndpoints);
     }
@@ -118,6 +141,7 @@ public class ActorAccessLifecycleService {
     public void onTechnicianDeactivated(Long technicianId) {
         LOGGER.info("Executing technician deactivation lifecycle for technicianId={}", technicianId);
         mobileRefreshSessionService.revokeAllForTechnician(technicianId, MobileRefreshRevocationReason.ACCOUNT_INACTIVE);
+        incrementTechnicianAuthVersion(technicianId);
         int disabledEndpoints = pushEndpointService.disableAllForTechnician(technicianId);
         LOGGER.info("Technician deactivation completed: technicianId={}, disabledEndpoints={}", technicianId, disabledEndpoints);
     }
@@ -126,11 +150,24 @@ public class ActorAccessLifecycleService {
     public void onTechnicianTelegramIdentityChanged(Long technicianId) {
         LOGGER.info("Executing technician telegram identity changed lifecycle for technicianId={}", technicianId);
         mobileRefreshSessionService.revokeAllForTechnician(technicianId, MobileRefreshRevocationReason.TELEGRAM_IDENTITY_CHANGED);
+        incrementTechnicianAuthVersion(technicianId);
         int disabledEndpoints = pushEndpointService.disableAllForTechnician(technicianId);
         LOGGER.info("Technician telegram identity changed lifecycle completed: technicianId={}, disabledEndpoints={}", technicianId, disabledEndpoints);
     }
 
     private OffsetDateTime now() {
         return OffsetDateTime.now(clock).withOffsetSameInstant(ZoneOffset.UTC);
+    }
+
+    private void incrementCustomerAuthVersion(Long customerId) {
+        if (customerRepository != null) {
+            customerRepository.incrementAuthVersion(customerId, now());
+        }
+    }
+
+    private void incrementTechnicianAuthVersion(Long technicianId) {
+        if (technicianRepository != null) {
+            technicianRepository.incrementAuthVersion(technicianId, now());
+        }
     }
 }

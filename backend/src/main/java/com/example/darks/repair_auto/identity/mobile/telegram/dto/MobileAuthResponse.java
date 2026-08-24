@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.identity.mobile.telegram.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.UUID;
 
 @Schema(description = "Mobile authentication response containing RepairAuto access and refresh tokens")
 public record MobileAuthResponse(
@@ -20,6 +21,24 @@ public record MobileAuthResponse(
         long refreshExpiresIn,
 
         @Schema(description = "Authenticated actor summary")
-        MobileActorSummary actor
+        MobileActorSummary actor,
+
+        @Schema(description = "RepairAuto mobile session")
+        MobileSessionSummary session
 ) {
+    public MobileAuthResponse(
+            String tokenType,
+            String accessToken,
+            String refreshToken,
+            long expiresIn,
+            long refreshExpiresIn,
+            MobileActorSummary actor) {
+        this(tokenType, accessToken, refreshToken, expiresIn, refreshExpiresIn, actor, null);
+    }
+
+    public record MobileSessionSummary(
+            @Schema(description = "RepairAuto mobile session ID")
+            UUID id
+    ) {
+    }
 }

@@ -12,9 +12,12 @@ import static org.mockito.Mockito.when;
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
 import com.example.darks.repair_auto.identity.domain.ActorType;
+import com.example.darks.repair_auto.identity.domain.MobileAuthProvider;
 import com.example.darks.repair_auto.identity.domain.MobileRefreshRevocationReason;
 import com.example.darks.repair_auto.identity.domain.MobileRefreshSession;
+import com.example.darks.repair_auto.identity.domain.MobileSession;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.MobileRefreshSessionRepository;
+import com.example.darks.repair_auto.notification.push.domain.PushPlatform;
 import com.example.darks.repair_auto.shared.config.AppProperties;
 import com.example.darks.repair_auto.shared.error.BusinessException;
 import com.example.darks.repair_auto.shared.error.ErrorCode;
@@ -44,6 +47,7 @@ class MobileRefreshSessionServiceTest {
     private TokenHashService tokenHashService;
     private AppProperties properties;
     private com.example.darks.repair_auto.notification.push.application.PushEndpointService pushEndpointService;
+    private MobileSessionService mobileSessionService;
     private MobileRefreshSessionService service;
 
     @BeforeEach
@@ -53,6 +57,7 @@ class MobileRefreshSessionServiceTest {
         technicianRepository = mock(TechnicianRepository.class);
         tokenGenerator = mock(RefreshTokenGenerator.class);
         pushEndpointService = mock(com.example.darks.repair_auto.notification.push.application.PushEndpointService.class);
+        mobileSessionService = mock(MobileSessionService.class);
         tokenHashService = new TokenHashService();
         properties = new AppProperties(
                 new AppProperties.Cors(List.of(), List.of(), List.of(), List.of(), false),
@@ -71,6 +76,7 @@ class MobileRefreshSessionServiceTest {
                 tokenHashService,
                 properties,
                 pushEndpointService,
+                mobileSessionService,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
@@ -78,16 +84,24 @@ class MobileRefreshSessionServiceTest {
     void givenCustomerWhenCreateInitialThenSessionSavedWithFamilyIdAndHash() {
         Customer customer = new Customer("Customer 1", "+998901234567", LanguageCode.UZ, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
         ReflectionTestUtils.setField(customer, "id", 100L);
+        MobileSession customerSession = MobileSession.forCustomer(
+                customer,
+                MobileAuthProvider.PHONE,
+                PushPlatform.ANDROID,
+                null, null, null, "127.0.0.1", "test-agent",
+                OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(30)), ZoneOffset.UTC));
 
         when(tokenGenerator.generate()).thenReturn("raw-refresh-token-123");
         when(repository.save(any(MobileRefreshSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        MobileRefreshSessionService.IssuedMobileRefreshToken result = service.createForCustomer(customer);
+        MobileRefreshSessionService.IssuedMobileRefreshToken result = service.createForCustomer(customer, customerSession);
 
         assertThat(result.rawToken()).isEqualTo("raw-refresh-token-123");
         assertThat(result.session().getActorType()).isEqualTo(ActorType.CUSTOMER);
         assertThat(result.session().getCustomer()).isEqualTo(customer);
         assertThat(result.session().getTechnician()).isNull();
+        assertThat(result.session().getMobileSession()).isEqualTo(customerSession);
         assertThat(result.session().getTokenFamilyId()).isNotNull();
         assertThat(result.session().getTokenHash()).isEqualTo(tokenHashService.hash("raw-refresh-token-123"));
         assertThat(result.session().getExpiresAt()).isEqualTo(OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(30)), ZoneOffset.UTC));
@@ -97,16 +111,24 @@ class MobileRefreshSessionServiceTest {
     void givenTechnicianWhenCreateInitialThenSessionSavedWithFamilyIdAndHash() {
         Technician technician = new Technician("Tech 1", "+998909876543", "Washer", "Notes", 5, LanguageCode.RU, true, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
         ReflectionTestUtils.setField(technician, "id", 200L);
+        MobileSession techSession = MobileSession.forTechnician(
+                technician,
+                MobileAuthProvider.PHONE,
+                PushPlatform.ANDROID,
+                null, null, null, "127.0.0.1", "test-agent",
+                OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(30)), ZoneOffset.UTC));
 
         when(tokenGenerator.generate()).thenReturn("raw-refresh-token-456");
         when(repository.save(any(MobileRefreshSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        MobileRefreshSessionService.IssuedMobileRefreshToken result = service.createForTechnician(technician);
+        MobileRefreshSessionService.IssuedMobileRefreshToken result = service.createForTechnician(technician, techSession);
 
         assertThat(result.rawToken()).isEqualTo("raw-refresh-token-456");
         assertThat(result.session().getActorType()).isEqualTo(ActorType.TECHNICIAN);
         assertThat(result.session().getTechnician()).isEqualTo(technician);
         assertThat(result.session().getCustomer()).isNull();
+        assertThat(result.session().getMobileSession()).isEqualTo(techSession);
         assertThat(result.session().getTokenFamilyId()).isNotNull();
         assertThat(result.session().getTokenHash()).isEqualTo(tokenHashService.hash("raw-refresh-token-456"));
     }
@@ -115,6 +137,15 @@ class MobileRefreshSessionServiceTest {
     void givenValidCustomerRefreshTokenWhenRotateThenOldSessionRotatedAndNewTokenPairIssued() {
         Customer customer = new Customer("Customer 1", "+998901234567", LanguageCode.UZ, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
         ReflectionTestUtils.setField(customer, "id", 100L);
+
+        MobileSession customerSession = MobileSession.forCustomer(
+                customer,
+                MobileAuthProvider.PHONE,
+                PushPlatform.ANDROID,
+                null, null, null, "127.0.0.1", "test-agent",
+                OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(30)), ZoneOffset.UTC));
+        ReflectionTestUtils.setField(customerSession, "id", UUID.randomUUID());
 
         UUID familyId = UUID.randomUUID();
         String oldRawToken = "old-raw-token";
@@ -125,6 +156,7 @@ class MobileRefreshSessionServiceTest {
                 oldHash,
                 familyId,
                 null,
+                customerSession,
                 OffsetDateTime.ofInstant(NOW.minus(Duration.ofDays(1)), ZoneOffset.UTC),
                 OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(29)), ZoneOffset.UTC));
         ReflectionTestUtils.setField(oldSession, "id", 1L);
@@ -158,6 +190,15 @@ class MobileRefreshSessionServiceTest {
         Technician technician = new Technician("Tech 1", "+998909876543", "Washer", "Notes", 5, LanguageCode.RU, true, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
         ReflectionTestUtils.setField(technician, "id", 200L);
 
+        MobileSession techSession = MobileSession.forTechnician(
+                technician,
+                MobileAuthProvider.PHONE,
+                PushPlatform.ANDROID,
+                null, null, null, "127.0.0.1", "test-agent",
+                OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(30)), ZoneOffset.UTC));
+        ReflectionTestUtils.setField(techSession, "id", UUID.randomUUID());
+
         UUID familyId = UUID.randomUUID();
         String oldRawToken = "tech-old-token";
         String oldHash = tokenHashService.hash(oldRawToken);
@@ -167,6 +208,7 @@ class MobileRefreshSessionServiceTest {
                 oldHash,
                 familyId,
                 null,
+                techSession,
                 OffsetDateTime.ofInstant(NOW.minus(Duration.ofDays(1)), ZoneOffset.UTC),
                 OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(29)), ZoneOffset.UTC));
         ReflectionTestUtils.setField(oldSession, "id", 10L);
@@ -252,6 +294,15 @@ class MobileRefreshSessionServiceTest {
         customer.setActive(false, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
         ReflectionTestUtils.setField(customer, "id", 100L);
 
+        MobileSession customerSession = MobileSession.forCustomer(
+                customer,
+                MobileAuthProvider.PHONE,
+                PushPlatform.ANDROID,
+                null, null, null, "127.0.0.1", "test-agent",
+                OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(30)), ZoneOffset.UTC));
+        ReflectionTestUtils.setField(customerSession, "id", UUID.randomUUID());
+
         UUID familyId = UUID.randomUUID();
         String rawToken = "inactive-customer-token";
         String tokenHash = tokenHashService.hash(rawToken);
@@ -261,6 +312,7 @@ class MobileRefreshSessionServiceTest {
                 tokenHash,
                 familyId,
                 null,
+                customerSession,
                 OffsetDateTime.ofInstant(NOW.minus(Duration.ofDays(1)), ZoneOffset.UTC),
                 OffsetDateTime.ofInstant(NOW.plus(Duration.ofDays(29)), ZoneOffset.UTC));
 

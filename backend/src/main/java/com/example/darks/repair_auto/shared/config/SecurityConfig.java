@@ -67,6 +67,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/mobile/auth/telegram/customer",
                                 "/api/v1/mobile/auth/telegram/technician",
+                                "/api/v1/mobile/auth/google",
+                                "/api/v1/mobile/auth/google/customer",
+                                "/api/v1/mobile/auth/google/technician",
+                                "/api/v1/mobile/auth/phone/request-otp",
+                                "/api/v1/mobile/auth/phone/verify-otp",
+                                "/api/v1/mobile/auth/phone/otp/request",
+                                "/api/v1/mobile/auth/phone/otp/verify",
+                                "/api/v1/mobile/auth/otp/send",
+                                "/api/v1/mobile/auth/otp/verify",
                                 "/api/v1/mobile/auth/refresh",
                                 "/api/v1/mobile/auth/logout")
                         .permitAll()

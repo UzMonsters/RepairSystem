@@ -18,6 +18,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long>, JpaSp
 
     Optional<Customer> findByTelegramUserId(Long telegramUserId);
 
+    Optional<Customer> findByEmailIgnoreCase(String email);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select c from Customer c
@@ -38,6 +40,15 @@ public interface CustomerRepository extends JpaRepository<Customer, Long>, JpaSp
             where c.id = :id
             """)
     Optional<Customer> findByIdForUpdate(@Param("id") Long id);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("""
+            update Customer c
+            set c.authVersion = c.authVersion + 1,
+                c.updatedAt = :now
+            where c.id = :id
+            """)
+    int incrementAuthVersion(@Param("id") Long id, @Param("now") java.time.OffsetDateTime now);
 
     @Override
     Page<Customer> findAll(Specification<Customer> specification, Pageable pageable);
