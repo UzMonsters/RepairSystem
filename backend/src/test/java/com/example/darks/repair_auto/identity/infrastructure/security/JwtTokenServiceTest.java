@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
+import com.example.darks.repair_auto.notification.push.domain.PushClientType;
 import com.example.darks.repair_auto.shared.config.AppProperties;
 import com.example.darks.repair_auto.shared.error.BusinessException;
 import java.time.Clock;
@@ -16,6 +17,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.ObjectMapper;
@@ -60,7 +62,9 @@ class JwtTokenServiceTest {
     @Test
     void givenCustomerMobileTokenWhenIssuedThenValidatesCorrectly() {
         JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
-        String tokenString = service.issueMobile(ActorType.CUSTOMER, 123L, "+998901234567");
+        UUID sessionId = UUID.randomUUID();
+        String tokenString = service.issueMobile(
+                ActorType.CUSTOMER, 123L, 0L, sessionId, PushClientType.CUSTOMER_MOBILE, "+998901234567");
 
         JwtTokenService.ValidatedAccessToken token = service.validate(tokenString);
 
@@ -71,14 +75,18 @@ class JwtTokenServiceTest {
         assertThat(token.actorId()).isEqualTo(123L);
         assertThat(token.userId()).isNull();
         assertThat(token.role()).isNull();
-        assertThat(token.authVersion()).isNull();
+        assertThat(token.authVersion()).isEqualTo(0L);
+        assertThat(token.mobileSessionId()).isEqualTo(sessionId);
+        assertThat(token.clientType()).isEqualTo(PushClientType.CUSTOMER_MOBILE);
         assertThat(token.subject()).isEqualTo("+998901234567");
     }
 
     @Test
     void givenTechnicianMobileTokenWhenIssuedThenValidatesCorrectly() {
         JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
-        String tokenString = service.issueMobile(ActorType.TECHNICIAN, 456L);
+        UUID sessionId = UUID.randomUUID();
+        String tokenString = service.issueMobile(
+                ActorType.TECHNICIAN, 456L, 1L, sessionId, PushClientType.TECHNICIAN_MOBILE, "technician:456");
 
         JwtTokenService.ValidatedAccessToken token = service.validate(tokenString);
 
@@ -89,7 +97,9 @@ class JwtTokenServiceTest {
         assertThat(token.actorId()).isEqualTo(456L);
         assertThat(token.userId()).isNull();
         assertThat(token.role()).isNull();
-        assertThat(token.authVersion()).isNull();
+        assertThat(token.authVersion()).isEqualTo(1L);
+        assertThat(token.mobileSessionId()).isEqualTo(sessionId);
+        assertThat(token.clientType()).isEqualTo(PushClientType.TECHNICIAN_MOBILE);
         assertThat(token.subject()).isEqualTo("technician:456");
     }
 
@@ -97,7 +107,8 @@ class JwtTokenServiceTest {
     void givenStaffActorTypePassedToIssueMobileThenThrowsIllegalArgumentException() {
         JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
 
-        assertThatThrownBy(() -> service.issueMobile(ActorType.STAFF, 1L))
+        assertThatThrownBy(() -> service.issueMobile(
+                ActorType.STAFF, 1L, 0L, UUID.randomUUID(), PushClientType.CUSTOMER_MOBILE, "staff:1"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Mobile access tokens can only be issued for CUSTOMER or TECHNICIAN");
     }
@@ -105,12 +116,16 @@ class JwtTokenServiceTest {
     @Test
     void givenNullOrNonPositiveActorIdToIssueMobileThenThrowsIllegalArgumentException() {
         JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+        UUID sessionId = UUID.randomUUID();
 
-        assertThatThrownBy(() -> service.issueMobile(ActorType.CUSTOMER, null))
+        assertThatThrownBy(() -> service.issueMobile(
+                ActorType.CUSTOMER, null, 0L, sessionId, PushClientType.CUSTOMER_MOBILE, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.issueMobile(ActorType.CUSTOMER, 0L))
+        assertThatThrownBy(() -> service.issueMobile(
+                ActorType.CUSTOMER, 0L, 0L, sessionId, PushClientType.CUSTOMER_MOBILE, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.issueMobile(ActorType.CUSTOMER, -10L))
+        assertThatThrownBy(() -> service.issueMobile(
+                ActorType.CUSTOMER, -10L, 0L, sessionId, PushClientType.CUSTOMER_MOBILE, null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -145,8 +160,11 @@ class JwtTokenServiceTest {
         JwtTokenService issuer = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
         JwtTokenService validator = service("repair-auto", Clock.fixed(NOW.plus(Duration.ofMinutes(16)), ZoneOffset.UTC));
 
+        String token = issuer.issueMobile(
+                ActorType.CUSTOMER, 12L, 0L, UUID.randomUUID(), PushClientType.CUSTOMER_MOBILE, "+998901234567");
+
         BusinessException exception = catchThrowableOfType(
-                () -> validator.validate(issuer.issueMobile(ActorType.CUSTOMER, 12L)),
+                () -> validator.validate(token),
                 BusinessException.class);
 
         assertThat(exception.code()).isEqualTo("ACCESS_TOKEN_EXPIRED");
@@ -176,6 +194,57 @@ class JwtTokenServiceTest {
         assertThat(catchThrowableOfType(() -> service.validate(malformed), BusinessException.class).code())
                 .isEqualTo("INVALID_ACCESS_TOKEN");
         assertThat(catchThrowableOfType(() -> service.validate(outOfRange), BusinessException.class).code())
+                .isEqualTo("INVALID_ACCESS_TOKEN");
+    }
+
+    @Test
+    void givenMobileTokenMissingSessionIdWhenValidatedThenRejected() {
+        JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+        String validToken = service.issueMobile(
+                ActorType.CUSTOMER, 123L, 0L, UUID.randomUUID(), PushClientType.CUSTOMER_MOBILE, "+998901234567");
+
+        String[] parts = validToken.split("\\.");
+        Map<String, Object> claims = decode(parts[1]);
+        claims.remove("sessionId");
+
+        String unsigned = parts[0] + "." + encode(claims);
+        String tokenWithoutSession = unsigned + "." + ReflectionTestUtils.invokeMethod(service, "sign", unsigned);
+
+        assertThat(catchThrowableOfType(() -> service.validate(tokenWithoutSession), BusinessException.class).code())
+                .isEqualTo("INVALID_ACCESS_TOKEN");
+    }
+
+    @Test
+    void givenMobileTokenMissingClientTypeWhenValidatedThenRejected() {
+        JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+        String validToken = service.issueMobile(
+                ActorType.CUSTOMER, 123L, 0L, UUID.randomUUID(), PushClientType.CUSTOMER_MOBILE, "+998901234567");
+
+        String[] parts = validToken.split("\\.");
+        Map<String, Object> claims = decode(parts[1]);
+        claims.remove("clientType");
+
+        String unsigned = parts[0] + "." + encode(claims);
+        String tokenWithoutClientType = unsigned + "." + ReflectionTestUtils.invokeMethod(service, "sign", unsigned);
+
+        assertThat(catchThrowableOfType(() -> service.validate(tokenWithoutClientType), BusinessException.class).code())
+                .isEqualTo("INVALID_ACCESS_TOKEN");
+    }
+
+    @Test
+    void givenMobileTokenWithMismatchedClientTypeWhenValidatedThenRejected() {
+        JwtTokenService service = service("repair-auto", Clock.fixed(NOW, ZoneOffset.UTC));
+        String validToken = service.issueMobile(
+                ActorType.CUSTOMER, 123L, 0L, UUID.randomUUID(), PushClientType.CUSTOMER_MOBILE, "+998901234567");
+
+        String[] parts = validToken.split("\\.");
+        Map<String, Object> claims = decode(parts[1]);
+        claims.put("clientType", "TECHNICIAN_MOBILE"); // customer actor with technician client type
+
+        String unsigned = parts[0] + "." + encode(claims);
+        String tokenWithMismatchedClient = unsigned + "." + ReflectionTestUtils.invokeMethod(service, "sign", unsigned);
+
+        assertThat(catchThrowableOfType(() -> service.validate(tokenWithMismatchedClient), BusinessException.class).code())
                 .isEqualTo("INVALID_ACCESS_TOKEN");
     }
 

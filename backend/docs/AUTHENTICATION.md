@@ -9,8 +9,8 @@ Required environment variables when enabled:
 
 ```text
 APP_BOOTSTRAP_ADMIN_ENABLED=true
-APP_BOOTSTRAP_ADMIN_EMAIL=admin@example.com
-APP_BOOTSTRAP_ADMIN_PASSWORD=ChangeMe123!
+APP_BOOTSTRAP_ADMIN_EMAIL=<admin-email>
+APP_BOOTSTRAP_ADMIN_PASSWORD=<admin-password>
 APP_BOOTSTRAP_ADMIN_FULL_NAME=System Administrator
 ```
 

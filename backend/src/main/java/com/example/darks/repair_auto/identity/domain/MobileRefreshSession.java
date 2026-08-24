@@ -37,6 +37,10 @@ public class MobileRefreshSession {
     @JoinColumn(name = "technician_id")
     private Technician technician;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "mobile_session_id")
+    private MobileSession mobileSession;
+
     @Column(name = "token_hash", nullable = false, unique = true, length = 128)
     private String tokenHash;
 
@@ -84,6 +88,7 @@ public class MobileRefreshSession {
             String tokenHash,
             UUID tokenFamilyId,
             Long parentSessionId,
+            MobileSession mobileSession,
             OffsetDateTime issuedAt,
             OffsetDateTime expiresAt) {
         if (actorType == ActorType.CUSTOMER) {
@@ -113,10 +118,23 @@ public class MobileRefreshSession {
         this.tokenHash = tokenHash;
         this.tokenFamilyId = tokenFamilyId;
         this.parentSessionId = parentSessionId;
+        this.mobileSession = mobileSession;
         this.issuedAt = issuedAt;
         this.expiresAt = expiresAt;
         this.createdAt = issuedAt;
         this.updatedAt = issuedAt;
+    }
+
+    public MobileRefreshSession(
+            ActorType actorType,
+            Customer customer,
+            Technician technician,
+            String tokenHash,
+            UUID tokenFamilyId,
+            Long parentSessionId,
+            OffsetDateTime issuedAt,
+            OffsetDateTime expiresAt) {
+        this(actorType, customer, technician, tokenHash, tokenFamilyId, parentSessionId, null, issuedAt, expiresAt);
     }
 
     public static MobileRefreshSession forCustomer(
@@ -124,6 +142,7 @@ public class MobileRefreshSession {
             String tokenHash,
             UUID tokenFamilyId,
             Long parentSessionId,
+            MobileSession mobileSession,
             OffsetDateTime issuedAt,
             OffsetDateTime expiresAt) {
         return new MobileRefreshSession(
@@ -133,6 +152,7 @@ public class MobileRefreshSession {
                 tokenHash,
                 tokenFamilyId,
                 parentSessionId,
+                mobileSession,
                 issuedAt,
                 expiresAt);
     }
@@ -142,6 +162,7 @@ public class MobileRefreshSession {
             String tokenHash,
             UUID tokenFamilyId,
             Long parentSessionId,
+            MobileSession mobileSession,
             OffsetDateTime issuedAt,
             OffsetDateTime expiresAt) {
         return new MobileRefreshSession(
@@ -151,8 +172,29 @@ public class MobileRefreshSession {
                 tokenHash,
                 tokenFamilyId,
                 parentSessionId,
+                mobileSession,
                 issuedAt,
                 expiresAt);
+    }
+
+    public static MobileRefreshSession forCustomer(
+            Customer customer,
+            String tokenHash,
+            UUID tokenFamilyId,
+            Long parentSessionId,
+            OffsetDateTime issuedAt,
+            OffsetDateTime expiresAt) {
+        return forCustomer(customer, tokenHash, tokenFamilyId, parentSessionId, null, issuedAt, expiresAt);
+    }
+
+    public static MobileRefreshSession forTechnician(
+            Technician technician,
+            String tokenHash,
+            UUID tokenFamilyId,
+            Long parentSessionId,
+            OffsetDateTime issuedAt,
+            OffsetDateTime expiresAt) {
+        return forTechnician(technician, tokenHash, tokenFamilyId, parentSessionId, null, issuedAt, expiresAt);
     }
 
     public Long getId() {
@@ -189,6 +231,10 @@ public class MobileRefreshSession {
 
     public Long getReplacedBySessionId() {
         return replacedBySessionId;
+    }
+
+    public MobileSession getMobileSession() {
+        return mobileSession;
     }
 
     public OffsetDateTime getIssuedAt() {

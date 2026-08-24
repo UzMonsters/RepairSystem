@@ -99,12 +99,31 @@ class ChatIntegrationTest extends PostgreSqlIntegrationTest {
     @Autowired
     private JwtTokenService jwtTokenService;
 
+    @Autowired
+    private com.example.darks.repair_auto.identity.application.MobileSessionService mobileSessionService;
+
     private User admin;
     private Customer customer;
     private Technician technician;
     private RepairCategory category;
     private RepairRequest repairRequest;
     private RepairAssignment assignment;
+
+    private String issueCustomerToken(Customer c) {
+        com.example.darks.repair_auto.identity.domain.MobileSession session = mobileSessionService.createForCustomer(
+                c,
+                com.example.darks.repair_auto.identity.domain.MobileAuthProvider.PHONE,
+                null,
+                "127.0.0.1",
+                "ChatIntegrationTest");
+        return jwtTokenService.issueMobile(
+                ActorType.CUSTOMER,
+                c.getId(),
+                c.getAuthVersion(),
+                session.getId(),
+                com.example.darks.repair_auto.notification.push.domain.PushClientType.CUSTOMER_MOBILE,
+                c.getPhone());
+    }
 
     @BeforeEach
     void setUp() {
@@ -248,7 +267,7 @@ class ChatIntegrationTest extends PostgreSqlIntegrationTest {
                 "REF-CHAT-OTHER",
                 now));
 
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, customer.getId());
+        String token = issueCustomerToken(customer);
 
         mockMvc.perform(post("/api/v1/mobile/me/conversations/requests/" + otherRequest.getId())
                         .header("Authorization", "Bearer " + token))
@@ -402,7 +421,7 @@ class ChatIntegrationTest extends PostgreSqlIntegrationTest {
 
     @Test
     void restEndpoint_mobileSendMessageAndFetchHistory() throws Exception {
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, customer.getId());
+        String token = issueCustomerToken(customer);
 
         Conversation conv = chatService.getOrCreateCustomerTechnicianConversation(repairRequest.getId());
 

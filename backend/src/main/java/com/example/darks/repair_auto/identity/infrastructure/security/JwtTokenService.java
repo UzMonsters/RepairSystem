@@ -3,6 +3,7 @@ package com.example.darks.repair_auto.identity.infrastructure.security;
 import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
+import com.example.darks.repair_auto.notification.push.domain.PushClientType;
 import com.example.darks.repair_auto.shared.config.AppProperties;
 import com.example.darks.repair_auto.shared.error.BusinessException;
 import com.example.darks.repair_auto.shared.error.ErrorCode;
@@ -20,6 +21,7 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -35,18 +37,44 @@ public class JwtTokenService {
     private final byte[] secret;
     private final String issuer;
     private final Duration ttl;
+    private final String mobileAudience;
 
     @Autowired
+    public JwtTokenService(AppProperties properties, ObjectMapper objectMapper, Environment environment) {
+        this(properties, objectMapper, environment, Clock.systemUTC());
+    }
+
     public JwtTokenService(AppProperties properties, ObjectMapper objectMapper) {
-        this(properties, objectMapper, Clock.systemUTC());
+        this(properties, objectMapper, null, Clock.systemUTC());
     }
 
     JwtTokenService(AppProperties properties, ObjectMapper objectMapper, Clock clock) {
+        this(properties, objectMapper, null, clock);
+    }
+
+    JwtTokenService(AppProperties properties, ObjectMapper objectMapper, Environment environment, Clock clock) {
         this.objectMapper = objectMapper;
         this.clock = clock;
-        this.secret = properties.jwt().secret().getBytes(StandardCharsets.UTF_8);
-        this.issuer = properties.jwt().issuer();
-        this.ttl = properties.jwt().accessTokenTtl();
+        AppProperties.Jwt jwt = properties.jwt();
+        String resolvedSecret = firstNonBlank(
+                environment == null ? null : environment.getProperty("app.jwt.secret"),
+                environment == null ? null : environment.getProperty("APP_JWT_SECRET"),
+                jwt == null ? null : jwt.secret());
+        this.secret = resolvedSecret == null ? new byte[0] : resolvedSecret.getBytes(StandardCharsets.UTF_8);
+        this.issuer = firstNonBlank(
+                environment == null ? null : environment.getProperty("app.jwt.issuer"),
+                environment == null ? null : environment.getProperty("APP_JWT_ISSUER"),
+                jwt == null ? null : jwt.issuer(),
+                "repair-auto");
+        this.ttl = firstNonNull(
+                environment == null ? null : environment.getProperty("app.jwt.access-token-ttl", Duration.class),
+                jwt == null ? null : jwt.accessTokenTtl(),
+                Duration.ofMinutes(15));
+        this.mobileAudience = firstNonBlank(
+                environment == null ? null : environment.getProperty("app.jwt.mobile-audience"),
+                environment == null ? null : environment.getProperty("APP_JWT_MOBILE_AUDIENCE"),
+                jwt == null ? null : jwt.mobileAudience(),
+                "repair-auto-mobile");
         validateConfiguration();
     }
 
@@ -72,16 +100,27 @@ public class JwtTokenService {
         return unsigned + "." + sign(unsigned);
     }
 
-    public String issueMobile(ActorType actorType, Long actorId) {
-        return issueMobile(actorType, actorId, null);
-    }
-
-    public String issueMobile(ActorType actorType, Long actorId, String subject) {
+    public String issueMobile(
+            ActorType actorType,
+            Long actorId,
+            Long authVersion,
+            UUID sessionId,
+            PushClientType clientType,
+            String subject) {
         if (actorType == null || actorType == ActorType.STAFF) {
             throw new IllegalArgumentException("Mobile access tokens can only be issued for CUSTOMER or TECHNICIAN.");
         }
         if (actorId == null || actorId <= 0) {
             throw new IllegalArgumentException("actorId must be a positive number.");
+        }
+        if (authVersion == null || authVersion < 0) {
+            throw new IllegalArgumentException("authVersion must be a non-negative number.");
+        }
+        if (sessionId == null) {
+            throw new IllegalArgumentException("sessionId is required.");
+        }
+        if (clientType == null) {
+            throw new IllegalArgumentException("clientType is required.");
         }
         Instant now = clock.instant();
         Instant expiresAt = now.plus(ttl);
@@ -92,9 +131,13 @@ public class JwtTokenService {
         claims.put("iss", issuer);
         String sub = (subject != null && !subject.isBlank()) ? subject.trim() : actorType.name().toLowerCase(Locale.ROOT) + ":" + actorId;
         claims.put("sub", sub);
+        claims.put("aud", mobileAudience);
         claims.put("actorType", actorType.name());
         claims.put("actorId", actorId);
         claims.put("role", actorType.name());
+        claims.put("authVersion", authVersion);
+        claims.put("sessionId", sessionId.toString());
+        claims.put("clientType", clientType.name());
         claims.put("iat", now.getEpochSecond());
         claims.put("exp", expiresAt.getEpochSecond());
         claims.put("jti", UUID.randomUUID().toString());
@@ -146,10 +189,25 @@ public class JwtTokenService {
                             subject,
                             userRole,
                             issuedAt,
-                            authVersion);
+                            authVersion,
+                            null,
+                            null);
                 }
                 case CUSTOMER, TECHNICIAN -> {
                     long actorId = positiveNumberClaim(claims, "actorId");
+                    long authVersion = nonNegativeNumberClaim(claims, "authVersion");
+                    UUID sessionId = uuidClaim(claims, "sessionId");
+                    PushClientType clientType = clientTypeClaim(claims, "clientType");
+                    String audience = stringClaim(claims, "aud");
+                    if (!mobileAudience.equals(audience)) {
+                        throw invalid("Invalid mobile audience.");
+                    }
+                    if (actorType == ActorType.CUSTOMER && clientType != PushClientType.CUSTOMER_MOBILE) {
+                        throw invalid("Invalid client type for customer.");
+                    }
+                    if (actorType == ActorType.TECHNICIAN && clientType != PushClientType.TECHNICIAN_MOBILE) {
+                        throw invalid("Invalid client type for technician.");
+                    }
                     yield new ValidatedAccessToken(
                             actorType,
                             actorId,
@@ -157,7 +215,9 @@ public class JwtTokenService {
                             subject,
                             null,
                             issuedAt,
-                            null);
+                            authVersion,
+                            sessionId,
+                            clientType);
                 }
             };
         } catch (BusinessException exception) {
@@ -262,6 +322,14 @@ public class JwtTokenService {
         throw invalid("Numeric claim is outside the supported range.");
     }
 
+    private long nonNegativeNumberClaim(Map<String, Object> claims, String name) {
+        long value = numberClaim(claims, name);
+        if (value >= 0) {
+            return value;
+        }
+        throw invalid("Numeric claim is outside the supported range.");
+    }
+
     private String stringClaim(Map<String, Object> claims, String name) {
         Object value = claims.get(name);
         if (value instanceof String string && !string.isBlank()) {
@@ -270,8 +338,90 @@ public class JwtTokenService {
         throw invalid("Missing string claim.");
     }
 
+    private Long optionalPositiveNumberClaim(Map<String, Object> claims, String name) {
+        if (!claims.containsKey(name)) {
+            return null;
+        }
+        return positiveNumberClaim(claims, name);
+    }
+
+    private Long optionalNonNegativeNumberClaim(Map<String, Object> claims, String name) {
+        if (!claims.containsKey(name)) {
+            return null;
+        }
+        return nonNegativeNumberClaim(claims, name);
+    }
+
+    private UUID uuidClaim(Map<String, Object> claims, String name) {
+        try {
+            return UUID.fromString(stringClaim(claims, name));
+        } catch (IllegalArgumentException exception) {
+            throw invalid("Invalid UUID claim.");
+        }
+    }
+
+    private PushClientType clientTypeClaim(Map<String, Object> claims, String name) {
+        try {
+            return PushClientType.valueOf(stringClaim(claims, name));
+        } catch (IllegalArgumentException exception) {
+            throw invalid("Invalid client type claim.");
+        }
+    }
+
+    private UUID optionalUuidClaim(Map<String, Object> claims, String name) {
+        if (!claims.containsKey(name)) {
+            return null;
+        }
+        try {
+            return UUID.fromString(stringClaim(claims, name));
+        } catch (IllegalArgumentException exception) {
+            throw invalid("Invalid UUID claim.");
+        }
+    }
+
+    private PushClientType optionalClientTypeClaim(Map<String, Object> claims, String name) {
+        if (!claims.containsKey(name)) {
+            return null;
+        }
+        try {
+            return PushClientType.valueOf(stringClaim(claims, name));
+        } catch (IllegalArgumentException exception) {
+            throw invalid("Invalid client type claim.");
+        }
+    }
+
+    private String optionalAudience(Map<String, Object> claims) {
+        Object value = claims.get("aud");
+        if (value instanceof String string && !string.isBlank()) {
+            return string;
+        }
+        if (value instanceof java.util.List<?> list && !list.isEmpty() && list.get(0) instanceof String string) {
+            return string;
+        }
+        return null;
+    }
+
     private BusinessException invalid(String message) {
         return new BusinessException(ErrorCode.INVALID_ACCESS_TOKEN);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    @SafeVarargs
+    private final <T> T firstNonNull(T... values) {
+        for (T value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     public record ValidatedAccessToken(
@@ -281,7 +431,19 @@ public class JwtTokenService {
             String subject,
             UserRole role,
             OffsetDateTime issuedAt,
-            Long authVersion) {
+            Long authVersion,
+            UUID mobileSessionId,
+            PushClientType clientType) {
+        public ValidatedAccessToken(
+                ActorType actorType,
+                Long actorId,
+                Long userId,
+                String subject,
+                UserRole role,
+                OffsetDateTime issuedAt,
+                Long authVersion) {
+            this(actorType, actorId, userId, subject, role, issuedAt, authVersion, null, null);
+        }
 
         public boolean isStaff() {
             return actorType == ActorType.STAFF;

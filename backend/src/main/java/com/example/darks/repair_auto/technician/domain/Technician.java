@@ -29,6 +29,15 @@ public class Technician {
     @Column(nullable = false, unique = true, length = 13)
     private String phone;
 
+    @Column(length = 254)
+    private String email;
+
+    @Column(name = "email_verified_at")
+    private OffsetDateTime emailVerifiedAt;
+
+    @Column(name = "phone_verified_at")
+    private OffsetDateTime phoneVerifiedAt;
+
     @Column(length = 120)
     private String specialization;
 
@@ -44,6 +53,10 @@ public class Technician {
 
     @Column(nullable = false)
     private boolean active;
+
+    @JsonIgnore
+    @Column(name = "auth_version", nullable = false)
+    private long authVersion;
 
     @JsonIgnore
     @Column(name = "telegram_user_id", unique = true)
@@ -80,8 +93,22 @@ public class Technician {
             LanguageCode preferredLanguage,
             Boolean active,
             OffsetDateTime now) {
+        this(fullName, phone, null, specialization, notes, maximumConcurrentRequests, preferredLanguage, active, now);
+    }
+
+    public Technician(
+            String fullName,
+            String phone,
+            String email,
+            String specialization,
+            String notes,
+            Integer maximumConcurrentRequests,
+            LanguageCode preferredLanguage,
+            Boolean active,
+            OffsetDateTime now) {
         this.fullName = fullName;
         this.phone = phone;
+        this.email = email;
         this.specialization = specialization;
         this.notes = notes;
         this.maximumConcurrentRequests = maximumConcurrentRequests == null
@@ -104,6 +131,18 @@ public class Technician {
         return phone;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
+    public OffsetDateTime getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public OffsetDateTime getPhoneVerifiedAt() {
+        return phoneVerifiedAt;
+    }
+
     public String getSpecialization() {
         return specialization;
     }
@@ -122,6 +161,10 @@ public class Technician {
 
     public boolean isActive() {
         return active;
+    }
+
+    public long getAuthVersion() {
+        return authVersion;
     }
 
     public Long getTelegramUserId() {
@@ -156,12 +199,53 @@ public class Technician {
             int maximumConcurrentRequests,
             LanguageCode preferredLanguage,
             OffsetDateTime now) {
+        updateProfile(fullName, phone, this.email, specialization, notes, maximumConcurrentRequests, preferredLanguage, now);
+    }
+
+    public void updateProfile(
+            String fullName,
+            String phone,
+            String email,
+            String specialization,
+            String notes,
+            int maximumConcurrentRequests,
+            LanguageCode preferredLanguage,
+            OffsetDateTime now) {
         this.fullName = fullName;
         this.phone = phone;
+        this.email = email;
         this.specialization = specialization;
         this.notes = notes;
         this.maximumConcurrentRequests = maximumConcurrentRequests;
         this.preferredLanguage = preferredLanguage;
+        this.updatedAt = now;
+    }
+
+    public void setEmail(String email, OffsetDateTime verifiedAt, OffsetDateTime now) {
+        this.email = email;
+        this.emailVerifiedAt = verifiedAt;
+        this.updatedAt = now;
+    }
+
+    public void removeEmail(OffsetDateTime now) {
+        this.email = null;
+        this.emailVerifiedAt = null;
+        this.updatedAt = now;
+    }
+
+    public void setPhone(String phone, OffsetDateTime phoneVerifiedAt, OffsetDateTime now) {
+        this.phone = phone;
+        this.phoneVerifiedAt = phoneVerifiedAt;
+        this.updatedAt = now;
+    }
+
+    public void markPhoneVerified(OffsetDateTime now) {
+        this.phoneVerifiedAt = now;
+        this.updatedAt = now;
+    }
+
+    public void incrementAuthVersion(OffsetDateTime now) {
+        this.authVersion++;
         this.updatedAt = now;
     }
 

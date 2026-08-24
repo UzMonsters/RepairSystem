@@ -24,8 +24,17 @@ public class Customer {
     @Column(name = "full_name", nullable = false, length = 160)
     private String fullName;
 
-    @Column(nullable = false, unique = true, length = 13)
+    @Column(unique = true, length = 13)
     private String phone;
+
+    @Column(length = 254)
+    private String email;
+
+    @Column(name = "email_verified_at")
+    private OffsetDateTime emailVerifiedAt;
+
+    @Column(name = "phone_verified_at")
+    private OffsetDateTime phoneVerifiedAt;
 
     @JsonIgnore
     @Column(name = "telegram_user_id", unique = true)
@@ -45,6 +54,10 @@ public class Customer {
 
     @Column(nullable = false)
     private boolean active;
+
+    @JsonIgnore
+    @Column(name = "auth_version", nullable = false)
+    private long authVersion;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -84,6 +97,31 @@ public class Customer {
         return customer;
     }
 
+    public static Customer google(
+            String fullName,
+            String email,
+            OffsetDateTime emailVerifiedAt,
+            LanguageCode preferredLanguage,
+            OffsetDateTime now) {
+        Customer customer = new Customer(fullName, null, preferredLanguage, now);
+        customer.registrationSource = CustomerRegistrationSource.GOOGLE;
+        customer.email = email;
+        customer.emailVerifiedAt = emailVerifiedAt;
+        return customer;
+    }
+
+    public static Customer phone(
+            String fullName,
+            String phone,
+            OffsetDateTime phoneVerifiedAt,
+            LanguageCode preferredLanguage,
+            OffsetDateTime now) {
+        Customer customer = new Customer(fullName, phone, preferredLanguage, now);
+        customer.registrationSource = CustomerRegistrationSource.PHONE;
+        customer.phoneVerifiedAt = phoneVerifiedAt;
+        return customer;
+    }
+
     public Long getId() {
         return id;
     }
@@ -94,6 +132,18 @@ public class Customer {
 
     public String getPhone() {
         return phone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public OffsetDateTime getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public OffsetDateTime getPhoneVerifiedAt() {
+        return phoneVerifiedAt;
     }
 
     public Long getTelegramUserId() {
@@ -116,6 +166,10 @@ public class Customer {
         return active;
     }
 
+    public long getAuthVersion() {
+        return authVersion;
+    }
+
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
@@ -135,6 +189,35 @@ public class Customer {
         this.updatedAt = now;
     }
 
+    public void setEmail(String email, OffsetDateTime verifiedAt, OffsetDateTime now) {
+        this.email = email;
+        this.emailVerifiedAt = verifiedAt;
+        this.updatedAt = now;
+    }
+
+    public void removeEmail(OffsetDateTime now) {
+        this.email = null;
+        this.emailVerifiedAt = null;
+        this.updatedAt = now;
+    }
+
+    public void setPhone(String phone, OffsetDateTime phoneVerifiedAt, OffsetDateTime now) {
+        this.phone = phone;
+        this.phoneVerifiedAt = phoneVerifiedAt;
+        this.updatedAt = now;
+    }
+
+    public void removePhone(OffsetDateTime now) {
+        this.phone = null;
+        this.phoneVerifiedAt = null;
+        this.updatedAt = now;
+    }
+
+    public void markPhoneVerified(OffsetDateTime now) {
+        this.phoneVerifiedAt = now;
+        this.updatedAt = now;
+    }
+
     public void linkTelegram(Long userId, Long chatId, LanguageCode language, OffsetDateTime now) {
         this.telegramUserId = userId;
         this.telegramChatId = chatId;
@@ -148,8 +231,19 @@ public class Customer {
         this.updatedAt = now;
     }
 
+    public void unlinkTelegram(OffsetDateTime now) {
+        this.telegramUserId = null;
+        this.telegramChatId = null;
+        this.updatedAt = now;
+    }
+
     public void setActive(boolean active, OffsetDateTime now) {
         this.active = active;
+        this.updatedAt = now;
+    }
+
+    public void incrementAuthVersion(OffsetDateTime now) {
+        this.authVersion++;
         this.updatedAt = now;
     }
 }

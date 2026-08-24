@@ -11,10 +11,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
+import com.example.darks.repair_auto.identity.application.MobileSessionService;
 import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
+import com.example.darks.repair_auto.notification.push.domain.PushClientType;
 import com.example.darks.repair_auto.settings.infrastructure.SystemSettingsRepository;
 import com.example.darks.repair_auto.settings.infrastructure.UserSettingsRepository;
 import com.example.darks.repair_auto.shared.config.AppProperties;
@@ -38,11 +40,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -59,6 +62,7 @@ class MobileSecurityMockMvcTest {
     private UserRepository userRepository;
     private CustomerRepository customerRepository;
     private TechnicianRepository technicianRepository;
+    private MobileSessionService mobileSessionService;
 
     @RestController
     static class TestSecuredController {
@@ -114,13 +118,15 @@ class MobileSecurityMockMvcTest {
         userRepository = mock(UserRepository.class);
         customerRepository = mock(CustomerRepository.class);
         technicianRepository = mock(TechnicianRepository.class);
+        mobileSessionService = mock(MobileSessionService.class);
 
         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(
                 jwtTokenService,
                 userRepository,
                 customerRepository,
                 technicianRepository,
-                securityErrorHandler);
+                securityErrorHandler,
+                mobileSessionService);
 
         TraceIdFilter traceFilter = new TraceIdFilter(properties, traceIdService);
 
@@ -135,9 +141,12 @@ class MobileSecurityMockMvcTest {
     void givenValidCustomerTokenWhenCallingCustomerRouteThenAuthenticatesSuccessfully() throws Exception {
         Customer customer = new Customer("Test Customer", "+998901234567", LanguageCode.UZ, OffsetDateTime.now(ZoneOffset.UTC));
         ReflectionTestUtils.setField(customer, "id", 100L);
+        ReflectionTestUtils.setField(customer, "authVersion", 0L);
         when(customerRepository.findById(100L)).thenReturn(Optional.of(customer));
 
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, 100L, "+998901234567");
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.CUSTOMER, 100L, 0L, sessionId, PushClientType.CUSTOMER_MOBILE, "+998901234567");
 
         mockMvc.perform(get("/api/v1/test/customer-only").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
@@ -153,9 +162,12 @@ class MobileSecurityMockMvcTest {
     void givenValidTechnicianTokenWhenCallingTechnicianRouteThenAuthenticatesSuccessfully() throws Exception {
         Technician technician = new Technician("Test Tech", "+998909876543", "Electronics", "Notes", 5, LanguageCode.UZ, true, OffsetDateTime.now(ZoneOffset.UTC));
         ReflectionTestUtils.setField(technician, "id", 200L);
+        ReflectionTestUtils.setField(technician, "authVersion", 0L);
         when(technicianRepository.findById(200L)).thenReturn(Optional.of(technician));
 
-        String token = jwtTokenService.issueMobile(ActorType.TECHNICIAN, 200L, "+998909876543");
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.TECHNICIAN, 200L, 0L, sessionId, PushClientType.TECHNICIAN_MOBILE, "+998909876543");
 
         mockMvc.perform(get("/api/v1/test/technician-only").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
@@ -191,9 +203,12 @@ class MobileSecurityMockMvcTest {
         Customer customer = new Customer("Inactive Customer", "+998901234567", LanguageCode.UZ, OffsetDateTime.now(ZoneOffset.UTC));
         customer.setActive(false, OffsetDateTime.now(ZoneOffset.UTC));
         ReflectionTestUtils.setField(customer, "id", 101L);
+        ReflectionTestUtils.setField(customer, "authVersion", 0L);
         when(customerRepository.findById(101L)).thenReturn(Optional.of(customer));
 
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, 101L);
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.CUSTOMER, 101L, 0L, sessionId, PushClientType.CUSTOMER_MOBILE, "+998901234567");
 
         mockMvc.perform(get("/api/v1/test/customer-only").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
@@ -204,9 +219,12 @@ class MobileSecurityMockMvcTest {
     void givenInactiveTechnicianTokenWhenCallingThenUnauthorizedReturned() throws Exception {
         Technician technician = new Technician("Inactive Tech", "+998909876543", "Electronics", "Notes", 5, LanguageCode.UZ, false, OffsetDateTime.now(ZoneOffset.UTC));
         ReflectionTestUtils.setField(technician, "id", 201L);
+        ReflectionTestUtils.setField(technician, "authVersion", 0L);
         when(technicianRepository.findById(201L)).thenReturn(Optional.of(technician));
 
-        String token = jwtTokenService.issueMobile(ActorType.TECHNICIAN, 201L);
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.TECHNICIAN, 201L, 0L, sessionId, PushClientType.TECHNICIAN_MOBILE, "+998909876543");
 
         mockMvc.perform(get("/api/v1/test/technician-only").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
@@ -217,7 +235,9 @@ class MobileSecurityMockMvcTest {
     void givenUnknownCustomerIdWhenCallingThenUnauthorizedReturned() throws Exception {
         when(customerRepository.findById(999L)).thenReturn(Optional.empty());
 
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, 999L);
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.CUSTOMER, 999L, 0L, sessionId, PushClientType.CUSTOMER_MOBILE, "+998901234567");
 
         mockMvc.perform(get("/api/v1/test/customer-only").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
@@ -228,7 +248,9 @@ class MobileSecurityMockMvcTest {
     void givenCustomerTokenWithTechnicianIdWhenCustomerNotFoundThenNeverQueriesTechnician() throws Exception {
         when(customerRepository.findById(55L)).thenReturn(Optional.empty());
 
-        String token = jwtTokenService.issueMobile(ActorType.CUSTOMER, 55L);
+        UUID sessionId = UUID.randomUUID();
+        String token = jwtTokenService.issueMobile(
+                ActorType.CUSTOMER, 55L, 0L, sessionId, PushClientType.CUSTOMER_MOBILE, "+998901234567");
 
         mockMvc.perform(get("/api/v1/test/customer-only").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())

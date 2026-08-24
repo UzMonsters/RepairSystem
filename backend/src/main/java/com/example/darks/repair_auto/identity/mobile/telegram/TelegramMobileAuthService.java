@@ -5,15 +5,24 @@ import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
 import com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService;
 import com.example.darks.repair_auto.identity.application.MobileRefreshSessionService;
 import com.example.darks.repair_auto.identity.domain.ActorType;
+import com.example.darks.repair_auto.identity.domain.MobileAuthProvider;
+import com.example.darks.repair_auto.identity.domain.MobileSession;
 import com.example.darks.repair_auto.identity.domain.MobileRefreshRevocationReason;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedMobileActor;
 import com.example.darks.repair_auto.identity.infrastructure.security.JwtTokenService;
+import com.example.darks.repair_auto.identity.mobile.auth.MobileAuthenticationService;
+import com.example.darks.repair_auto.identity.mobile.auth.VerifiedMobileIdentity;
+import com.example.darks.repair_auto.identity.mobile.auth.dto.MobileDeviceContextRequest;
 import com.example.darks.repair_auto.identity.mobile.telegram.dto.MobileActorSummary;
 import com.example.darks.repair_auto.identity.mobile.telegram.dto.MobileAuthResponse;
+import com.example.darks.repair_auto.notification.push.domain.PushClientType;
+import com.example.darks.repair_auto.notification.push.domain.PushPlatform;
 import com.example.darks.repair_auto.shared.error.BusinessException;
 import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.technician.domain.Technician;
 import com.example.darks.repair_auto.technician.infrastructure.TechnicianRepository;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +41,7 @@ public class TelegramMobileAuthService {
     private final JwtTokenService jwtTokenService;
     private final MobileRefreshSessionService mobileRefreshSessionService;
     private final ActorAccessLifecycleService actorAccessLifecycleService;
+    private final MobileAuthenticationService mobileAuthenticationService;
 
     @Autowired
     public TelegramMobileAuthService(
@@ -40,13 +50,15 @@ public class TelegramMobileAuthService {
             TechnicianRepository technicianRepository,
             JwtTokenService jwtTokenService,
             MobileRefreshSessionService mobileRefreshSessionService,
-            ActorAccessLifecycleService actorAccessLifecycleService) {
+            ActorAccessLifecycleService actorAccessLifecycleService,
+            MobileAuthenticationService mobileAuthenticationService) {
         this.idTokenVerifier = idTokenVerifier;
         this.customerRepository = customerRepository;
         this.technicianRepository = technicianRepository;
         this.jwtTokenService = jwtTokenService;
         this.mobileRefreshSessionService = mobileRefreshSessionService;
         this.actorAccessLifecycleService = actorAccessLifecycleService;
+        this.mobileAuthenticationService = mobileAuthenticationService;
     }
 
     public TelegramMobileAuthService(
@@ -55,12 +67,31 @@ public class TelegramMobileAuthService {
             TechnicianRepository technicianRepository,
             JwtTokenService jwtTokenService,
             MobileRefreshSessionService mobileRefreshSessionService) {
-        this(idTokenVerifier, customerRepository, technicianRepository, jwtTokenService, mobileRefreshSessionService, null);
+        this(idTokenVerifier, customerRepository, technicianRepository, jwtTokenService, mobileRefreshSessionService, null, null);
     }
 
     @Transactional
     public MobileAuthResponse loginCustomer(String idToken) {
+        return loginCustomer(idToken, null, null, null);
+    }
+
+    @Transactional
+    public MobileAuthResponse loginCustomer(String idToken, MobileDeviceContextRequest device, String ip, String userAgent) {
         TelegramIdentity identity = idTokenVerifier.verifyCustomerToken(idToken);
+        if (mobileAuthenticationService != null) {
+            return mobileAuthenticationService.authenticate(
+                    PushClientType.CUSTOMER_MOBILE,
+                    new VerifiedMobileIdentity(
+                            MobileAuthProvider.TELEGRAM,
+                            String.valueOf(identity.telegramUserId()),
+                            null,
+                            false,
+                            identity.phoneNumber(),
+                            identity.name()),
+                    device,
+                    ip,
+                    userAgent);
+        }
         Long telegramUserId = identity.telegramUserId();
 
         Customer customer = customerRepository.findByTelegramUserId(telegramUserId)
@@ -78,8 +109,27 @@ public class TelegramMobileAuthService {
                 ? customer.getPhone()
                 : "customer:" + customer.getId();
 
-        String accessToken = jwtTokenService.issueMobile(ActorType.CUSTOMER, customer.getId(), subject);
-        MobileRefreshSessionService.IssuedMobileRefreshToken refresh = mobileRefreshSessionService.createForCustomer(customer);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        MobileSession session = MobileSession.forCustomer(
+                customer,
+                MobileAuthProvider.TELEGRAM,
+                PushPlatform.ANDROID,
+                null,
+                null,
+                null,
+                "127.0.0.1",
+                "Telegram-Mobile",
+                now,
+                now.plusDays(30));
+
+        String accessToken = jwtTokenService.issueMobile(
+                ActorType.CUSTOMER,
+                customer.getId(),
+                customer.getAuthVersion(),
+                session.getId(),
+                PushClientType.CUSTOMER_MOBILE,
+                subject);
+        MobileRefreshSessionService.IssuedMobileRefreshToken refresh = mobileRefreshSessionService.createForCustomer(customer, session);
 
         LOGGER.info("Mobile customer login successful: customerId={}", customer.getId());
 
@@ -98,12 +148,32 @@ public class TelegramMobileAuthService {
                         customer.getId(),
                         customer.getFullName(),
                         customer.getPhone(),
-                        lang));
+                        lang),
+                new MobileAuthResponse.MobileSessionSummary(session.getId()));
     }
 
     @Transactional
     public MobileAuthResponse loginTechnician(String idToken) {
+        return loginTechnician(idToken, null, null, null);
+    }
+
+    @Transactional
+    public MobileAuthResponse loginTechnician(String idToken, MobileDeviceContextRequest device, String ip, String userAgent) {
         TelegramIdentity identity = idTokenVerifier.verifyTechnicianToken(idToken);
+        if (mobileAuthenticationService != null) {
+            return mobileAuthenticationService.authenticate(
+                    PushClientType.TECHNICIAN_MOBILE,
+                    new VerifiedMobileIdentity(
+                            MobileAuthProvider.TELEGRAM,
+                            String.valueOf(identity.telegramUserId()),
+                            null,
+                            false,
+                            identity.phoneNumber(),
+                            identity.name()),
+                    device,
+                    ip,
+                    userAgent);
+        }
         Long telegramUserId = identity.telegramUserId();
 
         Technician technician = technicianRepository.findByTelegramUserId(telegramUserId)
@@ -121,8 +191,27 @@ public class TelegramMobileAuthService {
                 ? technician.getPhone()
                 : "technician:" + technician.getId();
 
-        String accessToken = jwtTokenService.issueMobile(ActorType.TECHNICIAN, technician.getId(), subject);
-        MobileRefreshSessionService.IssuedMobileRefreshToken refresh = mobileRefreshSessionService.createForTechnician(technician);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        MobileSession session = MobileSession.forTechnician(
+                technician,
+                MobileAuthProvider.TELEGRAM,
+                PushPlatform.ANDROID,
+                null,
+                null,
+                null,
+                "127.0.0.1",
+                "Telegram-Mobile",
+                now,
+                now.plusDays(30));
+
+        String accessToken = jwtTokenService.issueMobile(
+                ActorType.TECHNICIAN,
+                technician.getId(),
+                technician.getAuthVersion(),
+                session.getId(),
+                PushClientType.TECHNICIAN_MOBILE,
+                subject);
+        MobileRefreshSessionService.IssuedMobileRefreshToken refresh = mobileRefreshSessionService.createForTechnician(technician, session);
 
         LOGGER.info("Mobile technician login successful: technicianId={}", technician.getId());
 
@@ -141,7 +230,8 @@ public class TelegramMobileAuthService {
                         technician.getId(),
                         technician.getFullName(),
                         technician.getPhone(),
-                        lang));
+                        lang),
+                new MobileAuthResponse.MobileSessionSummary(session.getId()));
     }
 
     @Transactional(noRollbackFor = BusinessException.class)
@@ -152,7 +242,23 @@ public class TelegramMobileAuthService {
                 ? rotation.phone()
                 : (rotation.actorType() == ActorType.CUSTOMER ? "customer:" : "technician:") + rotation.actorId();
 
-        String newAccessToken = jwtTokenService.issueMobile(rotation.actorType(), rotation.actorId(), subject);
+        MobileSession mobileSession = rotation.session().getMobileSession();
+        if (mobileSession == null) {
+            throw new BusinessException(ErrorCode.MOBILE_REFRESH_TOKEN_EXPIRED);
+        }
+        Long authVersion = 0L;
+        if (rotation.actorType() == ActorType.CUSTOMER && rotation.customer() != null) {
+            authVersion = rotation.customer().getAuthVersion();
+        } else if (rotation.actorType() == ActorType.TECHNICIAN && rotation.technician() != null) {
+            authVersion = rotation.technician().getAuthVersion();
+        }
+        String newAccessToken = jwtTokenService.issueMobile(
+                rotation.actorType(),
+                rotation.actorId(),
+                authVersion,
+                mobileSession.getId(),
+                mobileSession.getClientType(),
+                subject);
 
         String lang;
         if (rotation.actorType() == ActorType.CUSTOMER && rotation.customer() != null && rotation.customer().getPreferredLanguage() != null) {
@@ -174,7 +280,8 @@ public class TelegramMobileAuthService {
                         rotation.actorId(),
                         rotation.fullName(),
                         rotation.phone(),
-                        lang));
+                        lang),
+                new MobileAuthResponse.MobileSessionSummary(mobileSession.getId()));
     }
 
     @Transactional
