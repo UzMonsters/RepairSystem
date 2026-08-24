@@ -8,15 +8,60 @@ class AuthRepository {
   final ApiClient api;
   Actor? actor;
 
-  Future<Actor> loginCustomer(String idToken) =>
-      _login('/auth/telegram/customer', idToken);
-  Future<Actor> loginTechnician(String idToken) =>
-      _login('/auth/telegram/technician', idToken);
+  Future<Actor> loginCustomer(String idToken, {Map<String, dynamic>? device}) =>
+      loginTelegram('CUSTOMER', idToken, device: device);
 
-  Future<Actor> _login(String path, String idToken) async {
+  Future<Actor> loginTechnician(String idToken, {Map<String, dynamic>? device}) =>
+      loginTelegram('TECHNICIAN', idToken, device: device);
+
+  Future<Actor> loginTelegram(
+    String role,
+    String idToken, {
+    Map<String, dynamic>? device,
+  }) => _login(
+        role == 'CUSTOMER'
+            ? '/auth/telegram/customer'
+            : '/auth/telegram/technician',
+        {'idToken': idToken, if (device != null) 'device': device},
+      );
+
+  Future<Actor> loginGoogle(
+    String clientType,
+    String idToken, {
+    Map<String, dynamic>? device,
+  }) => _login('/auth/google', {
+        'clientType': clientType,
+        'idToken': idToken,
+        if (device != null) 'device': device,
+      });
+
+  Future<Map<String, dynamic>> requestPhoneOtp({
+    required String clientType,
+    required String phone,
+    required String language,
+  }) async => (await api.post(
+        '/auth/phone/request-otp',
+        body: {
+          'clientType': clientType,
+          'phone': phone,
+          'language': language,
+        },
+      ) as Map).cast<String, dynamic>();
+
+  Future<Actor> verifyPhoneOtp(
+    String challengeId,
+    String code, {
+    Map<String, dynamic>? device,
+  }) => _login('/auth/phone/verify-otp', {
+        'challengeId': challengeId,
+        'code': code,
+        if (device != null) 'device': device,
+      });
+
+  Future<Actor> _login(String path, Map<String, dynamic> body) async {
     final data = await api.post(
       path,
-      body: {'idToken': idToken},
+      body: body,
     ) as Map<String, dynamic>;
     await api.authStore.save(
       access: data['accessToken'] as String,
@@ -32,6 +77,12 @@ class AuthRepository {
         await api.post('/auth/logout', body: {'refreshToken': refresh});
       } catch (_) {}
     }
+    await api.authStore.clear();
+    actor = null;
+  }
+
+  Future<void> logoutAll() async {
+    await api.post('/auth/logout-all');
     await api.authStore.clear();
     actor = null;
   }
@@ -175,4 +226,60 @@ class MobileProfileRepository {
           },
         ) as Map<String, dynamic>,
       );
+
+  Future<List<Map<String, dynamic>>> authMethods() async =>
+      (await api.get('/me/auth-methods') as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+  Future<List<Map<String, dynamic>>> sessions() async =>
+      (await api.get('/me/sessions') as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+
+  Future<void> revokeSession(String sessionId) async {
+    await api.delete('/me/sessions/$sessionId');
+  }
+
+  Future<void> linkGoogle(String idToken) async {
+    await api.post('/me/auth-methods/google', body: {'idToken': idToken});
+  }
+
+  Future<void> unlinkAuthMethod(String provider) async {
+    await api.delete('/me/auth-methods/$provider');
+  }
+
+  Future<Map<String, dynamic>> requestEmailVerification({
+    required String email,
+    required String language,
+  }) async => (await api.post(
+        '/me/email/request-verification',
+        body: {'email': email, 'language': language},
+      ) as Map).cast<String, dynamic>();
+
+  Future<void> verifyEmail(String challengeId, String code) async {
+    await api.post(
+      '/me/email/verify',
+      body: {'challengeId': challengeId, 'code': code},
+    );
+  }
+
+  Future<void> removeEmail() => api.delete('/me/email');
+
+  Future<Map<String, dynamic>> requestPhoneVerification({
+    required String phone,
+    required String language,
+  }) async => (await api.post(
+        '/me/phone/request-verification',
+        body: {'phone': phone, 'language': language},
+      ) as Map).cast<String, dynamic>();
+
+  Future<void> verifyPhone(String challengeId, String code) async {
+    await api.post(
+      '/me/phone/verify',
+      body: {'challengeId': challengeId, 'code': code},
+    );
+  }
+
+  Future<void> removePhone() => api.delete('/me/phone');
 }

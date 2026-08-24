@@ -65,6 +65,23 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     }
   }
 
+  Future<String> requestPhoneOtp(String role, String phone) async {
+    final data = await auth.requestPhoneOtp(
+      clientType: role == 'CUSTOMER' ? 'CUSTOMER_MOBILE' : 'TECHNICIAN_MOBILE',
+      phone: phone,
+      language: 'UZ',
+    );
+    return data['challengeId'] as String;
+  }
+
+  Future<void> verifyPhoneOtp(String role, String challengeId, String code) async {
+    final actor = await auth.verifyPhoneOtp(challengeId, code);
+    if (!mounted) return;
+    navigatorKey.currentState?.pushReplacement(
+      MaterialPageRoute(builder: (_) => HomePage(api: api, auth: auth, actor: actor)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => MaterialApp(
     navigatorKey: navigatorKey,
@@ -74,7 +91,13 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xff934316)),
       useMaterial3: true,
     ),
-    home: LoginPage(onLogin: login, loading: loading, error: error),
+    home: LoginPage(
+      onLogin: login,
+      onRequestPhoneOtp: requestPhoneOtp,
+      onVerifyPhoneOtp: verifyPhoneOtp,
+      loading: loading,
+      error: error,
+    ),
   );
 }
 
@@ -82,10 +105,14 @@ class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
     required this.onLogin,
+    required this.onRequestPhoneOtp,
+    required this.onVerifyPhoneOtp,
     required this.loading,
     this.error,
   });
   final Future<void> Function(String role, String idToken) onLogin;
+  final Future<String> Function(String role, String phone) onRequestPhoneOtp;
+  final Future<void> Function(String role, String challengeId, String code) onVerifyPhoneOtp;
   final bool loading;
   final String? error;
   @override
@@ -93,20 +120,18 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final email = TextEditingController();
   final phone = TextEditingController();
-  final password = TextEditingController();
   final name = TextEditingController();
   String role = 'CUSTOMER';
-  String customerMethod = 'TELEGRAM';
+  String customerMethod = 'GOOGLE';
   bool register = false;
   String language = 'ru';
 
   String tr(String key) {
     const values = {
-      'ru': {'customer': 'Клиент', 'technician': 'Техник', 'signIn': 'Войти', 'register': 'Регистрация', 'email': 'Email', 'phone': 'Телефон', 'fullName': 'Имя и фамилия', 'password': 'Пароль', 'phoneNumber': 'Номер телефона', 'telegram': 'Telegram', 'continueTelegram': 'Продолжить через Telegram', 'anotherWay': 'Другой способ входа'},
-      'uz': {'customer': 'Mijoz', 'technician': 'Texnik', 'signIn': 'Kirish', 'register': 'Ro‘yxatdan o‘tish', 'email': 'Email', 'phone': 'Telefon', 'fullName': 'Ism va familiya', 'password': 'Parol', 'phoneNumber': 'Telefon raqami', 'telegram': 'Telegram', 'continueTelegram': 'Telegram orqali davom etish', 'anotherWay': 'Boshqa kirish usuli'},
-      'en': {'customer': 'Customer', 'technician': 'Technician', 'signIn': 'Sign in', 'register': 'Register', 'email': 'Email', 'phone': 'Phone', 'fullName': 'Full name', 'password': 'Password', 'phoneNumber': 'Phone number', 'telegram': 'Telegram', 'continueTelegram': 'Continue with Telegram', 'anotherWay': 'Sign in another way'},
+      'ru': {'customer': 'Клиент', 'technician': 'Техник', 'signIn': 'Войти', 'register': 'Регистрация', 'phone': 'Телефон', 'fullName': 'Имя и фамилия', 'phoneNumber': 'Номер телефона', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Продолжить через Google', 'continueTelegram': 'Продолжить через Telegram', 'anotherWay': 'Другой способ входа'},
+      'uz': {'customer': 'Mijoz', 'technician': 'Texnik', 'signIn': 'Kirish', 'register': 'Ro‘yxatdan o‘tish', 'phone': 'Telefon', 'fullName': 'Ism va familiya', 'phoneNumber': 'Telefon raqami', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Google orqali davom etish', 'continueTelegram': 'Telegram orqali davom etish', 'anotherWay': 'Boshqa kirish usuli'},
+      'en': {'customer': 'Customer', 'technician': 'Technician', 'signIn': 'Sign in', 'register': 'Register', 'phone': 'Phone', 'fullName': 'Full name', 'phoneNumber': 'Phone number', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Continue with Google', 'continueTelegram': 'Continue with Telegram', 'anotherWay': 'Sign in another way'},
     };
     return values[language]?[key] ?? values['en']![key] ?? key;
   }
@@ -118,9 +143,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    email.dispose();
     phone.dispose();
-    password.dispose();
     name.dispose();
     super.dispose();
   }
@@ -131,18 +154,45 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void submit() {
+  Future<void> submit() async {
     if (demoModeEnabled) {
       widget.onLogin(role, 'demo');
       return;
     }
-    if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Telegram login will open here after SDK connection.')),
-      );
+    if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Connect the provider SDK to continue authentication.'),
+      ));
       return;
     }
-    showUnavailable();
+    final phoneValue = phone.text.trim();
+    if (phoneValue.isEmpty) {
+      showUnavailable();
+      return;
+    }
+    final challengeId = await widget.onRequestPhoneOtp(role, phoneValue);
+    if (!mounted) return;
+    final codeController = TextEditingController();
+    final verified = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verify phone'),
+        content: TextField(
+          controller: codeController,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(labelText: '6-digit code'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Verify')),
+        ],
+      ),
+    );
+    if (verified == true && codeController.text.trim().isNotEmpty) {
+      await widget.onVerifyPhoneOtp(role, challengeId, codeController.text.trim());
+    }
+    codeController.dispose();
   }
 
   @override
@@ -252,26 +302,16 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                   ],
-                  if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM')
+                  if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE')
                     Card(
                       margin: EdgeInsets.zero,
                       color: Theme.of(context).colorScheme.primaryContainer,
                       child: ListTile(
-                        leading: const Icon(Icons.telegram),
-                        title: Text(tr('continueTelegram')),
+                        leading: Icon(customerMethod == 'GOOGLE' ? Icons.account_circle_outlined : Icons.telegram),
+                        title: Text(customerMethod == 'GOOGLE' ? tr('continueGoogle') : tr('continueTelegram')),
                         subtitle: const Text('Secure sign-in for your account'),
                       ),
                     ),
-                  if (role == 'CUSTOMER' && customerMethod == 'EMAIL') ...[
-                    if (register) ...[
-                      const SizedBox(height: 12),
-                      TextField(controller: name, decoration: InputDecoration(labelText: tr('fullName'))),
-                    ],
-                    const SizedBox(height: 12),
-                    TextField(controller: email, keyboardType: TextInputType.emailAddress, decoration: InputDecoration(labelText: tr('email'))),
-                    const SizedBox(height: 12),
-                    TextField(controller: password, obscureText: true, decoration: InputDecoration(labelText: tr('password'))),
-                  ],
                   if (role == 'CUSTOMER' && customerMethod == 'PHONE') ...[
                     if (register) ...[
                       const SizedBox(height: 12),
@@ -279,8 +319,6 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                     const SizedBox(height: 12),
                     TextField(controller: phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('phoneNumber'))),
-                    const SizedBox(height: 12),
-                    TextField(controller: password, obscureText: true, decoration: InputDecoration(labelText: tr('password'))),
                   ],
                   if (widget.error != null) ...[
                     const SizedBox(height: 12),
@@ -293,8 +331,8 @@ class _LoginPageState extends State<LoginPage> {
                   FilledButton.icon(
                     onPressed: widget.loading ? null : submit,
                     icon: Icon(
-                      role == 'TECHNICIAN' || customerMethod == 'TELEGRAM'
-                          ? Icons.telegram
+                      role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE'
+                          ? customerMethod == 'GOOGLE' ? Icons.account_circle_outlined : Icons.telegram
                           : register
                               ? Icons.person_add
                               : Icons.login,
@@ -302,8 +340,8 @@ class _LoginPageState extends State<LoginPage> {
                     label: widget.loading
                         ? const CircularProgressIndicator()
                         : Text(
-                            role == 'TECHNICIAN' || customerMethod == 'TELEGRAM'
-                                ? tr('continueTelegram')
+                            role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE'
+                                ? customerMethod == 'GOOGLE' ? tr('continueGoogle') : tr('continueTelegram')
                                 : register
                                     ? tr('register')
                                     : tr('signIn'),
@@ -319,13 +357,13 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 6),
                     NavigationBar(
                       height: 72,
-                      selectedIndex: ['TELEGRAM', 'EMAIL', 'PHONE'].indexOf(customerMethod),
+                      selectedIndex: ['GOOGLE', 'TELEGRAM', 'PHONE'].indexOf(customerMethod),
                       onDestinationSelected: (index) => setState(() {
-                        customerMethod = ['TELEGRAM', 'EMAIL', 'PHONE'][index];
+                        customerMethod = ['GOOGLE', 'TELEGRAM', 'PHONE'][index];
                       }),
                       destinations: [
+                        NavigationDestination(icon: const Icon(Icons.account_circle_outlined), label: tr('google')),
                         NavigationDestination(icon: const Icon(Icons.telegram), label: tr('telegram')),
-                        NavigationDestination(icon: const Icon(Icons.email_outlined), label: tr('email')),
                         NavigationDestination(icon: const Icon(Icons.phone_outlined), label: tr('phone')),
                       ],
                     ),
