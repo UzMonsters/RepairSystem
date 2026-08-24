@@ -199,17 +199,21 @@ onBeforeUnmount(() => {
   max-width: 85%;
   padding: 0.55rem 0.75rem;
   border-radius: 0.75rem;
-  background: var(--bs-secondary-bg);
+  background: var(--rs-panel-2, #f1f5f9);
+  color: var(--rs-text, #1e293b);
+  border: 1px solid var(--rs-border, #e2e8f0);
 }
 
 .manager-chat-message.is-own {
   align-self: flex-end;
-  background: var(--bs-primary-bg-subtle);
+  background: var(--rs-primary-soft, #e0e7ff);
+  border-color: transparent;
 }
 
 .manager-chat-message small {
   display: block;
   margin-top: 0.2rem;
-  color: var(--bs-secondary-color);
+  color: var(--rs-muted, #64748b);
+  font-size: 0.75rem;
 }
 </style>

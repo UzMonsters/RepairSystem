@@ -597,41 +597,7 @@ function can(action: string) {
                     <i class="bi bi-person-dash me-1" />{{ t('unassignTechnician') }}
                   </button>
                 </div>
-                <div
-                  v-if="request.currentAssignment"
-                  class="mt-3"
-                >
-                  <label class="form-label">{{ t('scheduledVisitAt') }}</label>
-                  <div class="input-group">
-                    <input
-                      ref="scheduleInput"
-                      v-model="scheduleForm"
-                      type="datetime-local"
-                      class="form-control"
-                      :disabled="savingSchedule"
-                      @click="scheduleInput?.showPicker?.()"
-                    >
-                    <button
-                      type="button"
-                      class="btn btn-outline-primary"
-                      :disabled="savingSchedule || !scheduleForm"
-                      @click="saveSchedule()"
-                    >
-                      {{ t('save') }}
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-outline-secondary"
-                      :disabled="savingSchedule || !request.currentAssignment.scheduledVisitAt"
-                      @click="saveSchedule(true)"
-                    >
-                      {{ t('clear') }}
-                    </button>
-                  </div>
-                  <div class="small text-muted mt-1">
-                    {{ request.currentAssignment.scheduledVisitAt ? formatDate(request.currentAssignment.scheduledVisitAt) : t('notScheduled') }}
-                  </div>
-                </div>
+
                 <div
                   v-if="isAssignmentPending"
                   class="alert alert-warning mb-0"

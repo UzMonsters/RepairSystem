@@ -89,7 +89,10 @@ function changeSize() {
         </select>
       </div>
 
-      <div class="pagination-controls">
+      <div
+        v-show="pageCount > 1"
+        class="pagination-controls"
+      >
         <button
           type="button"
           class="page-btn"

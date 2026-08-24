@@ -327,7 +327,7 @@
 [data-theme="light"] input:focus,
 [data-theme="light"] textarea:focus,
 [data-theme="light"] select:focus {
-  background: #fffdf9;
+  background-color: #fffdf9;
   border-color: var(--rs-primary);
   color: var(--rs-text);
   box-shadow: 0 0 0 3px rgba(77, 159, 99, 0.18);
