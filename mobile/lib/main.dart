@@ -8,8 +8,7 @@ import 'api_client.dart';
 import 'models.dart';
 import 'realtime_client.dart';
 import 'repositories.dart';
-
-const demoModeEnabled = bool.fromEnvironment('DEMO_MODE');
+import 'telegram_auth.dart';
 
 void main() => runApp(const RepairAutoApp());
 
@@ -23,25 +22,11 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
   final api = ApiClient();
   final navigatorKey = GlobalKey<NavigatorState>();
   late final auth = AuthRepository(api);
+  final telegram = TelegramAuthService();
   String? error;
   bool loading = false;
 
   Future<void> login(String role, String idToken) async {
-    if (demoModeEnabled) {
-      final actor = Actor(
-        type: role,
-        id: role == 'CUSTOMER' ? 900001 : 900002,
-        fullName: role == 'CUSTOMER' ? 'Demo Customer' : 'Demo Technician',
-        preferredLanguage: 'en',
-      );
-      if (!mounted) return;
-      navigatorKey.currentState?.pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => DemoHomePage(actor: actor),
-        ),
-      );
-      return;
-    }
     setState(() {
       loading = true;
       error = null;
@@ -64,6 +49,8 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
       if (mounted) setState(() => loading = false);
     }
   }
+
+  Future<String> loginWithTelegram(String role) => telegram.login(role);
 
   Future<String> requestPhoneOtp(String role, String phone) async {
     final data = await auth.requestPhoneOtp(
@@ -92,6 +79,7 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     ),
     home: LoginPage(
       onLogin: login,
+      onTelegramLogin: loginWithTelegram,
       onRequestPhoneOtp: requestPhoneOtp,
       onVerifyPhoneOtp: verifyPhoneOtp,
       loading: loading,
@@ -104,12 +92,14 @@ class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
     required this.onLogin,
+    required this.onTelegramLogin,
     required this.onRequestPhoneOtp,
     required this.onVerifyPhoneOtp,
     required this.loading,
     this.error,
   });
   final Future<void> Function(String role, String idToken) onLogin;
+  final Future<String> Function(String role) onTelegramLogin;
   final Future<String> Function(String role, String phone) onRequestPhoneOtp;
   final Future<void> Function(String role, String challengeId, String code) onVerifyPhoneOtp;
   final bool loading;
@@ -122,7 +112,7 @@ class _LoginPageState extends State<LoginPage> {
   final phone = TextEditingController();
   final name = TextEditingController();
   String role = 'CUSTOMER';
-  String customerMethod = 'GOOGLE';
+  String customerMethod = 'TELEGRAM';
   bool register = false;
   String language = 'ru';
 
@@ -154,14 +144,20 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> submit() async {
-    if (demoModeEnabled) {
-      widget.onLogin(role, 'demo');
+    if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM') {
+      try {
+        final idToken = await widget.onTelegramLogin(role);
+        if (mounted) await widget.onLogin(role, idToken);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('StateError: ', ''))),
+        );
+      }
       return;
     }
-    if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Connect the provider SDK to continue authentication.'),
-      ));
+    if (customerMethod == 'GOOGLE') {
+      showUnavailable();
       return;
     }
     final phoneValue = phone.text.trim();
@@ -264,15 +260,6 @@ class _LoginPageState extends State<LoginPage> {
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
-                  if (demoModeEnabled)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text(
-                        'Debug demo mode',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.orange),
-                      ),
-                    ),
                   const SizedBox(height: 24),
                   SegmentedButton<String>(
                     segments: [
@@ -367,40 +354,6 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
                   ],
-                  if (demoModeEnabled) ...[
-                    const SizedBox(height: 14),
-                    const Divider(),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Debug demo login',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.orange),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: widget.loading
-                                ? null
-                                : () => widget.onLogin('CUSTOMER', 'demo'),
-                            icon: const Icon(Icons.person_outline),
-                            label: const Text('Demo client'),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: widget.loading
-                                ? null
-                                : () => widget.onLogin('TECHNICIAN', 'demo'),
-                            icon: const Icon(Icons.build_outlined),
-                            label: const Text('Demo technician'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -415,189 +368,6 @@ class _LoginPageState extends State<LoginPage> {
   );
 }
 
-class DemoHomePage extends StatefulWidget {
-  const DemoHomePage({super.key, required this.actor});
-  final Actor actor;
-
-  @override
-  State<DemoHomePage> createState() => _DemoHomePageState();
-}
-
-class _DemoHomePageState extends State<DemoHomePage> {
-  int tab = 0;
-  String demoLanguage = 'English';
-  int demoRequestCount = 3;
-
-  String dt(String key) {
-    const text = {
-      'English': {'work': 'Work', 'notifications': 'Notifications', 'profile': 'Profile', 'requests': 'My requests', 'jobs': 'Assigned jobs', 'add': 'Add request', 'open': 'Open', 'completed': 'Completed', 'language': 'Language'},
-      'Русский': {'work': 'Работа', 'notifications': 'Уведомления', 'profile': 'Профиль', 'requests': 'Мои заявки', 'jobs': 'Назначенные заявки', 'add': 'Добавить заявку', 'open': 'Открытые', 'completed': 'Завершено', 'language': 'Язык'},
-      'O‘zbekcha': {'work': 'Ish', 'notifications': 'Bildirishnomalar', 'profile': 'Profil', 'requests': 'Mening so‘rovlarim', 'jobs': 'Tayinlangan so‘rovlar', 'add': 'So‘rov qo‘shish', 'open': 'Ochiq', 'completed': 'Yakunlangan', 'language': 'Til'},
-    };
-    return text[demoLanguage]?[key] ?? text['English']![key] ?? key;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final technician = widget.actor.type == 'TECHNICIAN';
-    final pages = [
-      _demoWorkPage(context, technician),
-      _demoNotificationsPage(context),
-      _demoProfilePage(context),
-    ];
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(technician ? 'Demo Technician' : 'Demo Customer'),
-        actions: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: Center(child: Text('DEMO', style: TextStyle(color: Colors.orange))),
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const RepairAutoApp()),
-            ),
-            icon: const Icon(Icons.logout),
-          ),
-        ],
-      ),
-      body: pages[tab],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: (value) => setState(() => tab = value),
-        destinations: [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), label: dt('work')),
-          NavigationDestination(icon: Icon(Icons.notifications_outlined), label: dt('notifications')),
-          NavigationDestination(icon: Icon(Icons.person_outline), label: dt('profile')),
-        ],
-      ),
-    );
-  }
-
-  Widget _demoWorkPage(BuildContext context, bool technician) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      Row(
-        children: [
-          Expanded(child: Text(technician ? dt('jobs') : dt('requests'), style: Theme.of(context).textTheme.headlineSmall)),
-          if (!technician)
-            FilledButton.icon(
-              onPressed: _createDemoRequest,
-              icon: const Icon(Icons.add),
-              label: Text(dt('add')),
-            ),
-        ],
-      ),
-      const SizedBox(height: 16),
-      Row(
-        children: [
-          Expanded(child: _demoStat(context, dt('open'), technician ? '2' : '$demoRequestCount', Icons.assignment_outlined)),
-          const SizedBox(width: 12),
-          Expanded(child: _demoStat(context, dt('completed'), '5', Icons.check_circle_outline)),
-        ],
-      ),
-      const SizedBox(height: 16),
-      ...[
-        ('REP-2026-000021', technician ? 'Screen replacement' : 'Phone repair', 'In progress'),
-        ('REP-2026-000020', technician ? 'Battery diagnostics' : 'Laptop repair', 'New'),
-        ('REP-2026-000019', 'Device inspection', 'Completed'),
-      ].map((item) => Card(
-        child: ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.build_outlined)),
-          title: Text(item.$2),
-          subtitle: Text(item.$1),
-          trailing: technician && item.$3 != 'Completed'
-              ? PopupMenuButton<String>(
-                  onSelected: (action) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$action: ${item.$1}')));
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'Accept', child: Text('Accept assignment')),
-                    PopupMenuItem(value: 'Start', child: Text('Start repair')),
-                    PopupMenuItem(value: 'Complete', child: Text('Complete repair')),
-                  ],
-                )
-              : Chip(label: Text(item.$3)),
-        ),
-      )),
-    ],
-  );
-
-  Future<void> _createDemoRequest() async {
-    final controller = TextEditingController();
-    final created = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Create request'),
-        content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'Description')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, controller.text.trim().isNotEmpty), child: const Text('Create')),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (created == true && mounted) {
-      setState(() => demoRequestCount++);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demo request created')));
-    }
-  }
-
-  Widget _demoStat(BuildContext context, String title, String value, IconData icon) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(height: 8),
-        Text(value, style: Theme.of(context).textTheme.headlineMedium),
-        Text(title),
-      ]),
-    ),
-  );
-
-  Widget _demoNotificationsPage(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      Text(dt('notifications'), style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 12),
-      for (final item in ['Repair started', 'New assignment', 'Repair completed'])
-        Card(child: ListTile(leading: const Icon(Icons.notifications_outlined), title: Text(item), subtitle: const Text('Today, 10:30'))),
-    ],
-  );
-
-  Widget _demoProfilePage(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      Text(dt('profile'), style: Theme.of(context).textTheme.headlineSmall),
-      const SizedBox(height: 16),
-      Center(child: CircleAvatar(radius: 42, child: Text(widget.actor.fullName.substring(0, 1)))),
-      const SizedBox(height: 16),
-      Card(child: ListTile(title: Text(widget.actor.fullName), subtitle: Text(widget.actor.type))),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.language),
-          title: Text(dt('language')),
-          trailing: PopupMenuButton<String>(
-            initialValue: demoLanguage,
-            onSelected: (value) => setState(() => demoLanguage = value),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(demoLanguage == 'Русский' ? 'RU' : demoLanguage == 'O‘zbekcha' ? 'UZ' : 'EN'),
-                const Icon(Icons.keyboard_arrow_down),
-              ],
-            ),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'Русский', child: Text('RU')),
-              PopupMenuItem(value: 'O‘zbekcha', child: Text('UZ')),
-              PopupMenuItem(value: 'English', child: Text('EN')),
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
-}
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -620,6 +390,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    widget.api.setLanguage(widget.actor.preferredLanguage ?? 'uz');
     unawaited(realtime.connect());
   }
 
@@ -632,6 +403,8 @@ class _HomePageState extends State<HomePage> {
   late final technician = TechnicianRepository(widget.api);
   late final notifications = NotificationRepository(widget.api);
   late final profile = MobileProfileRepository(widget.api);
+  late final chat = MobileChatRepository(widget.api);
+  late final categories = CategoryRepository(widget.api);
 
   Future<void> logout() async {
     await widget.auth.logout();
@@ -648,12 +421,12 @@ class _HomePageState extends State<HomePage> {
     final isCustomer = widget.actor.type == 'CUSTOMER';
     final pages = isCustomer
           ? [
-            CustomerRequests(repo: customer, events: realtime.events),
+            CustomerRequests(repo: customer, chat: chat, categories: categories, events: realtime.events),
             NotificationsScreen(repo: notifications, events: realtime.events),
             ProfileScreen(actor: widget.actor, repo: profile, onLogout: logout),
           ]
         : [
-            TechnicianJobs(repo: technician, events: realtime.events),
+            TechnicianJobs(repo: technician, chat: chat, events: realtime.events),
             NotificationsScreen(repo: notifications, events: realtime.events),
             ProfileScreen(actor: widget.actor, repo: profile, onLogout: logout),
           ];
@@ -691,8 +464,10 @@ class _HomePageState extends State<HomePage> {
 }
 
 class CustomerRequests extends StatefulWidget {
-  const CustomerRequests({super.key, required this.repo, this.events});
+  const CustomerRequests({super.key, required this.repo, required this.chat, required this.categories, this.events});
   final CustomerRepository repo;
+  final MobileChatRepository chat;
+  final CategoryRepository categories;
   final Stream<Map<String, dynamic>>? events;
   @override
   State<CustomerRequests> createState() => _CustomerRequestsState();
@@ -700,6 +475,8 @@ class CustomerRequests extends StatefulWidget {
 
 class _CustomerRequestsState extends State<CustomerRequests> {
   late Future<PageResponse<RequestItem>> future;
+  late Future<List<Category>> categories;
+  int selectedCategoryId = 1;
   StreamSubscription<Map<String, dynamic>>? eventSubscription;
   final description = TextEditingController();
   final address = TextEditingController();
@@ -708,9 +485,20 @@ class _CustomerRequestsState extends State<CustomerRequests> {
   void initState() {
     super.initState();
     future = widget.repo.requests();
+    categories = loadCategories();
     eventSubscription = widget.events?.listen((_) {
       if (mounted) setState(() => future = widget.repo.requests());
     });
+  }
+
+  Future<List<Category>> loadCategories() async {
+    try {
+      final result = await widget.categories.list();
+      if (result.isNotEmpty) selectedCategoryId = result.first.id;
+      return result;
+    } catch (_) {
+      return const [];
+    }
   }
 
   @override
@@ -725,7 +513,7 @@ class _CustomerRequestsState extends State<CustomerRequests> {
     if (description.text.trim().isEmpty) return;
     await widget.repo.createRequest(
       description: description.text.trim(),
-      categoryId: 1,
+      categoryId: selectedCategoryId,
       address: address.text.trim().isEmpty ? null : address.text.trim(),
       locationSource:
           address.text.trim().isEmpty ? null : 'MANUAL',
@@ -759,6 +547,32 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                     labelText: 'Problem description',
                     border: OutlineInputBorder(),
                   ),
+                ),
+                const SizedBox(height: 10),
+                FutureBuilder<List<Category>>(
+                  future: categories,
+                  builder: (context, snapshot) {
+                    final items = snapshot.data ?? const <Category>[];
+                    if (items.isEmpty) return const SizedBox.shrink();
+                    return DropdownButtonFormField<int>(
+                      value: items.any((item) => item.id == selectedCategoryId)
+                          ? selectedCategoryId
+                          : items.first.id,
+                      decoration: const InputDecoration(
+                        labelText: 'Category',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: items
+                          .map((item) => DropdownMenuItem<int>(
+                                value: item.id,
+                                child: Text(item.name),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) setState(() => selectedCategoryId = value);
+                      },
+                    );
+                  },
                 ),
                 const SizedBox(height: 10),
                 TextField(
@@ -806,7 +620,7 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
-                                RequestDetails(repo: widget.repo, item: item),
+                                RequestDetails(repo: widget.repo, chat: widget.chat, item: item),
                           ),
                         ),
                       ),
@@ -822,8 +636,9 @@ class _CustomerRequestsState extends State<CustomerRequests> {
 }
 
 class RequestDetails extends StatefulWidget {
-  const RequestDetails({super.key, required this.repo, required this.item});
+  const RequestDetails({super.key, required this.repo, required this.chat, required this.item});
   final CustomerRepository repo;
+  final MobileChatRepository chat;
   final RequestItem item;
   @override
   State<RequestDetails> createState() => _RequestDetailsState();
@@ -831,6 +646,15 @@ class RequestDetails extends StatefulWidget {
 
 class _RequestDetailsState extends State<RequestDetails> {
   bool uploading = false;
+
+  Future<void> openChat() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MobileChatScreen(repo: widget.chat, requestId: widget.item.id),
+      ),
+    );
+  }
 
   Future<void> uploadProblemPhoto() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -882,6 +706,12 @@ class _RequestDetailsState extends State<RequestDetails> {
           icon: const Icon(Icons.photo_camera),
           label: Text(uploading ? 'Uploading...' : 'Upload problem photo'),
         ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: openChat,
+          icon: const Icon(Icons.chat_outlined),
+          label: const Text('Chat with technician'),
+        ),
         const SizedBox(height: 20),
         const Text('Review after completion'),
         FilledButton(
@@ -899,9 +729,96 @@ class _RequestDetailsState extends State<RequestDetails> {
   );
 }
 
+class MobileChatScreen extends StatefulWidget {
+  const MobileChatScreen({super.key, required this.repo, required this.requestId});
+  final MobileChatRepository repo;
+  final int requestId;
+
+  @override
+  State<MobileChatScreen> createState() => _MobileChatScreenState();
+}
+
+class _MobileChatScreenState extends State<MobileChatScreen> {
+  final text = TextEditingController();
+  late Future<PageResponse<Map<String, dynamic>>> future;
+  int? conversationId;
+
+  @override
+  void initState() {
+    super.initState();
+    future = loadMessages();
+  }
+
+  Future<PageResponse<Map<String, dynamic>>> loadMessages() async {
+    final conversation = await widget.repo.getOrCreateForRequest(widget.requestId);
+    conversationId = (conversation['id'] as num?)?.toInt();
+    if (conversationId == null) return const PageResponse(content: []);
+    return widget.repo.messages(conversationId!);
+  }
+
+  Future<void> send() async {
+    final value = text.text.trim();
+    if (value.isEmpty || conversationId == null) return;
+    await widget.repo.sendMessage(conversationId!, value);
+    text.clear();
+    setState(() => future = widget.repo.messages(conversationId!));
+  }
+
+  @override
+  void dispose() {
+    text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Chat with technician')),
+    body: FutureBuilder<PageResponse<Map<String, dynamic>>>(
+      future: future,
+      builder: (context, snapshot) {
+        final messages = snapshot.data?.content ?? const <Map<String, dynamic>>[];
+        return Column(
+          children: [
+            Expanded(
+              child: snapshot.connectionState == ConnectionState.waiting
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      reverse: true,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: messages.length,
+                      itemBuilder: (_, index) {
+                        final message = messages[index];
+                        return Card(
+                          child: ListTile(
+                            title: Text('${message['text'] ?? ''}'),
+                            subtitle: Text('${message['createdAt'] ?? ''}'),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  children: [
+                    Expanded(child: TextField(controller: text, decoration: const InputDecoration(hintText: 'Message'))),
+                    IconButton(onPressed: send, icon: const Icon(Icons.send)),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
 class TechnicianJobs extends StatefulWidget {
-  const TechnicianJobs({super.key, required this.repo, this.events});
+  const TechnicianJobs({super.key, required this.repo, required this.chat, this.events});
   final TechnicianRepository repo;
+  final MobileChatRepository chat;
   final Stream<Map<String, dynamic>>? events;
   @override
   State<TechnicianJobs> createState() => _TechnicianJobsState();
@@ -939,8 +856,18 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
         final jobs = snapshot.data?.content ?? [];
         return ListView(
           padding: const EdgeInsets.all(16),
-          children: jobs
-              .map(
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ScheduleScreen(repo: widget.repo),
+                ),
+              ),
+              icon: const Icon(Icons.calendar_month_outlined),
+              label: const Text('Visit schedule'),
+            ),
+            ...jobs.map(
                 (job) => Card(
                   child: ListTile(
                     title: Text(job.number),
@@ -948,12 +875,65 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
                     trailing: Text(job.status),
                     onTap: () => showModalBottomSheet(
                       context: context,
-                      builder: (_) => JobActions(repo: widget.repo, job: job),
+                      builder: (_) => JobActions(repo: widget.repo, chat: widget.chat, job: job),
                     ),
                   ),
                 ),
-              )
-              .toList(),
+              ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+class ScheduleScreen extends StatefulWidget {
+  const ScheduleScreen({super.key, required this.repo});
+  final TechnicianRepository repo;
+
+  @override
+  State<ScheduleScreen> createState() => _ScheduleScreenState();
+}
+
+class _ScheduleScreenState extends State<ScheduleScreen> {
+  late Future<List<Map<String, dynamic>>> future;
+
+  @override
+  void initState() {
+    super.initState();
+    final today = DateTime.now();
+    final end = today.add(const Duration(days: 60));
+    future = widget.repo.schedule(
+      from: today.toIso8601String().substring(0, 10),
+      to: end.toIso8601String().substring(0, 10),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Visit schedule')),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) return Center(child: Text('${snapshot.error}'));
+        final items = snapshot.data ?? const <Map<String, dynamic>>[];
+        if (items.isEmpty) return const Center(child: Text('No scheduled visits'));
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (_, index) {
+            final item = items[index];
+            return Card(
+              child: ListTile(
+                leading: const Icon(Icons.event_outlined),
+                title: Text('${item['requestNumber'] ?? item['number'] ?? 'Request'}'),
+                subtitle: Text('${item['scheduledVisitAt'] ?? item['visitAt'] ?? ''}'),
+              ),
+            );
+          },
         );
       },
     ),
@@ -961,8 +941,9 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
 }
 
 class JobActions extends StatelessWidget {
-  const JobActions({super.key, required this.repo, required this.job});
+  const JobActions({super.key, required this.repo, required this.chat, required this.job});
   final TechnicianRepository repo;
+  final MobileChatRepository chat;
   final Job job;
   Future<void> uploadEvidence(
     BuildContext context,
@@ -974,10 +955,51 @@ class JobActions extends StatelessWidget {
     if (context.mounted) Navigator.pop(context);
   }
 
+  Future<String?> askText(BuildContext context, String title, String label) async {
+    final controller = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: InputDecoration(labelText: label),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return value == null || value.isEmpty ? null : value;
+  }
+
   @override
   Widget build(BuildContext context) => SafeArea(
     child: Wrap(
-      children: job.availableActions.map((action) {
+      children: [
+        ListTile(
+          title: const Text('Chat with customer'),
+          leading: const Icon(Icons.chat_outlined),
+          onTap: () async {
+            Navigator.pop(context);
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MobileChatScreen(repo: chat, requestId: job.id),
+              ),
+            );
+          },
+        ),
+        ...job.availableActions.map((action) {
         if (action == 'UPLOAD_DIAGNOSIS_PHOTO') {
           return ListTile(
             title: Text(action),
@@ -996,19 +1018,30 @@ class JobActions extends StatelessWidget {
           title: Text(action),
           leading: const Icon(Icons.play_arrow),
           onTap: () async {
-            final endpoint = {
-              'ACCEPT_ASSIGNMENT': 'accept',
-              'REJECT_ASSIGNMENT': 'reject',
-              'START_REPAIR': 'start',
-              'WAIT_FOR_PARTS': 'wait-for-parts',
-              'RESUME_REPAIR': 'resume',
-              'COMPLETE_REPAIR': 'complete',
-            }[action];
-            if (endpoint != null) await repo.action(job.id, endpoint);
+            if (action == 'ACCEPT_ASSIGNMENT') {
+              await repo.accept(job.id);
+            } else if (action == 'START_REPAIR') {
+              await repo.start(job.id);
+            } else if (action == 'RESUME_REPAIR') {
+              await repo.resume(job.id);
+            } else if (action == 'REJECT_ASSIGNMENT') {
+              final reason = await askText(context, 'Reject assignment', 'Reason');
+              if (reason != null) await repo.reject(job.id, reason);
+            } else if (action == 'UPDATE_DIAGNOSIS') {
+              final diagnosis = await askText(context, 'Diagnosis', 'Diagnosis');
+              if (diagnosis != null) await repo.diagnosis(job.id, diagnosis);
+            } else if (action == 'WAIT_FOR_PARTS') {
+              final reason = await askText(context, 'Wait for parts', 'Reason');
+              if (reason != null) await repo.waitForParts(job.id, reason);
+            } else if (action == 'COMPLETE_REPAIR') {
+              final work = await askText(context, 'Complete repair', 'Work performed');
+              if (work != null) await repo.complete(job.id, work);
+            }
             if (context.mounted) Navigator.pop(context);
           },
         );
       }).toList(),
+      ],
     ),
   );
 }
@@ -1111,7 +1144,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late final name = TextEditingController(text: widget.actor.fullName);
-  String language = 'uz';
+  late String language = widget.actor.preferredLanguage ?? 'uz';
   bool saving = false;
 
   @override
@@ -1123,6 +1156,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> save() async {
     setState(() => saving = true);
     try {
+      widget.repo.setLanguage(language);
       await widget.repo.update(
         fullName: name.text.trim(),
         preferredLanguage: language,

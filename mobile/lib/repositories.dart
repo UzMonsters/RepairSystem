@@ -3,6 +3,20 @@ import 'dart:io';
 import 'api_client.dart';
 import 'models.dart';
 
+class CategoryRepository {
+  CategoryRepository(this.api);
+  final ApiClient api;
+
+  Future<List<Category>> list() async {
+    final data = await api.get('/categories', query: {'active': true, 'size': 100});
+    final content = data is Map ? data['content'] : data;
+    return (content as List? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(Category.fromJson)
+        .toList();
+  }
+}
+
 class AuthRepository {
   AuthRepository(this.api);
   final ApiClient api;
@@ -142,6 +156,9 @@ class CustomerRepository {
               [])
           .whereType<Map<String, dynamic>>()
           .toList();
+  Future<Map<String, dynamic>> attachmentDownloadUrl(int attachmentId) async =>
+      (await api.get('/attachments/$attachmentId/download-url') as Map)
+          .cast<String, dynamic>();
   Future<dynamic> submitReview(int id, int rating, String comment) => api.post(
     '/me/repair-requests/$id/review',
     body: {'rating': rating, 'comment': comment},
@@ -162,6 +179,20 @@ class TechnicianRepository {
       Job.fromJson(await api.get('/me/jobs/$id') as Map<String, dynamic>);
   Future<dynamic> action(int id, String action, {Map<String, dynamic>? body}) =>
       api.post('/me/jobs/$id/$action', body: body);
+  Future<dynamic> accept(int id) => api.post('/me/jobs/$id/accept');
+  Future<void> reject(int id, String reason) async {
+    await api.post('/me/jobs/$id/reject', body: {'reason': reason});
+  }
+  Future<dynamic> start(int id) => api.post('/me/jobs/$id/start');
+  Future<dynamic> waitForParts(int id, String reason) =>
+      api.post('/me/jobs/$id/wait-for-parts', body: {'reason': reason});
+  Future<dynamic> resume(int id) => api.post('/me/jobs/$id/resume');
+  Future<dynamic> complete(int id, String workPerformed, {String? completionNote}) =>
+      api.post('/me/jobs/$id/complete', body: {
+        'workPerformed': workPerformed,
+        if (completionNote != null && completionNote.trim().isNotEmpty)
+          'completionNote': completionNote,
+      });
   Future<dynamic> diagnosis(int id, String text) =>
       api.patch('/me/jobs/$id/diagnosis', body: {'diagnosis': text});
   Future<dynamic> uploadPhoto(int id, File file, String attachmentType) =>
@@ -180,6 +211,63 @@ class TechnicianRepository {
               [])
           .whereType<Map<String, dynamic>>()
           .toList();
+  Future<Map<String, dynamic>> attachmentDownloadUrl(int attachmentId) async =>
+      (await api.get('/attachments/$attachmentId/download-url') as Map)
+          .cast<String, dynamic>();
+}
+
+class MobileChatRepository {
+  MobileChatRepository(this.api);
+  final ApiClient api;
+
+  Future<PageResponse<Map<String, dynamic>>> conversations({int page = 0}) async =>
+      PageResponse.fromJson(
+        await api.get('/conversations', query: {'page': page, 'size': 20})
+            as Map<String, dynamic>,
+        (item) => item,
+      );
+
+  Future<Map<String, dynamic>> conversation(int id) async =>
+      (await api.get('/conversations/$id') as Map).cast<String, dynamic>();
+
+  Future<PageResponse<Map<String, dynamic>>> messages(
+    int conversationId, {
+    int page = 0,
+    int? beforeId,
+  }) async => PageResponse.fromJson(
+        await api.get('/conversations/$conversationId/messages', query: {
+          'page': page,
+          'size': 20,
+          if (beforeId != null) 'beforeId': beforeId,
+        }) as Map<String, dynamic>,
+        (item) => item,
+      );
+
+  Future<Map<String, dynamic>> getOrCreateForRequest(int requestId) async =>
+      (await api.post('/conversations/requests/$requestId') as Map)
+          .cast<String, dynamic>();
+
+  Future<Map<String, dynamic>> sendMessage(
+    int conversationId,
+    String text, {
+    String type = 'TEXT',
+    int? attachmentId,
+    String? clientMessageId,
+    int? replyToMessageId,
+  }) async => (await api.post('/conversations/$conversationId/messages', body: {
+        'conversationId': conversationId,
+        'clientMessageId': clientMessageId,
+        'type': type,
+        'text': text,
+        'attachmentId': attachmentId,
+        'replyToMessageId': replyToMessageId,
+      }) as Map).cast<String, dynamic>();
+
+  Future<void> markRead(int conversationId, int messageId) async {
+    await api.post('/conversations/$conversationId/read', body: {
+      'messageId': messageId,
+    });
+  }
 }
 
 class NotificationRepository {
@@ -210,6 +298,8 @@ class NotificationRepository {
 class MobileProfileRepository {
   MobileProfileRepository(this.api);
   final ApiClient api;
+
+  void setLanguage(String language) => api.setLanguage(language);
 
   Future<Actor> get() async =>
       Actor.fromJson(await api.get('/me') as Map<String, dynamic>);

@@ -10,13 +10,35 @@ const apiBaseUrl = String.fromEnvironment(
 );
 
 class ApiException implements Exception {
-  const ApiException(this.statusCode, this.message, {this.code});
+  const ApiException(
+    this.statusCode,
+    this.message, {
+    this.code,
+    this.fieldErrors = const [],
+  });
   final int statusCode;
   final String message;
   final String? code;
+  final List<ApiFieldError> fieldErrors;
 
   @override
-  String toString() => 'ApiException($statusCode, $code, $message)';
+  String toString() {
+    final details = fieldErrors
+        .map((error) => error.message)
+        .where((message) => message.isNotEmpty)
+        .join('\n');
+    return details.isEmpty
+        ? 'ApiException($statusCode, $code, $message)'
+        : 'ApiException($statusCode, $code, $message\n$details)';
+  }
+}
+
+class ApiFieldError {
+  const ApiFieldError({this.field, this.code, required this.message});
+
+  final String? field;
+  final String? code;
+  final String message;
 }
 
 class AuthStore {
@@ -49,6 +71,14 @@ class ApiClient {
   final http.Client _client;
   final AuthStore authStore;
   Future<bool>? _refreshing;
+  String language = 'uz';
+
+  void setLanguage(String value) {
+    final normalized = value.toLowerCase().split('-').first;
+    if (normalized == 'ru' || normalized == 'en' || normalized == 'uz') {
+      language = normalized;
+    }
+  }
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final base = Uri.parse(apiBaseUrl);
@@ -67,7 +97,7 @@ class ApiClient {
     return {
       HttpHeaders.acceptHeader: 'application/json',
       HttpHeaders.contentTypeHeader: 'application/json',
-      HttpHeaders.acceptLanguageHeader: language ?? 'uz',
+      HttpHeaders.acceptLanguageHeader: language ?? this.language,
       if (access != null && access.isNotEmpty)
         HttpHeaders.authorizationHeader: 'Bearer $access',
     };
@@ -131,10 +161,21 @@ class ApiClient {
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final data = value is Map ? value : <String, dynamic>{};
+      final fieldErrors = (data['fieldErrors'] as List<dynamic>? ?? [])
+          .whereType<Map>()
+          .map(
+            (error) => ApiFieldError(
+              field: error['field']?.toString(),
+              code: error['code']?.toString(),
+              message: error['message']?.toString() ?? '',
+            ),
+          )
+          .toList(growable: false);
       throw ApiException(
         response.statusCode,
         '${data['message'] ?? 'Request failed'}',
         code: data['code']?.toString(),
+        fieldErrors: fieldErrors,
       );
     }
     return value;
@@ -200,7 +241,7 @@ class ApiClient {
     final request = http.MultipartRequest('POST', _uri(path));
     final token = await authStore.accessToken;
     request.headers.addAll({
-      HttpHeaders.acceptLanguageHeader: 'uz',
+        HttpHeaders.acceptLanguageHeader: language,
       if (token != null) HttpHeaders.authorizationHeader: 'Bearer $token',
       ...headers,
     });
