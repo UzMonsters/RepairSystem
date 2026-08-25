@@ -17,7 +17,9 @@ public enum ErrorCode {
 
     // Security & Auth Errors
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "security.authentication-required"),
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "security.authentication-required"),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "security.access-denied"),
+    FORBIDDEN(HttpStatus.FORBIDDEN, "security.access-denied"),
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "security.invalid-token"),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "security.expired-token"),
     INVALID_ACCESS_TOKEN(HttpStatus.UNAUTHORIZED, "security.invalid-access-token"),
@@ -92,6 +94,7 @@ public enum ErrorCode {
     CATEGORY_NAME_UZ_ALREADY_EXISTS(HttpStatus.CONFLICT, "category.name-uz-already-exists"),
     CATEGORY_NAME_RU_ALREADY_EXISTS(HttpStatus.CONFLICT, "category.name-ru-already-exists"),
     CATEGORY_INACTIVE(HttpStatus.BAD_REQUEST, "category.inactive"),
+    INVALID_CATEGORY(HttpStatus.BAD_REQUEST, "category.invalid"),
     INVALID_CATEGORY_ORDER(HttpStatus.BAD_REQUEST, "category.invalid-order"),
 
     // Repair Requests
@@ -113,6 +116,7 @@ public enum ErrorCode {
 
     // Assignments
     ACTIVE_ASSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "repair.assignment.active-not-found"),
+    ASSIGNMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "repair.assignment.active-not-found"),
     REPAIR_REQUEST_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "repair.assignment.technician-already-assigned"),
     TECHNICIAN_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "repair.assignment.technician-already-assigned"),
     TECHNICIAN_CAPACITY_EXCEEDED(HttpStatus.CONFLICT, "repair.assignment.technician-capacity-exceeded"),
@@ -186,13 +190,35 @@ public enum ErrorCode {
     TECHNICIAN_TELEGRAM_NOT_CONNECTED(HttpStatus.BAD_REQUEST, "telegram.technician-not-connected"),
     CUSTOMER_TELEGRAM_NOT_CONNECTED(HttpStatus.BAD_REQUEST, "telegram.customer-not-connected"),
     TELEGRAM_API_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "telegram.api-unavailable"),
+    TELEGRAM_DISABLED(HttpStatus.NOT_FOUND, "telegram.disabled"),
+    TELEGRAM_UPDATE_INVALID(HttpStatus.BAD_REQUEST, "telegram.update-invalid"),
+    TELEGRAM_TECHNICIAN_LINK_INVALID(HttpStatus.BAD_REQUEST, "telegram.technician-link-invalid"),
+    TECHNICIAN_LINK_TOKEN_ALREADY_USED(HttpStatus.BAD_REQUEST, "telegram.technician-link-token-already-used"),
+    TELEGRAM_PHOTO_INVALID(HttpStatus.BAD_REQUEST, "telegram.photo-invalid"),
+    TELEGRAM_CALLBACK_INVALID(HttpStatus.BAD_REQUEST, "telegram.callback-invalid"),
+    INVALID_CALLBACK(HttpStatus.BAD_REQUEST, "telegram.callback-invalid"),
     TECHNICIAN_ASSIGNMENT_FORBIDDEN(HttpStatus.FORBIDDEN, "security.access-denied"),
     REPAIR_CATEGORY_INACTIVE(HttpStatus.BAD_REQUEST, "category.inactive"),
     REPAIR_REQUEST_DESCRIPTION_INVALID(HttpStatus.BAD_REQUEST, "repair.request.invalid-description"),
     REPAIR_REQUEST_LOCATION_REQUIRED(HttpStatus.BAD_REQUEST, "repair.request.invalid-location"),
     REPAIR_REQUEST_LOCATION_INVALID(HttpStatus.BAD_REQUEST, "repair.request.invalid-location"),
     TELEGRAM_CUSTOMER_LINK_CONFLICT(HttpStatus.CONFLICT, "customer.telegram-id-already-exists"),
-    TELEGRAM_CUSTOMER_ARCHIVED(HttpStatus.BAD_REQUEST, "customer.inactive"),
+    TELEGRAM_CUSTOMER_ARCHIVED(HttpStatus.CONFLICT, "customer.inactive"),
+
+    // Chat
+    CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "chat.conversation-not-found"),
+    CONVERSATION_CLOSED(HttpStatus.CONFLICT, "chat.conversation-closed"),
+    CONVERSATION_READ_ONLY(HttpStatus.CONFLICT, "chat.conversation-read-only"),
+    PARTICIPANT_INACTIVE(HttpStatus.FORBIDDEN, "chat.participant-inactive"),
+    ATTACHMENT_REQUIRED(HttpStatus.BAD_REQUEST, "chat.attachment-required"),
+    REPLY_TO_MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "chat.reply-to-message-not-found"),
+    INVALID_REPLY_TO_MESSAGE(HttpStatus.BAD_REQUEST, "chat.invalid-reply-to-message"),
+    CLIENT_MESSAGE_ID_REQUIRED(HttpStatus.BAD_REQUEST, "chat.client-message-id-required"),
+    CLIENT_MESSAGE_ID_TOO_LONG(HttpStatus.BAD_REQUEST, "chat.client-message-id-too-long"),
+    MESSAGE_TYPE_REQUIRED(HttpStatus.BAD_REQUEST, "chat.message-type-required"),
+    MESSAGE_TEXT_BLANK(HttpStatus.BAD_REQUEST, "chat.message-text-blank"),
+    MESSAGE_TEXT_TOO_LONG(HttpStatus.BAD_REQUEST, "chat.message-text-too-long"),
+    ATTACHMENT_FORBIDDEN(HttpStatus.FORBIDDEN, "chat.attachment-forbidden"),
 
     // Protocol & Request
     INVALID_REQUEST_BODY(HttpStatus.BAD_REQUEST, "request.body.invalid-json"),

@@ -8,8 +8,8 @@ import jakarta.validation.constraints.Size;
 
 @Schema(description = "Telegram OIDC login request containing the signed ID token")
 public record TelegramLoginRequest(
-        @NotBlank(message = "idToken is required")
-        @Size(max = 4096, message = "idToken must not exceed 4096 characters")
+        @NotBlank
+        @Size(max = 4096)
         @Schema(
                 description = "Signed Telegram OIDC ID token returned by official Telegram Login SDK",
                 example = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...")

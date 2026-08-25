@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -31,6 +32,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final MediaType JSON_UTF8 = MediaType.parseMediaType("application/json;charset=UTF-8");
 
     private final LocalizationService localizationService;
     private final ApiErrorResponseFactory responseFactory;
@@ -47,14 +49,34 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = exception.getErrorCode();
         HttpStatus status = HttpStatus.resolve(exception.status());
         if (status == null) {
-            status = errorCode.getStatus();
+            status = errorCode != null ? errorCode.getStatus() : HttpStatus.BAD_REQUEST;
         }
         String code = exception.code();
-        String message = exception.hasExplicitMessage()
-                ? exception.getMessage()
-                : localizationService.get(errorCode.getMessageKey(), request, exception.getArguments());
+
+        String message;
+        if (errorCode != null && errorCode != ErrorCode.BUSINESS_RULE_VIOLATION) {
+            message = localizationService.get(errorCode.getMessageKey(), request, exception.getArguments());
+        } else if (code != null && !code.isBlank()) {
+            ErrorCode resolved = null;
+            try {
+                resolved = ErrorCode.valueOf(code.trim());
+            } catch (IllegalArgumentException ignored) {
+            }
+            if (resolved != null && resolved != ErrorCode.BUSINESS_RULE_VIOLATION) {
+                message = localizationService.get(resolved.getMessageKey(), request, exception.getArguments());
+            } else if (exception.hasExplicitMessage()) {
+                message = localizationService.get(exception.getMessage(), request, exception.getArguments());
+            } else {
+                message = localizationService.get(ErrorCode.BUSINESS_RULE_VIOLATION.getMessageKey(), request);
+            }
+        } else if (exception.hasExplicitMessage()) {
+            message = localizationService.get(exception.getMessage(), request, exception.getArguments());
+        } else {
+            message = localizationService.get(ErrorCode.BUSINESS_RULE_VIOLATION.getMessageKey(), request);
+        }
+
         ApiErrorResponse response = responseFactory.create(status, code, message, request, List.of());
-        return ResponseEntity.status(status).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(status).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -70,7 +92,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.VALIDATION_ERROR;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request, fieldErrors);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -94,7 +116,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.VALIDATION_ERROR;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request, fieldErrors);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
@@ -107,7 +129,7 @@ public class GlobalExceptionHandler {
             ErrorCode errorCode = ErrorCode.INVALID_ENUM_VALUE;
             String message = localizationService.get(errorCode.getMessageKey(), request, fieldName);
             ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-            return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+            return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
         }
 
         String msg = exception.getMessage() != null ? exception.getMessage().toLowerCase() : "";
@@ -115,13 +137,13 @@ public class GlobalExceptionHandler {
             ErrorCode errorCode = ErrorCode.REQUEST_BODY_REQUIRED;
             String message = localizationService.get(errorCode.getMessageKey(), request);
             ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-            return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+            return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
         }
 
         ErrorCode errorCode = ErrorCode.INVALID_REQUEST_BODY;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -133,7 +155,7 @@ public class GlobalExceptionHandler {
         String message = localizationService.get(errorCode.getMessageKey(), request, paramName);
         FieldErrorResponse fieldError = new FieldErrorResponse(paramName, "TYPE_MISMATCH", message);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request, List.of(fieldError));
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(InvalidRequestParameterException.class)
@@ -143,7 +165,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.INVALID_REQUEST_PARAMETER;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request, exception.fieldErrors());
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -155,7 +177,7 @@ public class GlobalExceptionHandler {
         String message = localizationService.get(errorCode.getMessageKey(), request, paramName);
         FieldErrorResponse fieldError = new FieldErrorResponse(paramName, "MISSING_PARAMETER", message);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request, List.of(fieldError));
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(MissingServletRequestPartException.class)
@@ -165,7 +187,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.PART_REQUIRED;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -175,7 +197,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.METHOD_NOT_ALLOWED;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
@@ -185,7 +207,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.UNSUPPORTED_MEDIA_TYPE;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -195,7 +217,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.ATTACHMENT_FILE_TOO_LARGE;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(MultipartException.class)
@@ -205,7 +227,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.INVALID_REQUEST_BODY;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler({ResourceNotFoundException.class, NoHandlerFoundException.class, NoResourceFoundException.class})
@@ -215,7 +237,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.RESOURCE_NOT_FOUND;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
@@ -225,7 +247,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.RESOURCE_VERSION_CONFLICT;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -235,7 +257,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = mapDatabaseConstraintToErrorCode(exception);
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(TelegramApiException.class)
@@ -245,7 +267,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.TELEGRAM_API_UNAVAILABLE;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).contentType(org.springframework.http.MediaType.parseMediaType("application/json;charset=UTF-8")).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     @ExceptionHandler(Exception.class)
@@ -257,7 +279,7 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
         String message = localizationService.get(errorCode.getMessageKey(), request);
         ApiErrorResponse response = responseFactory.create(errorCode, message, request);
-        return ResponseEntity.status(errorCode.getStatus()).body(response);
+        return ResponseEntity.status(errorCode.getStatus()).contentType(JSON_UTF8).body(response);
     }
 
     private FieldErrorResponse toFieldError(FieldError error, HttpServletRequest request) {
@@ -283,6 +305,15 @@ public class GlobalExceptionHandler {
             }
             if (lower.contains("telegram_chat_id") || lower.contains("telegram_user_id")) {
                 return ErrorCode.TELEGRAM_ALREADY_LINKED;
+            }
+            if (lower.contains("categories_name_en")) {
+                return ErrorCode.CATEGORY_NAME_EN_ALREADY_EXISTS;
+            }
+            if (lower.contains("categories_name_uz")) {
+                return ErrorCode.CATEGORY_NAME_UZ_ALREADY_EXISTS;
+            }
+            if (lower.contains("categories_name_ru")) {
+                return ErrorCode.CATEGORY_NAME_RU_ALREADY_EXISTS;
             }
         }
         return ErrorCode.DATA_INTEGRITY_VIOLATION;

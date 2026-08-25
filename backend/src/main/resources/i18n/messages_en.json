@@ -83,6 +83,7 @@
     "name-uz-already-exists": "Category name in Uzbek already exists.",
     "name-ru-already-exists": "Category name in Russian already exists.",
     "inactive": "Repair category is inactive.",
+    "invalid": "Invalid repair category.",
     "invalid-order": "Invalid category display order."
   },
   "repair": {
@@ -176,10 +177,41 @@
     "already-linked": "Telegram account is already linked.",
     "technician-not-connected": "Technician Telegram account is not connected.",
     "customer-not-connected": "Customer Telegram account is not connected.",
-    "api-unavailable": "Telegram integration service is temporarily unavailable."
+    "api-unavailable": "Telegram integration service is temporarily unavailable.",
+    "disabled": "Telegram service is currently disabled.",
+    "update-invalid": "Telegram update payload is invalid.",
+    "technician-link-invalid": "Telegram technician link is invalid or expired.",
+    "technician-link-token-already-used": "Telegram technician link token has already been used.",
+    "photo-invalid": "Telegram photo attachment is invalid.",
+    "callback-invalid": "Telegram callback query is invalid."
+  },
+  "chat": {
+    "conversation-not-found": "Conversation was not found.",
+    "conversation-closed": "Conversation is closed.",
+    "conversation-read-only": "Conversation is read-only because the repair request is completed or cancelled.",
+    "participant-inactive": "You are no longer an active participant in this conversation.",
+    "attachment-required": "Attachment ID is required for image and file messages.",
+    "reply-to-message-not-found": "Replied message was not found.",
+    "invalid-reply-to-message": "Replied message does not belong to this conversation.",
+    "client-message-id-required": "clientMessageId is required.",
+    "client-message-id-too-long": "clientMessageId must be at most 64 characters.",
+    "message-type-required": "Message type is required.",
+    "message-text-blank": "Message text cannot be blank.",
+    "message-text-too-long": "Message text must be at most 4000 characters.",
+    "attachment-forbidden": "Attachment does not belong to this repair request."
   },
   "validation": {
     "required": "This field is required.",
+    "not-blank": "This field is required.",
+    "not-null": "This field is required.",
+    "positive": "Must be greater than 0.",
+    "positive-or-zero": "Must be greater than or equal to 0.",
+    "pattern": "Invalid format.",
+    "size": "Size is out of valid range.",
+    "min": "Value is less than minimum allowed.",
+    "max": "Value exceeds maximum allowed.",
+    "decimal-min": "Value is less than minimum allowed.",
+    "decimal-max": "Value exceeds maximum allowed.",
     "invalid-value": "Invalid value provided.",
     "email": {
       "invalid": "Enter a valid email address."
@@ -193,6 +225,16 @@
     },
     "telegram-username": {
       "invalid": "Enter a valid Telegram username."
+    },
+    "review": {
+      "rating": {
+        "required": "Rating is required.",
+        "min": "Rating must be at least 1.",
+        "max": "Rating must be at most 5."
+      },
+      "comment": {
+        "max": "Review comment must be at most 1000 characters."
+      }
     }
   },
   "request": {

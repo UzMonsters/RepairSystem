@@ -1,6 +1,6 @@
 {
   "common": {
-    "internal-error": "Kutilmagan xatolik yuz berdi.",
+    "internal-error": "Kutilmagan server xatoligi yuz berdi.",
     "validation-failed": "So'rov ma'lumotlarini tekshirishda xatolik.",
     "resource-not-found": "So'ralgan resurs topilmadi.",
     "business-rule-violation": "Biznes qoidasi buzilishi yuz berdi.",
@@ -83,6 +83,7 @@
     "name-uz-already-exists": "O'zbek tilidagi kategoriya nomi allaqachon mavjud.",
     "name-ru-already-exists": "Rus tilidagi kategoriya nomi allaqachon mavjud.",
     "inactive": "Ta'mirlash kategoriyasi faol emas.",
+    "invalid": "Ta'mirlash kategoriyasi noto'g'ri.",
     "invalid-order": "Kategoriya ko'rsatilish tartibi noto'g'ri."
   },
   "repair": {
@@ -135,7 +136,7 @@
     },
     "execution": {
       "not-found": "Ta'mirlash bajarilishi yozuvi topilmadi.",
-      "already-started": "Ta'mirlash bajiirilishi allaqachon boshlangan.",
+      "already-started": "Ta'mirlash bajarilishi allaqachon boshlangan.",
       "not-startable": "Ta'mirlash bajarilishini boshlab bo'lmaydi.",
       "not-in-progress": "Ta'mirlash bajarilish jarayonida emas.",
       "not-waiting-for-parts": "Ta'mirlash ehtiyot qismlarni kutayotgani yo'q.",
@@ -176,10 +177,41 @@
     "already-linked": "Telegram hisobi allaqachon ulangan.",
     "technician-not-connected": "Usta Telegram hisobi ulanmagan.",
     "customer-not-connected": "Mijoz Telegram hisobi ulanmagan.",
-    "api-unavailable": "Telegram integratsiya xizmati vaqtincha mavjud emas."
+    "api-unavailable": "Telegram integratsiya xizmati vaqtincha mavjud emas.",
+    "disabled": "Telegram xizmati hozirda o'chirilgan.",
+    "update-invalid": "Telegram yangilanish ma'lumotlari yaroqsiz.",
+    "technician-link-invalid": "Usta uchun Telegram ulanish havolasi yaroqsiz yoki muddati tugagan.",
+    "technician-link-token-already-used": "Usta Telegram ulanish tokeni allaqachon ishlatilgan.",
+    "photo-invalid": "Telegram fotosurat biriktirmasi yaroqsiz.",
+    "callback-invalid": "Telegram qayta chaqiruv so'rovi yaroqsiz."
+  },
+  "chat": {
+    "conversation-not-found": "Suhbat topilmadi.",
+    "conversation-closed": "Suhbat yopilgan.",
+    "conversation-read-only": "Ta'mirlash arizasi yakunlangan yoki bekor qilinganligi sababli suhbat faqat o'qish uchun ochiq.",
+    "participant-inactive": "Siz endi ushbu suhbatning faol ishtirokchisi emassiz.",
+    "attachment-required": "Rasm va fayl xabarlari uchun biriktirma identifikatori talab qilinadi.",
+    "reply-to-message-not-found": "Javob berilayotgan xabar topilmadi.",
+    "invalid-reply-to-message": "Javob berilayotgan xabar ushbu suhbatga tegishli emas.",
+    "client-message-id-required": "clientMessageId maydoni majburiy.",
+    "client-message-id-too-long": "clientMessageId ko'pi bilan 64 belgidan oshmasligi kerak.",
+    "message-type-required": "Xabar turi majburiy.",
+    "message-text-blank": "Xabar matni bo'sh bo'lishi mumkin emas.",
+    "message-text-too-long": "Xabar matni ko'pi bilan 4000 belgidan oshmasligi kerak.",
+    "attachment-forbidden": "Biriktirma ushbu ta'mirlash arizasiga tegishli emas."
   },
   "validation": {
     "required": "Ushbu maydon to'ldirilishi majburiy.",
+    "not-blank": "Ushbu maydon to'ldirilishi majburiy.",
+    "not-null": "Ushbu maydon to'ldirilishi majburiy.",
+    "positive": "0 dan katta bo'lishi kerak.",
+    "positive-or-zero": "0 ga teng yoki undan katta bo'lishi kerak.",
+    "pattern": "Noto'g'ri format.",
+    "size": "Hajm ruxsat etilgan oraliqda emas.",
+    "min": "Qiymat ruxsat etilgan minimal qiymatdan kam.",
+    "max": "Qiymat ruxsat etilgan maksimal qiymatdan oshadi.",
+    "decimal-min": "Qiymat ruxsat etilgan minimal qiymatdan kam.",
+    "decimal-max": "Qiymat ruxsat etilgan maksimal qiymatdan oshadi.",
     "invalid-value": "Noto'g'ri qiymat kiritildi.",
     "email": {
       "invalid": "To'g'ri email manzilini kiriting."
@@ -193,6 +225,16 @@
     },
     "telegram-username": {
       "invalid": "To'g'ri Telegram foydalanuvchi nomini kiriting."
+    },
+    "review": {
+      "rating": {
+        "required": "Baho qo'yish majburiy.",
+        "min": "Baho 1 dan kam bo'lmasligi kerak.",
+        "max": "Baho 5 dan oshmasligi kerak."
+      },
+      "comment": {
+        "max": "Sharh matni 1000 belgidan oshmasligi kerak."
+      }
     }
   },
   "request": {

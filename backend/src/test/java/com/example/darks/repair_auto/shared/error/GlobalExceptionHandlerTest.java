@@ -26,6 +26,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -191,6 +192,52 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void givenBusinessExceptionWithArgumentsWhenHandledThenArgumentsAreFormatted() throws Exception {
+        mockMvc.perform(get("/test/status-invalid").header("Accept-Language", "en"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_REPAIR_REQUEST_STATUS"))
+                .andExpect(jsonPath("$.message").value("This action cannot be performed while the repair request is in status COMPLETED."));
+
+        mockMvc.perform(get("/test/status-invalid").header("Accept-Language", "ru"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_REPAIR_REQUEST_STATUS"))
+                .andExpect(jsonPath("$.message").value("\u041D\u0435\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E \u0432\u044B\u043F\u043E\u043B\u043D\u0438\u0442\u044C \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435, \u043F\u043E\u043A\u0430 \u0437\u0430\u044F\u0432\u043A\u0430 \u043D\u0430\u0445\u043E\u0434\u0438\u0442\u0441\u044F \u0432 \u0441\u0442\u0430\u0442\u0443\u0441\u0435 COMPLETED."));
+
+        mockMvc.perform(get("/test/status-invalid").header("Accept-Language", "uz"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INVALID_REPAIR_REQUEST_STATUS"))
+                .andExpect(jsonPath("$.message").value("Ta'mirlash arizasi COMPLETED holatida bo'lganda ushbu amalni bajarib bo'lmaydi."));
+    }
+
+    @Test
+    void givenChatCustomBusinessRuleExceptionWhenHandledThenCustomCodeAndLocalizedMessageReturned() throws Exception {
+        mockMvc.perform(get("/test/chat-closed").header("Accept-Language", "en"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONVERSATION_CLOSED"))
+                .andExpect(jsonPath("$.message").value("Conversation is closed."));
+
+        mockMvc.perform(get("/test/chat-closed").header("Accept-Language", "ru"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONVERSATION_CLOSED"))
+                .andExpect(jsonPath("$.message").value("\u0411\u0435\u0441\u0435\u0434\u0430 \u0437\u0430\u043A\u0440\u044B\u0442\u0430."));
+
+        mockMvc.perform(get("/test/chat-closed").header("Accept-Language", "uz"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONVERSATION_CLOSED"))
+                .andExpect(jsonPath("$.message").value("Suhbat yopilgan."));
+    }
+
+    @Test
+    void givenDataIntegrityViolationWhenHandledThenSanitizedMappedErrorCodeAndLocalizedMessageReturned() throws Exception {
+        mockMvc.perform(get("/test/data-integrity").header("Accept-Language", "en"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("USER_EMAIL_ALREADY_EXISTS"))
+                .andExpect(jsonPath("$.message").value("User with this email already exists."))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("duplicate key value violates unique constraint"))));
+    }
+
+    @Test
     void givenResourceNotFoundExceptionWhenHandledThenNotFoundErrorIsReturned() throws Exception {
         mockMvc.perform(get("/test/not-found").header("Accept-Language", "en"))
                 .andExpect(status().isNotFound())
@@ -227,6 +274,23 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/business")
         String business() {
             throw new BusinessException(ErrorCode.REPAIR_REQUEST_NOT_FOUND);
+        }
+
+        @GetMapping("/test/status-invalid")
+        String statusInvalid() {
+            throw new BusinessException(ErrorCode.INVALID_REPAIR_REQUEST_STATUS, "COMPLETED");
+        }
+
+        @GetMapping("/test/chat-closed")
+        String chatClosed() {
+            throw new BusinessRuleException("CONVERSATION_CLOSED", "Conversation is closed.", 409);
+        }
+
+        @GetMapping("/test/data-integrity")
+        String dataIntegrity() {
+            throw new DataIntegrityViolationException(
+                    "could not execute statement",
+                    new RuntimeException("duplicate key value violates unique constraint \"users_email_key\""));
         }
 
         @GetMapping("/test/not-found")

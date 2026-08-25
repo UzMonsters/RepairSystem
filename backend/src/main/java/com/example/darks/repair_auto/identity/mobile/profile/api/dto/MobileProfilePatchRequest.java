@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 
 @Schema(description = "Self-service mobile profile patch request")
 public record MobileProfilePatchRequest(
-        @Size(max = 160, message = "fullName must not exceed 160 characters")
+        @Size(max = 160)
         @Schema(description = "Updated full name (editable by Customer only)", example = "Ali Valiyev")
         String fullName,
 

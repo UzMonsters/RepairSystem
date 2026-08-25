@@ -6,15 +6,31 @@ public class BusinessException extends RuntimeException {
     private final Object[] arguments;
     private final boolean explicitMessage;
 
-    public BusinessException(ErrorCode errorCode, Object... arguments) {
-        this(errorCode, defaultMessage(errorCode), false, arguments);
+    public BusinessException(ErrorCode errorCode) {
+        this(errorCode, defaultMessage(errorCode), false, new Object[0]);
     }
 
-    public BusinessException(ErrorCode errorCode, String message, Object... arguments) {
-        this(errorCode, message != null ? message : defaultMessage(errorCode), message != null, arguments);
+    public BusinessException(ErrorCode errorCode, Object arg1) {
+        this(errorCode, defaultMessage(errorCode), false, new Object[]{arg1});
     }
 
-    private BusinessException(ErrorCode errorCode, String message, boolean explicitMessage, Object... arguments) {
+    public BusinessException(ErrorCode errorCode, Object arg1, Object arg2) {
+        this(errorCode, defaultMessage(errorCode), false, new Object[]{arg1, arg2});
+    }
+
+    public BusinessException(ErrorCode errorCode, Object arg1, Object arg2, Object arg3) {
+        this(errorCode, defaultMessage(errorCode), false, new Object[]{arg1, arg2, arg3});
+    }
+
+    public BusinessException(ErrorCode errorCode, Object[] arguments) {
+        this(errorCode, defaultMessage(errorCode), false, arguments != null ? arguments : new Object[0]);
+    }
+
+    public BusinessException(ErrorCode errorCode, String message, boolean explicitMessage) {
+        this(errorCode, message != null ? message : defaultMessage(errorCode), explicitMessage, new Object[0]);
+    }
+
+    public BusinessException(ErrorCode errorCode, String message, boolean explicitMessage, Object[] arguments) {
         super(message);
         this.errorCode = errorCode;
         this.explicitMessage = explicitMessage;
