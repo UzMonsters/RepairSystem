@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -46,6 +48,38 @@ class RequestLocaleResolverTest {
                 systemSettingsRepository,
                 customerRepository,
                 technicianRepository);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "en, EN",
+            "en-US, EN",
+            "en-GB, EN",
+            "ru, RU",
+            "ru-RU, RU",
+            "uz, UZ",
+            "uz-UZ, UZ",
+            "uz-Latn-UZ, UZ",
+            "'ru-RU,ru;q=0.9,en;q=0.8', RU",
+            "'fr, en;q=0.8', EN"
+    })
+    void givenAcceptLanguageVariantsThenResolvesCorrectCanonicalLanguage(String header, String expectedLang) {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Accept-Language", header);
+
+        SupportedLanguage language = resolver.resolveLanguage(request);
+
+        assertThat(language).isEqualTo(SupportedLanguage.valueOf(expectedLang));
+    }
+
+    @Test
+    void givenUnsupportedAcceptLanguageThenFallsBackSafelyWithoutError() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Accept-Language", "de-DE,ja;q=0.9");
+
+        SupportedLanguage language = resolver.resolveLanguage(request);
+
+        assertThat(language).isEqualTo(SupportedLanguage.UZ);
     }
 
     @Test

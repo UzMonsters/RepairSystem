@@ -11,17 +11,17 @@ import java.math.BigDecimal;
 @JsonIgnoreProperties(ignoreUnknown = false)
 @Schema(description = "Repair request location snapshot payload")
 public record RequestLocationRequest(
-        @DecimalMin(value = "-90.0000000", message = "latitude must be between -90 and 90")
-        @DecimalMax(value = "90.0000000", message = "latitude must be between -90 and 90")
+        @DecimalMin(value = "-90.0000000", message = "{repair.request.location-latitude-invalid}")
+        @DecimalMax(value = "90.0000000", message = "{repair.request.location-latitude-invalid}")
         @Schema(description = "Geographical latitude (-90 to 90)", example = "41.3110810")
         BigDecimal latitude,
 
-        @DecimalMin(value = "-180.0000000", message = "longitude must be between -180 and 180")
-        @DecimalMax(value = "180.0000000", message = "longitude must be between -180 and 180")
+        @DecimalMin(value = "-180.0000000", message = "{repair.request.location-longitude-invalid}")
+        @DecimalMax(value = "180.0000000", message = "{repair.request.location-longitude-invalid}")
         @Schema(description = "Geographical longitude (-180 to 180)", example = "69.2405620")
         BigDecimal longitude,
 
-        @Size(max = 500, message = "address must not exceed 500 characters")
+        @Size(max = 500, message = "{repair.request.location-address-too-long}")
         @Schema(description = "Physical address or landmark description (max 500 characters)", example = "Tashkent, Uzbekistan")
         String address,
 

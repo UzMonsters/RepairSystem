@@ -5,26 +5,32 @@ public class BusinessRuleException extends BusinessException {
     private final String customCode;
     private final Integer customStatus;
 
-    public BusinessRuleException(ErrorCode errorCode, Object... arguments) {
+    public BusinessRuleException(ErrorCode errorCode) {
+        super(errorCode);
+        this.customCode = errorCode.name();
+        this.customStatus = errorCode.getStatus().value();
+    }
+
+    public BusinessRuleException(ErrorCode errorCode, Object arg1) {
+        super(errorCode, arg1);
+        this.customCode = errorCode.name();
+        this.customStatus = errorCode.getStatus().value();
+    }
+
+    public BusinessRuleException(ErrorCode errorCode, Object[] arguments) {
         super(errorCode, arguments);
         this.customCode = errorCode.name();
         this.customStatus = errorCode.getStatus().value();
     }
 
-    public BusinessRuleException(ErrorCode errorCode, String message, Object... arguments) {
-        super(errorCode, message, arguments);
-        this.customCode = errorCode.name();
-        this.customStatus = errorCode.getStatus().value();
-    }
-
     public BusinessRuleException(String code, String message) {
-        super(resolveErrorCode(code), message);
+        super(resolveErrorCode(code), message, true);
         this.customCode = code;
         this.customStatus = resolveErrorCode(code).getStatus().value();
     }
 
     public BusinessRuleException(String code, String message, int status) {
-        super(resolveErrorCode(code), message);
+        super(resolveErrorCode(code), message, true);
         this.customCode = code;
         this.customStatus = status;
     }
@@ -42,11 +48,10 @@ public class BusinessRuleException extends BusinessException {
     private static ErrorCode resolveErrorCode(String code) {
         if (code != null) {
             try {
-                return ErrorCode.valueOf(code);
+                return ErrorCode.valueOf(code.trim());
             } catch (IllegalArgumentException ignored) {
             }
         }
         return ErrorCode.BUSINESS_RULE_VIOLATION;
     }
 }
-

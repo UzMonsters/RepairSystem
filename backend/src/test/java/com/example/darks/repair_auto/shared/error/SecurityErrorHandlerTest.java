@@ -97,6 +97,19 @@ class SecurityErrorHandlerTest {
         assertThat(response.getContentAsString()).contains("\"message\":\"\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u0430\u0443\u0442\u0435\u043D\u0442\u0438\u0444\u0438\u043A\u0430\u0446\u0438\u044F.\"");
     }
 
+    @Test
+    void givenWriteUnauthorizedWithCustomCodeWhenInvokedThenLocalizedMessageWritten() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/mobile/auth/refresh");
+        request.addHeader("Accept-Language", "en");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        handler.writeUnauthorized(request, response, "INVALID_ACCESS_TOKEN", "security.invalid-access-token");
+
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(response.getContentAsString()).contains("\"code\":\"INVALID_ACCESS_TOKEN\"");
+        assertThat(response.getContentAsString()).contains("\"message\":\"Access token is invalid.\"");
+    }
+
     private AppProperties properties() {
         return new AppProperties(
                 new AppProperties.Cors(List.of(), List.of(), List.of(), List.of(), false),
