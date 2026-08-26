@@ -1,0 +1,306 @@
+part of 'main.dart';
+
+class LoginPage extends StatefulWidget {
+  const LoginPage({
+    super.key,
+    required this.onLogin,
+    required this.onTelegramLogin,
+    required this.onPendingTelegramRole,
+    required this.onRequestPhoneOtp,
+    required this.onVerifyPhoneOtp,
+    required this.loading,
+    this.error,
+  });
+  final Future<void> Function(String role, String idToken) onLogin;
+  final Future<String> Function(String role) onTelegramLogin;
+  final Future<String?> Function() onPendingTelegramRole;
+  final Future<String> Function(String role, String phone) onRequestPhoneOtp;
+  final Future<void> Function(String role, String challengeId, String code) onVerifyPhoneOtp;
+  final bool loading;
+  final String? error;
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final phone = TextEditingController();
+  final name = TextEditingController();
+  String role = 'CUSTOMER';
+  String customerMethod = 'TELEGRAM';
+  bool register = false;
+  String language = 'ru';
+  String? localError;
+
+  String tr(String key) {
+    const values = {
+      'ru': {'customer': 'Клиент', 'technician': 'Техник', 'signIn': 'Войти', 'register': 'Регистрация', 'phone': 'Телефон', 'fullName': 'Имя и фамилия', 'phoneNumber': 'Номер телефона', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Продолжить через Google', 'continueTelegram': 'Продолжить через Telegram', 'anotherWay': 'Другой способ входа'},
+      'uz': {'customer': 'Mijoz', 'technician': 'Texnik', 'signIn': 'Kirish', 'register': 'Ro‘yxatdan o‘tish', 'phone': 'Telefon', 'fullName': 'Ism va familiya', 'phoneNumber': 'Telefon raqami', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Google orqali davom etish', 'continueTelegram': 'Telegram orqali davom etish', 'anotherWay': 'Boshqa kirish usuli'},
+      'en': {'customer': 'Customer', 'technician': 'Technician', 'signIn': 'Sign in', 'register': 'Register', 'phone': 'Phone', 'fullName': 'Full name', 'phoneNumber': 'Phone number', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Continue with Google', 'continueTelegram': 'Continue with Telegram', 'anotherWay': 'Sign in another way'},
+    };
+    return values[language]?[key] ?? values['en']![key] ?? key;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Color(0xfffff8f5),
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
+    _resumePendingTelegramLogin();
+  }
+
+  Future<void> _resumePendingTelegramLogin() async {
+    try {
+      final pendingRole = await widget.onPendingTelegramRole();
+      if (!mounted || pendingRole == null) return;
+      setState(() => role = pendingRole);
+      final idToken = await widget.onTelegramLogin(pendingRole);
+      if (mounted) await widget.onLogin(pendingRole, idToken);
+    } catch (e) {
+      if (mounted) {
+        setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    phone.dispose();
+    name.dispose();
+    super.dispose();
+  }
+
+  void showUnavailable() {
+    setState(() => localError = 'This authentication method is not configured yet.');
+  }
+
+  Future<void> submit() async {
+    setState(() => localError = null);
+    if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM') {
+      try {
+        final idToken = await widget.onTelegramLogin(role);
+        if (mounted) await widget.onLogin(role, idToken);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
+      }
+      return;
+    }
+    if (customerMethod == 'GOOGLE') {
+      showUnavailable();
+      return;
+    }
+    final phoneValue = phone.text.trim();
+    if (phoneValue.isEmpty) {
+      showUnavailable();
+      return;
+    }
+    final challengeId = await widget.onRequestPhoneOtp(role, phoneValue);
+    if (!mounted) return;
+    final codeController = TextEditingController();
+    final verified = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Verify phone'),
+        content: TextField(
+          controller: codeController,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(labelText: '6-digit code'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Verify')),
+        ],
+      ),
+    );
+    if (verified == true && codeController.text.trim().isNotEmpty) {
+      await widget.onVerifyPhoneOtp(role, challengeId, codeController.text.trim());
+    }
+    codeController.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xfffff8f5),
+    body: DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xfffffcfa),
+            Color(0xfffff8f5),
+            Color(0xfffff1eb),
+          ],
+          stops: [0, .52, 1],
+        ),
+      ),
+      child: SafeArea(
+        child: Stack(
+        children: [
+          Positioned(
+            top: 8,
+            right: 16,
+            child: PopupMenuButton<String>(
+              initialValue: language,
+              offset: const Offset(0, 42),
+              onSelected: (value) => setState(() => language = value),
+              itemBuilder: (_) => const [
+                PopupMenuItem(value: 'ru', child: Text('RU')),
+                PopupMenuItem(value: 'uz', child: Text('UZ')),
+                PopupMenuItem(value: 'en', child: Text('EN')),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(language.toUpperCase()),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.keyboard_arrow_down, size: 18),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(
+                    Icons.build_circle,
+                    size: 64,
+                    color: Color(0xff934316),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'RepairAuto',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 24),
+                  SegmentedButton<String>(
+                    segments: [
+                      ButtonSegment(value: 'CUSTOMER', label: Text(tr('customer'))),
+                      ButtonSegment(
+                        value: 'TECHNICIAN',
+                        label: Text(tr('technician')),
+                      ),
+                    ],
+                    selected: {role},
+                    onSelectionChanged: (value) =>
+                        setState(() {
+                          role = value.first;
+                          if (role == 'TECHNICIAN') {
+                            customerMethod = 'TELEGRAM';
+                            register = false;
+                          }
+                        }),
+                  ),
+                  const SizedBox(height: 16),
+                  if (role == 'CUSTOMER') ...[
+                    Row(
+                      children: [
+                        Expanded(child: Text(register ? tr('register') : '${tr('customer')} ${tr('signIn')}')),
+                        Switch(value: register, onChanged: (value) => setState(() => register = value)),
+                      ],
+                    ),
+                  ],
+                  if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE')
+                    Card(
+                      margin: EdgeInsets.zero,
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      child: ListTile(
+                        leading: Icon(customerMethod == 'GOOGLE' ? Icons.account_circle_outlined : Icons.telegram),
+                        title: Text(customerMethod == 'GOOGLE' ? tr('continueGoogle') : tr('continueTelegram')),
+                        subtitle: const Text('Secure sign-in for your account'),
+                      ),
+                    ),
+                  if (role == 'CUSTOMER' && customerMethod == 'PHONE') ...[
+                    if (register) ...[
+                      const SizedBox(height: 12),
+                      TextField(controller: name, decoration: InputDecoration(labelText: tr('fullName'))),
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(controller: phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('phoneNumber'))),
+                  ],
+                  if (widget.error != null || localError != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      localError ?? widget.error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: widget.loading ? null : submit,
+                    icon: Icon(
+                      role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE'
+                          ? customerMethod == 'GOOGLE' ? Icons.account_circle_outlined : Icons.telegram
+                          : register
+                              ? Icons.person_add
+                              : Icons.login,
+                    ),
+                    label: widget.loading
+                        ? const CircularProgressIndicator()
+                        : Text(
+                            role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE'
+                                ? customerMethod == 'GOOGLE' ? tr('continueGoogle') : tr('continueTelegram')
+                                : register
+                                    ? tr('register')
+                                    : tr('signIn'),
+                          ),
+                  ),
+                  if (role == 'CUSTOMER') ...[
+                    const SizedBox(height: 18),
+                    Text(
+                      tr('anotherWay'),
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    NavigationBar(
+                      height: 72,
+                      selectedIndex: ['GOOGLE', 'TELEGRAM', 'PHONE'].indexOf(customerMethod),
+                      onDestinationSelected: (index) => setState(() {
+                        customerMethod = ['GOOGLE', 'TELEGRAM', 'PHONE'][index];
+                      }),
+                      destinations: [
+                        NavigationDestination(icon: const Icon(Icons.account_circle_outlined), label: tr('google')),
+                        NavigationDestination(icon: const Icon(Icons.telegram), label: tr('telegram')),
+                        NavigationDestination(icon: const Icon(Icons.phone_outlined), label: tr('phone')),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          ),
+        ),
+          ),
+        ],
+        ),
+      ),
+    ),
+  );
+}
+
+

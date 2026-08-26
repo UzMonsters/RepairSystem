@@ -1,5 +1,9 @@
 package com.example.darks.repair_auto.identity.mobile.otp;
 
+import static com.example.darks.repair_auto.identity.mobile.auth.MobileAuthLogSupport.deviceSummary;
+import static com.example.darks.repair_auto.identity.mobile.auth.MobileAuthLogSupport.fingerprint;
+import static com.example.darks.repair_auto.identity.mobile.auth.MobileAuthLogSupport.safeUserAgent;
+
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
 import com.example.darks.repair_auto.identity.application.MobileRefreshSessionService;
@@ -36,12 +40,16 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PhoneOtpService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PhoneOtpService.class);
 
     private final PhoneOtpChallengeRepository repository;
     private final PhoneNumberNormalizer phoneNumberNormalizer;
@@ -104,11 +112,21 @@ public class PhoneOtpService {
     @Transactional
     public PhoneOtpResponse request(PhoneOtpRequest request, String ip, String userAgent) {
         String phone = phoneNumberNormalizer.normalize(request.phone());
+        LOGGER.info(
+                "Mobile phone OTP request received clientType={} phoneHash={} ip={} userAgent={}",
+                request.clientType(),
+                fingerprint(phone),
+                ip,
+                safeUserAgent(userAgent));
         OffsetDateTime now = now();
         repository.findTopByPhoneAndConsumedAtIsNullAndExpiresAtAfterOrderByCreatedAtDesc(phone, now)
                 .filter(open -> open.getClientType() == request.clientType())
                 .ifPresent(open -> {
                     if (open.getResendAvailableAt().isAfter(now)) {
+                        LOGGER.info(
+                                "Mobile phone OTP request rejected clientType={} phoneHash={} reason=resend_cooldown",
+                                request.clientType(),
+                                fingerprint(phone));
                         throw new BusinessException(ErrorCode.PHONE_OTP_RESEND_COOLDOWN);
                     }
                 });
@@ -137,12 +155,24 @@ public class PhoneOtpService {
             } catch (Exception exception) {
                 challenge.consume(now);
                 repository.save(challenge);
+                LOGGER.info(
+                        "Mobile phone OTP delivery failed challengeId={} clientType={} phoneHash={} providerError={}",
+                        challenge.getId(),
+                        request.clientType(),
+                        fingerprint(phone),
+                        exception.getClass().getSimpleName());
                 if (exception instanceof BusinessException be) {
                     throw be;
                 }
                 throw new BusinessException(ErrorCode.SMS_DELIVERY_FAILED);
             }
         }
+        LOGGER.info(
+                "Mobile phone OTP request accepted challengeId={} clientType={} phoneHash={} deliveryStatus={}",
+                challenge.getId(),
+                request.clientType(),
+                fingerprint(phone),
+                deliveryStatus);
 
         return new PhoneOtpResponse(
                 challenge.getId(),
@@ -154,23 +184,46 @@ public class PhoneOtpService {
 
     @Transactional(noRollbackFor = BusinessException.class)
     public MobileAuthResponse verify(PhoneOtpVerifyRequest request, String ip, String userAgent) {
+        LOGGER.info(
+                "Mobile phone OTP verify received challengeId={} device=[{}] ip={} userAgent={}",
+                request.challengeId(),
+                deviceSummary(request.device()),
+                ip,
+                safeUserAgent(userAgent));
         PhoneOtpChallenge challenge = repository.findByIdForUpdate(request.challengeId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.PHONE_OTP_INVALID));
+                .orElseThrow(() -> {
+                    LOGGER.info(
+                            "Mobile phone OTP verify rejected challengeId={} reason=challenge_not_found",
+                            request.challengeId());
+                    return new BusinessException(ErrorCode.PHONE_OTP_INVALID);
+                });
         OffsetDateTime now = now();
         if (challenge.isConsumed()) {
+            LOGGER.info("Mobile phone OTP verify rejected challengeId={} reason=consumed", challenge.getId());
             throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
         }
         if (challenge.isExpired(now)) {
+            LOGGER.info("Mobile phone OTP verify rejected challengeId={} reason=expired", challenge.getId());
             throw new BusinessException(ErrorCode.PHONE_OTP_EXPIRED);
         }
         if (!challenge.hasAttemptsRemaining()) {
+            LOGGER.info("Mobile phone OTP verify rejected challengeId={} reason=attempts_exceeded", challenge.getId());
             throw new BusinessException(ErrorCode.PHONE_OTP_ATTEMPTS_EXCEEDED);
         }
         if (!tokenHashService.hash(request.code()).equals(challenge.getCodeHash())) {
             challenge.failAttempt();
+            LOGGER.info(
+                    "Mobile phone OTP verify rejected challengeId={} phoneHash={} reason=invalid_code",
+                    challenge.getId(),
+                    fingerprint(challenge.getPhone()));
             throw new BusinessException(ErrorCode.PHONE_OTP_INVALID);
         }
         challenge.consume(now);
+        LOGGER.info(
+                "Mobile phone OTP verify accepted challengeId={} clientType={} phoneHash={}",
+                challenge.getId(),
+                challenge.getClientType(),
+                fingerprint(challenge.getPhone()));
         return authenticationService.authenticate(
                 challenge.getClientType(),
                 new VerifiedMobileIdentity(
