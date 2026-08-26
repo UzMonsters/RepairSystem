@@ -115,7 +115,6 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     home: LoginPage(
       onLogin: login,
       onTelegramLogin: loginWithTelegram,
-      onPendingTelegramRole: telegram.pendingRole,
       onRequestPhoneOtp: requestPhoneOtp,
       onVerifyPhoneOtp: verifyPhoneOtp,
       loading: loading,

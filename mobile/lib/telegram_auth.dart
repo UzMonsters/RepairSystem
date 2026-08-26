@@ -36,8 +36,6 @@ const telegramTechnicianRedirectUri = String.fromEnvironment(
 class TelegramAuthService {
   static const _channel = MethodChannel('repair_auto/telegram_auth');
 
-  Future<String?> pendingRole() => _channel.invokeMethod<String>('pendingRole');
-
   Future<String> login(String role) async {
     final clientId = role == 'TECHNICIAN'
         ? telegramTechnicianClientId
