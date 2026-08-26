@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'api_client.dart';
+import 'mobile_logger.dart';
 import 'models.dart';
 import 'realtime_client.dart';
 import 'repositories.dart';
@@ -77,6 +78,10 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
   bool loading = false;
 
   Future<void> login(String role, String idToken) async {
+    MobileLog.info(
+      'Login flow backend auth started role=$role tokenPresent=${MobileLog.present(idToken)} '
+      'tokenLength=${MobileLog.safeLength(idToken)}',
+    );
     setState(() {
       loading = true;
       error = null;
@@ -91,9 +96,14 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
           builder: (_) => HomePage(api: api, auth: auth, actor: actor),
         ),
       );
+      MobileLog.info('Login flow completed role=$role actorType=${actor.type} actorId=${actor.id}');
     } on ApiException catch (e) {
+      MobileLog.warning(
+        'Login flow API failure role=$role status=${e.statusCode} code=${e.code ?? 'unknown'}',
+      );
       setState(() => error = e.message);
     } catch (e) {
+      MobileLog.severe('Login flow unexpected failure role=$role error=${e.runtimeType}', error: e);
       setState(() => error = '$e');
     } finally {
       if (mounted) setState(() => loading = false);
@@ -103,19 +113,29 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
   Future<String> loginWithTelegram(String role) => telegram.login(role);
 
   Future<String> requestPhoneOtp(String role, String phone) async {
+    MobileLog.info(
+      'Login flow phone OTP request started role=$role phonePresent=${MobileLog.present(phone)} '
+      'phoneLength=${MobileLog.safeLength(phone)}',
+    );
     final data = await auth.requestPhoneOtp(
       clientType: role == 'CUSTOMER' ? 'CUSTOMER_MOBILE' : 'TECHNICIAN_MOBILE',
       phone: phone,
     );
+    MobileLog.info('Login flow phone OTP request completed challengeId=${data['challengeId']}');
     return data['challengeId'] as String;
   }
 
   Future<void> verifyPhoneOtp(String role, String challengeId, String code) async {
+    MobileLog.info(
+      'Login flow phone OTP verify started role=$role challengeId=$challengeId '
+      'codePresent=${MobileLog.present(code)} codeLength=${MobileLog.safeLength(code)}',
+    );
     final actor = await auth.verifyPhoneOtp(challengeId, code);
     if (!mounted) return;
     navigatorKey.currentState?.pushReplacement(
       MaterialPageRoute(builder: (_) => HomePage(api: api, auth: auth, actor: actor)),
     );
+    MobileLog.info('Login flow phone OTP verify completed role=$role actorType=${actor.type} actorId=${actor.id}');
   }
 
   @override
@@ -202,11 +222,21 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> submit() async {
     setState(() => localError = null);
+    MobileLog.info(
+      'Login page submit tapped role=$role method=$customerMethod register=$register',
+    );
     if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM') {
       try {
         final idToken = await widget.onTelegramLogin(role);
+        MobileLog.info(
+          'Login page received Telegram token role=$role tokenLength=${MobileLog.safeLength(idToken)}',
+        );
         if (mounted) await widget.onLogin(role, idToken);
       } catch (e) {
+        MobileLog.warning(
+          'Login page Telegram submit failed role=$role error=${e.runtimeType}',
+          error: e,
+        );
         if (!mounted) return;
         setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
       }

@@ -2,12 +2,14 @@ package com.example.mobile
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.embedding.android.FlutterActivity
 import org.telegram.login.TelegramLogin
 
 class MainActivity : FlutterActivity() {
+    private val logTag = "RepairAutoMobile"
     private val channelName = "repair_auto/telegram_auth"
     private var pendingLogin: MethodChannel.Result? = null
     private var handledCallback: String? = null
@@ -41,6 +43,7 @@ class MainActivity : FlutterActivity() {
             // A browser return can arrive after Android recreated the activity
             // without delivering the previous result. Release the stale request
             // so the user is not permanently locked out of Telegram login.
+            Log.w(logTag, "Telegram native login replaced stale pending request")
             pendingLogin?.error("LOGIN_REPLACED", "Previous Telegram login was reset", null)
             pendingLogin = null
         }
@@ -48,10 +51,15 @@ class MainActivity : FlutterActivity() {
         val redirectUri = call.argument<String>("redirectUri")
         val scopes = call.argument<List<String>>("scopes") ?: listOf("profile")
         if (clientId.isNullOrBlank() || redirectUri.isNullOrBlank()) {
+            Log.w(logTag, "Telegram native login rejected because configuration is missing")
             result.error("INVALID_CONFIGURATION", "Telegram clientId and redirectUri are required", null)
             return
         }
 
+        Log.i(
+            logTag,
+            "Telegram native login started clientId=$clientId redirectHost=${Uri.parse(redirectUri).host} scopes=${scopes.size}",
+        )
         pendingLogin = result
         TelegramLogin.init(clientId, redirectUri, scopes)
         TelegramLogin.startLogin(this)
@@ -75,19 +83,27 @@ class MainActivity : FlutterActivity() {
         val callbackKey = uri.toString()
         if (handledCallback == callbackKey) return
         handledCallback = callbackKey
+        Log.i(logTag, "Telegram native callback received host=${uri.host} pending=${pendingLogin != null}")
         try {
             TelegramLogin.handleLoginResponse(
                 uri,
                 onSuccess = { loginData ->
-                    pendingLogin?.success(loginData.idToken)
+                    val idToken = loginData.idToken
+                    Log.i(
+                        logTag,
+                        "Telegram native callback parsed successfully tokenPresent=${!idToken.isNullOrBlank()} tokenLength=${idToken?.length ?: 0}",
+                    )
+                    pendingLogin?.success(idToken)
                     pendingLogin = null
                 },
                 onError = { error ->
+                    Log.w(logTag, "Telegram native callback failed error=${error.message}")
                     pendingLogin?.error("TELEGRAM_LOGIN_FAILED", error.message, null)
                     pendingLogin = null
                 },
             )
         } catch (error: Exception) {
+            Log.e(logTag, "Telegram native callback threw ${error::class.java.simpleName}", error)
             pendingLogin?.error("TELEGRAM_CALLBACK_FAILED", error.message, null)
             pendingLogin = null
         } finally {

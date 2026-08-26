@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
+import 'mobile_logger.dart';
+
 const apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'https://api.repairauto.uz',
@@ -118,9 +120,35 @@ class ApiClient {
     if (headers != null) requestHeaders.addAll(headers);
     final uri = _uri(path, query);
     final encoded = body == null ? null : jsonEncode(body);
-    final response = await _send(method, uri, requestHeaders, encoded);
+    final stopwatch = Stopwatch()..start();
+    MobileLog.info(
+      'HTTP request started method=$method path=${_safePath(uri)} '
+      'bodyPresent=${body != null} authPresent=${requestHeaders.containsKey(HttpHeaders.authorizationHeader)}',
+    );
+    late final http.Response response;
+    try {
+      response = await _send(method, uri, requestHeaders, encoded);
+      stopwatch.stop();
+      MobileLog.info(
+        'HTTP request completed method=$method path=${_safePath(uri)} '
+        'status=${response.statusCode} durationMs=${stopwatch.elapsedMilliseconds} '
+        'rndrId=${response.headers['rndr-id'] ?? 'none'} bodyLength=${response.body.length}',
+      );
+    } catch (error, stackTrace) {
+      stopwatch.stop();
+      MobileLog.severe(
+        'HTTP request failed before response method=$method path=${_safePath(uri)} '
+        'durationMs=${stopwatch.elapsedMilliseconds} error=${error.runtimeType}',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
 
     if (response.statusCode == 401 && retryOn401 && await _refresh()) {
+      MobileLog.info(
+        'HTTP request retrying after refresh method=$method path=${_safePath(uri)}',
+      );
       return request(
         method,
         path,
@@ -174,6 +202,10 @@ class ApiClient {
             ),
           )
           .toList(growable: false);
+      MobileLog.warning(
+        'HTTP response decoded as API error status=${response.statusCode} '
+        'code=${data['code'] ?? 'unknown'} fieldErrorCount=${fieldErrors.length}',
+      );
       throw ApiException(
         response.statusCode,
         '${data['message'] ?? 'Request failed'}',
@@ -190,16 +222,28 @@ class ApiClient {
 
   Future<bool> _doRefresh() async {
     final refresh = await authStore.refreshToken;
-    if (refresh == null || refresh.isEmpty) return false;
+    if (refresh == null || refresh.isEmpty) {
+      MobileLog.info('Token refresh skipped because no refresh token is stored');
+      return false;
+    }
+    final uri = _uri('/auth/refresh');
+    final stopwatch = Stopwatch()..start();
+    MobileLog.info('Token refresh started path=${_safePath(uri)}');
     final response = await _client.post(
-      _uri('/auth/refresh'),
+      uri,
       headers: {
         HttpHeaders.acceptHeader: 'application/json',
         HttpHeaders.contentTypeHeader: 'application/json',
       },
       body: jsonEncode({'refreshToken': refresh}),
     );
+    stopwatch.stop();
+    MobileLog.info(
+      'Token refresh completed status=${response.statusCode} '
+      'durationMs=${stopwatch.elapsedMilliseconds} rndrId=${response.headers['rndr-id'] ?? 'none'}',
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      MobileLog.warning('Token refresh failed, clearing stored tokens');
       await authStore.clear();
       return false;
     }
@@ -250,9 +294,21 @@ class ApiClient {
     });
     request.fields.addAll(fields);
     request.files.add(await http.MultipartFile.fromPath(fieldName, file.path));
+    final stopwatch = Stopwatch()..start();
+    MobileLog.info(
+      'Upload request started path=${_safePath(request.url)} '
+      'fieldCount=${fields.length} authPresent=${token != null}',
+    );
     final streamed = await request.send();
     final response = await http.Response.fromStream(streamed);
+    stopwatch.stop();
+    MobileLog.info(
+      'Upload request completed path=${_safePath(request.url)} '
+      'status=${response.statusCode} durationMs=${stopwatch.elapsedMilliseconds} '
+      'rndrId=${response.headers['rndr-id'] ?? 'none'} bodyLength=${response.body.length}',
+    );
     if (response.statusCode == 401 && await _refresh()) {
+      MobileLog.info('Upload request retrying after refresh path=${_safePath(request.url)}');
       return upload(
         path,
         file,
@@ -262,5 +318,12 @@ class ApiClient {
       );
     }
     return _decode(response);
+  }
+
+  String _safePath(Uri uri) {
+    if (uri.queryParameters.isEmpty) {
+      return uri.path;
+    }
+    return '${uri.path}?queryKeys=${uri.queryParameters.keys.join(',')}';
   }
 }
