@@ -41,6 +41,11 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
   String? error;
   bool loading = false;
 
+  Map<String, dynamic> _deviceContext() => {
+    'platform': Platform.isAndroid ? 'ANDROID' : 'IOS',
+    'appVersion': '1.0.0',
+  };
+
   Future<void> login(String role, String idToken) async {
     setState(() {
       loading = true;
@@ -48,8 +53,8 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     });
     try {
       final actor = role == 'CUSTOMER'
-          ? await auth.loginCustomer(idToken)
-          : await auth.loginTechnician(idToken);
+          ? await auth.loginCustomer(idToken, device: _deviceContext())
+          : await auth.loginTechnician(idToken, device: _deviceContext());
       if (!mounted) return;
       navigatorKey.currentState?.pushReplacement(
         MaterialPageRoute(

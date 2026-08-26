@@ -268,27 +268,31 @@ class _LoginPageState extends State<LoginPage> {
                                     : tr('signIn'),
                           ),
                   ),
-                  if (role == 'CUSTOMER') ...[
-                    const SizedBox(height: 18),
-                    Text(
-                      tr('anotherWay'),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.labelMedium,
-                    ),
-                    const SizedBox(height: 6),
-                    NavigationBar(
-                      height: 72,
-                      selectedIndex: ['GOOGLE', 'TELEGRAM', 'PHONE'].indexOf(customerMethod),
-                      onDestinationSelected: (index) => setState(() {
-                        customerMethod = ['GOOGLE', 'TELEGRAM', 'PHONE'][index];
-                      }),
-                      destinations: [
-                        NavigationDestination(icon: const Icon(Icons.account_circle_outlined), label: tr('google')),
-                        NavigationDestination(icon: const Icon(Icons.telegram), label: tr('telegram')),
-                        NavigationDestination(icon: const Icon(Icons.phone_outlined), label: tr('phone')),
-                      ],
-                    ),
-                  ],
+                  const SizedBox(height: 18),
+                  Text(
+                    tr('anotherWay'),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  NavigationBar(
+                    height: 72,
+                    selectedIndex: role == 'TECHNICIAN'
+                        ? 1
+                        : ['GOOGLE', 'TELEGRAM', 'PHONE'].indexOf(customerMethod),
+                    onDestinationSelected: (index) {
+                      if (role == 'CUSTOMER') {
+                        setState(() {
+                          customerMethod = ['GOOGLE', 'TELEGRAM', 'PHONE'][index];
+                        });
+                      }
+                    },
+                    destinations: [
+                      NavigationDestination(icon: const Icon(Icons.account_circle_outlined), label: tr('google')),
+                      NavigationDestination(icon: const Icon(Icons.telegram), label: tr('telegram')),
+                      NavigationDestination(icon: const Icon(Icons.phone_outlined), label: tr('phone')),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -302,5 +306,4 @@ class _LoginPageState extends State<LoginPage> {
     ),
   );
 }
-
 

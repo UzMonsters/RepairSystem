@@ -34,8 +34,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         preferredLanguage: language,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Profile saved')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(mobileText(language, 'profileSaved'))),
+        );
       }
     } catch (error) {
       if (mounted) {

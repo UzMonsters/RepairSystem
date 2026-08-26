@@ -247,21 +247,9 @@ class MobileChatRepository {
         (item) => item,
       );
 
-  Future<Map<String, dynamic>> getOrCreateForRequest(int requestId) async {
-    // A technician can participate in the manager conversation created by the
-    // admin panel. Reuse it when it exists; otherwise fall back to the normal
-    // customer-technician conversation endpoint.
-    final existing = await conversations(page: 0);
-    for (final item in existing.content) {
-      final sameRequest = (item['repairRequestId'] as num?)?.toInt() == requestId;
-      if (sameRequest && item['conversationType'] == 'TECHNICIAN_MANAGER') {
-        return item;
-      }
-    }
-
-    return (await api.post('/me/conversations/requests/$requestId') as Map)
-        .cast<String, dynamic>();
-  }
+  Future<Map<String, dynamic>> getOrCreateForRequest(int requestId) async =>
+      (await api.post('/me/conversations/requests/$requestId') as Map)
+          .cast<String, dynamic>();
 
   Future<Map<String, dynamic>> sendMessage(
     int conversationId,

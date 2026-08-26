@@ -59,10 +59,9 @@ class MainActivity : FlutterActivity() {
         pendingLogin = result
         TelegramLogin.init(clientId, redirectUri, scopes)
 
-        // Android may deliver the Telegram App Link while recreating the
-        // activity, before Flutter has called this method. Keep that URI and
-        // finish it only after the SDK has been initialized and a result is
-        // available for the current Flutter request.
+        // Android can deliver the Telegram App Link while recreating the
+        // activity, before Flutter has created the pending method call.
+        // Process the saved callback only after the SDK and result are ready.
         pendingCallbackUri?.let { callbackUri ->
             pendingCallbackUri = null
             handleTelegramCallback(callbackUri)
