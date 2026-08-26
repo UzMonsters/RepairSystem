@@ -15,7 +15,8 @@ repairSystem/.env.*
 # Backend
 backend/build/
 backend/.gradle/
-backend/.en
+backend/.env
+backend/src/main/resources/*firebase-adminsdk*.json
 # Logs and local OS files
 *.log
 .DS_Store

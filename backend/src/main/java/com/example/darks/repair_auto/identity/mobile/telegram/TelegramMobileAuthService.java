@@ -1,5 +1,10 @@
 package com.example.darks.repair_auto.identity.mobile.telegram;
 
+import static com.example.darks.repair_auto.identity.mobile.auth.MobileAuthLogSupport.deviceSummary;
+import static com.example.darks.repair_auto.identity.mobile.auth.MobileAuthLogSupport.present;
+import static com.example.darks.repair_auto.identity.mobile.auth.MobileAuthLogSupport.safeLength;
+import static com.example.darks.repair_auto.identity.mobile.auth.MobileAuthLogSupport.safeUserAgent;
+
 import com.example.darks.repair_auto.customer.domain.Customer;
 import com.example.darks.repair_auto.customer.infrastructure.CustomerRepository;
 import com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService;
@@ -77,7 +82,20 @@ public class TelegramMobileAuthService {
 
     @Transactional
     public MobileAuthResponse loginCustomer(String idToken, MobileDeviceContextRequest device, String ip, String userAgent) {
+        LOGGER.info(
+                "Mobile Telegram customer login verification started tokenPresent={} tokenLength={} "
+                        + "device=[{}] ip={} userAgent={}",
+                present(idToken),
+                safeLength(idToken),
+                deviceSummary(device),
+                ip,
+                safeUserAgent(userAgent));
         TelegramIdentity identity = idTokenVerifier.verifyCustomerToken(idToken);
+        LOGGER.info(
+                "Mobile Telegram customer token verified telegramUserId={} subjectPresent={} usernamePresent={}",
+                identity.telegramUserId(),
+                present(identity.subject()),
+                present(identity.username()));
         if (mobileAuthenticationService != null) {
             return mobileAuthenticationService.authenticate(
                     PushClientType.CUSTOMER_MOBILE,
@@ -159,7 +177,20 @@ public class TelegramMobileAuthService {
 
     @Transactional
     public MobileAuthResponse loginTechnician(String idToken, MobileDeviceContextRequest device, String ip, String userAgent) {
+        LOGGER.info(
+                "Mobile Telegram technician login verification started tokenPresent={} tokenLength={} "
+                        + "device=[{}] ip={} userAgent={}",
+                present(idToken),
+                safeLength(idToken),
+                deviceSummary(device),
+                ip,
+                safeUserAgent(userAgent));
         TelegramIdentity identity = idTokenVerifier.verifyTechnicianToken(idToken);
+        LOGGER.info(
+                "Mobile Telegram technician token verified telegramUserId={} subjectPresent={} usernamePresent={}",
+                identity.telegramUserId(),
+                present(identity.subject()),
+                present(identity.username()));
         if (mobileAuthenticationService != null) {
             return mobileAuthenticationService.authenticate(
                     PushClientType.TECHNICIAN_MOBILE,
