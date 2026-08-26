@@ -49,7 +49,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     public: {
-      realtimeUrl: process.env.NUXT_PUBLIC_REALTIME_URL || '',
+      realtimeUrl: process.env.NUXT_PUBLIC_REALTIME_URL || 'wss://repair-auto.onrender.com/ws',
       telegramBotUsername: process.env.NUXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'repairauto_bot',
       firebaseApiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY,
       firebaseAuthDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN,

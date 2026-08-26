@@ -2,13 +2,63 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'api_client.dart';
 import 'models.dart';
 import 'realtime_client.dart';
 import 'repositories.dart';
 import 'telegram_auth.dart';
+
+String mobileText(String language, String key) {
+  const strings = <String, Map<String, String>>{
+    'ru': {
+      'requests': 'Заявки', 'createRequest': 'Создать заявку',
+      'description': 'Описание проблемы', 'category': 'Категория',
+      'chooseCategory': 'Выберите категорию', 'location': 'Геопозиция',
+      'getLocation': 'Определить мою геопозицию', 'locationReady': 'Геопозиция добавлена',
+      'create': 'Создать', 'noRequests': 'Заявок нет', 'filters': 'Фильтры',
+      'all': 'Все', 'new': 'Новая', 'assigned': 'Назначена',
+      'inProgress': 'В работе', 'completed': 'Завершена', 'cancelled': 'Отменена',
+      'scheduled': 'Запланирована', 'waitingParts': 'Ожидание запчастей',
+      'schedule': 'Расписание визитов', 'chat': 'Чат с техником',
+      'message': 'Сообщение', 'sendFailed': 'Не удалось отправить сообщение',
+      'notifications': 'Уведомления', 'profile': 'Профиль', 'save': 'Сохранить',
+      'logout': 'Выйти', 'fullName': 'Имя и фамилия', 'markAllRead': 'Прочитать все',
+    },
+    'uz': {
+      'requests': 'Arizalar', 'createRequest': 'Ariza yaratish',
+      'description': 'Muammo tavsifi', 'category': 'Kategoriya',
+      'chooseCategory': 'Kategoriyani tanlang', 'location': 'Geolokatsiya',
+      'getLocation': 'Geolokatsiyamni aniqlash', 'locationReady': 'Geolokatsiya qo‘shildi',
+      'create': 'Yaratish', 'noRequests': 'Arizalar yo‘q', 'filters': 'Filtrlar',
+      'all': 'Barchasi', 'new': 'Yangi', 'assigned': 'Tayinlangan',
+      'inProgress': 'Jarayonda', 'completed': 'Yakunlangan', 'cancelled': 'Bekor qilingan',
+      'scheduled': 'Rejalashtirilgan', 'waitingParts': 'Ehtiyot qismlar kutilmoqda',
+      'schedule': 'Tashrif jadvali', 'chat': 'Texnik bilan chat',
+      'message': 'Xabar', 'sendFailed': 'Xabar yuborilmadi',
+      'notifications': 'Bildirishnomalar', 'profile': 'Profil', 'save': 'Saqlash',
+      'logout': 'Chiqish', 'fullName': 'Ism va familiya', 'markAllRead': 'Barchasini o‘qilgan qilish',
+    },
+    'en': {
+      'requests': 'Requests', 'createRequest': 'Create repair request',
+      'description': 'Problem description', 'category': 'Category',
+      'chooseCategory': 'Choose a category', 'location': 'Location',
+      'getLocation': 'Use my location', 'locationReady': 'Location added',
+      'create': 'Create', 'noRequests': 'No requests', 'filters': 'Filters',
+      'all': 'All', 'new': 'New', 'assigned': 'Assigned',
+      'inProgress': 'In progress', 'completed': 'Completed', 'cancelled': 'Cancelled',
+      'scheduled': 'Scheduled', 'waitingParts': 'Waiting for parts',
+      'schedule': 'Visit schedule', 'chat': 'Chat with technician',
+      'message': 'Message', 'sendFailed': 'Message could not be sent',
+      'notifications': 'Notifications', 'profile': 'Profile', 'save': 'Save',
+      'logout': 'Logout', 'fullName': 'Full name', 'markAllRead': 'Mark all read',
+    },
+  };
+  return strings[language]?[key] ?? strings['en']![key] ?? key;
+}
 
 void main() => runApp(const RepairAutoApp());
 
@@ -115,6 +165,7 @@ class _LoginPageState extends State<LoginPage> {
   String customerMethod = 'TELEGRAM';
   bool register = false;
   String language = 'ru';
+  String? localError;
 
   String tr(String key) {
     const values = {
@@ -128,6 +179,14 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        systemNavigationBarColor: Color(0xfffff8f5),
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+    );
   }
 
   @override
@@ -138,21 +197,18 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void showUnavailable() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('This authentication method will be connected to the API later.')),
-    );
+    setState(() => localError = 'This authentication method is not configured yet.');
   }
 
   Future<void> submit() async {
+    setState(() => localError = null);
     if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM') {
       try {
         final idToken = await widget.onTelegramLogin(role);
         if (mounted) await widget.onLogin(role, idToken);
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceFirst('StateError: ', ''))),
-        );
+        setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
       }
       return;
     }
@@ -192,16 +248,16 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xff070d26),
+    backgroundColor: const Color(0xfffff8f5),
     body: DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xff111a3e),
-            Color(0xff080e28),
-            Color(0xff05091b),
+            Color(0xfffffcfa),
+            Color(0xfffff8f5),
+            Color(0xfffff1eb),
           ],
           stops: [0, .52, 1],
         ),
@@ -306,10 +362,10 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 12),
                     TextField(controller: phone, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: tr('phoneNumber'))),
                   ],
-                  if (widget.error != null) ...[
+                  if (widget.error != null || localError != null) ...[
                     const SizedBox(height: 12),
                     Text(
-                      widget.error!,
+                      localError ?? widget.error!,
                       style: const TextStyle(color: Colors.red),
                     ),
                   ],
@@ -419,6 +475,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final isCustomer = widget.actor.type == 'CUSTOMER';
+    final language = widget.api.language;
     final pages = isCustomer
           ? [
             CustomerRequests(repo: customer, chat: chat, categories: categories, events: realtime.events),
@@ -434,28 +491,28 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: Text(
           tab == 0
-              ? (isCustomer ? 'My requests' : 'Assigned jobs')
+              ? (isCustomer ? mobileText(language, 'requests') : 'Assigned jobs')
               : tab == 1
-              ? 'Notifications'
-              : 'Profile',
+              ? mobileText(language, 'notifications')
+              : mobileText(language, 'profile'),
         ),
       ),
       body: IndexedStack(index: tab, children: pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
         onDestinationSelected: (value) => setState(() => tab = value),
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.assignment_outlined),
-            label: 'Requests',
+            label: mobileText(language, 'requests'),
           ),
           NavigationDestination(
             icon: Icon(Icons.notifications_outlined),
-            label: 'Notifications',
+            label: mobileText(language, 'notifications'),
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
-            label: 'Profile',
+            label: mobileText(language, 'profile'),
           ),
         ],
       ),
@@ -477,6 +534,9 @@ class _CustomerRequestsState extends State<CustomerRequests> {
   late Future<PageResponse<RequestItem>> future;
   late Future<List<Category>> categories;
   int selectedCategoryId = 1;
+  double? latitude;
+  double? longitude;
+  bool locating = false;
   StreamSubscription<Map<String, dynamic>>? eventSubscription;
   final description = TextEditingController();
   final address = TextEditingController();
@@ -511,16 +571,69 @@ class _CustomerRequestsState extends State<CustomerRequests> {
 
   Future<void> createRequest() async {
     if (description.text.trim().isEmpty) return;
+    if (selectedCategoryId <= 0) return;
     await widget.repo.createRequest(
       description: description.text.trim(),
       categoryId: selectedCategoryId,
       address: address.text.trim().isEmpty ? null : address.text.trim(),
-      locationSource:
-          address.text.trim().isEmpty ? null : 'MANUAL',
+      latitude: latitude,
+      longitude: longitude,
+      locationSource: latitude == null ? null : 'MOBILE',
     );
     description.clear();
     address.clear();
+    latitude = null;
+    longitude = null;
     setState(() => future = widget.repo.requests());
+  }
+
+  Future<void> useCurrentLocation() async {
+    setState(() => locating = true);
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        throw StateError('Location services are disabled');
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        throw StateError('Location permission was not granted');
+      }
+      final position = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
+      setState(() {
+        latitude = position.latitude;
+        longitude = position.longitude;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mobileText(widget.repo.api.language, 'locationReady'))),
+      );
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
+    } finally {
+      if (mounted) setState(() => locating = false);
+    }
+  }
+
+  Future<void> chooseCategory(List<Category> items) async {
+    final selected = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: items.map((item) => ListTile(
+            leading: const Icon(Icons.build_outlined),
+            title: Text(item.name),
+            trailing: item.id == selectedCategoryId ? const Icon(Icons.check) : null,
+            onTap: () => Navigator.pop(sheetContext, item.id),
+          )).toList(),
+        ),
+      ),
+    );
+    if (selected != null && mounted) setState(() => selectedCategoryId = selected);
   }
 
   @override
@@ -535,16 +648,16 @@ class _CustomerRequestsState extends State<CustomerRequests> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Create repair request',
+                Text(
+                  mobileText(widget.repo.api.language, 'createRequest'),
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: description,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Problem description',
+                  decoration: InputDecoration(
+                    labelText: mobileText(widget.repo.api.language, 'description'),
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -554,23 +667,15 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                   builder: (context, snapshot) {
                     final items = snapshot.data ?? const <Category>[];
                     if (items.isEmpty) return const SizedBox.shrink();
-                    return DropdownButtonFormField<int>(
-                      value: items.any((item) => item.id == selectedCategoryId)
-                          ? selectedCategoryId
-                          : items.first.id,
-                      decoration: const InputDecoration(
-                        labelText: 'Category',
-                        border: OutlineInputBorder(),
+                    return OutlinedButton.icon(
+                      onPressed: () => chooseCategory(items),
+                      icon: const Icon(Icons.add),
+                      label: Text(
+                        items.firstWhere(
+                          (item) => item.id == selectedCategoryId,
+                          orElse: () => items.first,
+                        ).name,
                       ),
-                      items: items
-                          .map((item) => DropdownMenuItem<int>(
-                                value: item.id,
-                                child: Text(item.name),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) setState(() => selectedCategoryId = value);
-                      },
                     );
                   },
                 ),
@@ -578,16 +683,32 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                 TextField(
                   controller: address,
                   maxLength: 500,
-                  decoration: const InputDecoration(
-                    labelText: 'Address (optional)',
+                  decoration: InputDecoration(
+                    labelText: mobileText(widget.repo.api.language, 'location'),
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.location_on_outlined),
+                    prefixIcon: IconButton(
+                      tooltip: mobileText(widget.repo.api.language, 'getLocation'),
+                      onPressed: locating ? null : useCurrentLocation,
+                      icon: const Icon(Icons.location_on_outlined),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                OutlinedButton.icon(
+                  onPressed: locating ? null : useCurrentLocation,
+                  icon: locating
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.my_location),
+                  label: Text(
+                    latitude == null
+                        ? mobileText(widget.repo.api.language, 'getLocation')
+                        : '${latitude!.toStringAsFixed(5)}, ${longitude!.toStringAsFixed(5)}',
                   ),
                 ),
                 const SizedBox(height: 10),
                 FilledButton(
                   onPressed: createRequest,
-                  child: const Text('Create'),
+                  child: Text(mobileText(widget.repo.api.language, 'create')),
                 ),
               ],
             ),
@@ -607,7 +728,7 @@ class _CustomerRequestsState extends State<CustomerRequests> {
               );
             }
             final items = snapshot.data?.content ?? [];
-            if (items.isEmpty) return const Center(child: Text('No requests'));
+            if (items.isEmpty) return Center(child: Text(mobileText(widget.repo.api.language, 'noRequests')));
             return Column(
               children: items
                   .map(
@@ -651,7 +772,7 @@ class _RequestDetailsState extends State<RequestDetails> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MobileChatScreen(repo: widget.chat, requestId: widget.item.id),
+        builder: (_) => MobileChatScreen(repo: widget.chat, requestId: widget.item.id, language: widget.chat.api.language),
       ),
     );
   }
@@ -730,9 +851,10 @@ class _RequestDetailsState extends State<RequestDetails> {
 }
 
 class MobileChatScreen extends StatefulWidget {
-  const MobileChatScreen({super.key, required this.repo, required this.requestId});
+  const MobileChatScreen({super.key, required this.repo, required this.requestId, this.language = 'ru'});
   final MobileChatRepository repo;
   final int requestId;
+  final String language;
 
   @override
   State<MobileChatScreen> createState() => _MobileChatScreenState();
@@ -742,6 +864,7 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
   final text = TextEditingController();
   late Future<PageResponse<Map<String, dynamic>>> future;
   int? conversationId;
+  bool sending = false;
 
   @override
   void initState() {
@@ -758,10 +881,27 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
 
   Future<void> send() async {
     final value = text.text.trim();
-    if (value.isEmpty || conversationId == null) return;
-    await widget.repo.sendMessage(conversationId!, value);
-    text.clear();
-    setState(() => future = widget.repo.messages(conversationId!));
+    if (value.isEmpty || sending) return;
+    if (conversationId == null) await future;
+    if (conversationId == null || !mounted) return;
+    setState(() => sending = true);
+    try {
+      await widget.repo.sendMessage(
+        conversationId!,
+        value,
+        clientMessageId: '${DateTime.now().microsecondsSinceEpoch}',
+      );
+      text.clear();
+      setState(() => future = widget.repo.messages(conversationId!));
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${mobileText(widget.language, 'sendFailed')}: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => sending = false);
+    }
   }
 
   @override
@@ -772,7 +912,7 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Chat with technician')),
+    appBar: AppBar(title: Text(mobileText(widget.language, 'chat'))),
     body: FutureBuilder<PageResponse<Map<String, dynamic>>>(
       future: future,
       builder: (context, snapshot) {
@@ -802,8 +942,8 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
                 padding: const EdgeInsets.all(8),
                 child: Row(
                   children: [
-                    Expanded(child: TextField(controller: text, decoration: const InputDecoration(hintText: 'Message'))),
-                    IconButton(onPressed: send, icon: const Icon(Icons.send)),
+                    Expanded(child: TextField(controller: text, textInputAction: TextInputAction.send, onSubmitted: (_) => send(), decoration: InputDecoration(hintText: mobileText(widget.language, 'message')))),
+                    IconButton(onPressed: sending ? null : send, icon: sending ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send)),
                   ],
                 ),
               ),
@@ -827,6 +967,7 @@ class TechnicianJobs extends StatefulWidget {
 class _TechnicianJobsState extends State<TechnicianJobs> {
   late Future<PageResponse<Job>> future;
   StreamSubscription<Map<String, dynamic>>? eventSubscription;
+  String statusFilter = 'ALL';
 
   @override
   void initState() {
@@ -853,7 +994,11 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) return Center(child: Text('${snapshot.error}'));
-        final jobs = snapshot.data?.content ?? [];
+        final allJobs = snapshot.data?.content ?? [];
+        final jobs = statusFilter == 'ALL'
+            ? allJobs
+            : allJobs.where((job) => job.status == statusFilter).toList();
+        final language = widget.repo.api.language;
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -865,8 +1010,30 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
                 ),
               ),
               icon: const Icon(Icons.calendar_month_outlined),
-              label: const Text('Visit schedule'),
+              label: Text(mobileText(language, 'schedule')),
             ),
+            const SizedBox(height: 8),
+            Text(mobileText(language, 'filters'), style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 6),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: [
+                  ButtonSegment(value: 'ALL', label: Text(mobileText(language, 'all'))),
+                  ButtonSegment(value: 'NEW', label: Text(mobileText(language, 'new'))),
+                  ButtonSegment(value: 'ASSIGNED', label: Text(mobileText(language, 'assigned'))),
+                  ButtonSegment(value: 'IN_PROGRESS', label: Text(mobileText(language, 'inProgress'))),
+                  ButtonSegment(value: 'SCHEDULED', label: Text(mobileText(language, 'scheduled'))),
+                  ButtonSegment(value: 'WAITING_FOR_PARTS', label: Text(mobileText(language, 'waitingParts'))),
+                  ButtonSegment(value: 'COMPLETED', label: Text(mobileText(language, 'completed'))),
+                  ButtonSegment(value: 'CANCELLED', label: Text(mobileText(language, 'cancelled'))),
+                ],
+                selected: {statusFilter},
+                onSelectionChanged: (value) => setState(() => statusFilter = value.first),
+              ),
+            ),
+            const SizedBox(height: 8),
             ...jobs.map(
                 (job) => Card(
                   child: ListTile(
@@ -994,7 +1161,7 @@ class JobActions extends StatelessWidget {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => MobileChatScreen(repo: chat, requestId: job.id),
+                builder: (_) => MobileChatScreen(repo: chat, requestId: job.id, language: chat.api.language),
               ),
             );
           },
@@ -1087,6 +1254,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) => FutureBuilder<PageResponse<NotificationItem>>(
     future: future,
     builder: (context, snapshot) {
+      final language = widget.repo.api.language;
       if (snapshot.connectionState == ConnectionState.waiting) {
         return const Center(child: CircularProgressIndicator());
       }
@@ -1101,7 +1269,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: FilledButton.tonalIcon(
                 onPressed: markAllRead,
                 icon: const Icon(Icons.done_all),
-                label: const Text('Mark all read'),
+                label: Text(mobileText(language, 'markAllRead')),
               ),
             ),
             ...(snapshot.data?.content ?? []).map(
@@ -1177,6 +1345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = widget.repo.api.language;
     final initials = name.text
         .split(RegExp(r'\s+'))
         .where((part) => part.isNotEmpty)
@@ -1210,8 +1379,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 16),
         TextField(
           controller: name,
-          decoration: const InputDecoration(
-            labelText: 'Full name',
+          decoration: InputDecoration(
+            labelText: mobileText(strings, 'fullName'),
             border: OutlineInputBorder(),
           ),
           onChanged: (_) => setState(() {}),
@@ -1220,7 +1389,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         DropdownButtonFormField<String>(
           initialValue: language,
           decoration: const InputDecoration(
-            labelText: 'Language',
+            labelText: 'RU / UZ / EN',
             border: OutlineInputBorder(),
           ),
           items: const [
@@ -1235,13 +1404,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onPressed: saving ? null : save,
           child: saving
               ? const CircularProgressIndicator()
-              : const Text('Save profile'),
+              : Text(mobileText(strings, 'save')),
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: widget.onLogout,
           icon: const Icon(Icons.logout),
-          label: const Text('Logout'),
+          label: Text(mobileText(strings, 'logout')),
         ),
       ],
     );

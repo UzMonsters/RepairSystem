@@ -39,6 +39,10 @@ android {
     }
 }
 
+dependencies {
+    implementation("org.telegram:login-sdk:1.0.0")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

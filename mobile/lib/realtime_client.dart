@@ -30,6 +30,7 @@ class MobileRealtimeClient {
       config: StompConfig(
         url: url,
         stompConnectHeaders: {'Authorization': 'Bearer $token'},
+        webSocketConnectHeaders: {'Authorization': 'Bearer $token'},
         reconnectDelay: const Duration(seconds: 5),
         heartbeatIncoming: const Duration(seconds: 10),
         heartbeatOutgoing: const Duration(seconds: 10),

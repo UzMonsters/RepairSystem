@@ -2,7 +2,7 @@
 
 Flutter application prototype for customers and technicians.
 
-The current UI uses mock data because the backend does not yet have customer-specific endpoints or a `CUSTOMER` role. The screens are prepared for API integration later.
+The mobile app uses the authenticated `/api/v1/mobile` backend APIs for customers and technicians. Telegram authentication requires the official Android SDK configuration and the Telegram client build defines described below.
 
 ## Included screens
 
@@ -12,6 +12,8 @@ The current UI uses mock data because the backend does not yet have customer-spe
 - Technician dashboard, assigned requests and job details
 - Profile and notifications
 - Warm brown/cream theme based on the landing page
+
+The app currently supports request creation, device location, categories, request details, attachments, reviews, technician jobs and actions, schedules, notifications, profile updates, chat and STOMP realtime events. Firebase push delivery still requires adding the Firebase project configuration (`google-services.json`) and an FCM registration token; the backend push registration methods are present but are not called automatically until that configuration is supplied.
 
 ## Run
 

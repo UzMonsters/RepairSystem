@@ -8,7 +8,7 @@ class CategoryRepository {
   final ApiClient api;
 
   Future<List<Category>> list() async {
-    final data = await api.get('/categories', query: {'active': true, 'size': 100});
+    final data = await api.get('/root/categories', query: {'active': true, 'size': 100});
     final content = data is Map ? data['content'] : data;
     return (content as List? ?? [])
         .whereType<Map<String, dynamic>>()
@@ -202,6 +202,10 @@ class TechnicianRepository {
         fields: {'attachmentType': attachmentType},
         fieldName: 'file',
       );
+  Future<List<Map<String, dynamic>>> attachments(int id) async =>
+      (await api.get('/me/jobs/$id/attachments') as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
   Future<List<Map<String, dynamic>>> schedule({
     required String from,
     required String to,
@@ -222,20 +226,20 @@ class MobileChatRepository {
 
   Future<PageResponse<Map<String, dynamic>>> conversations({int page = 0}) async =>
       PageResponse.fromJson(
-        await api.get('/conversations', query: {'page': page, 'size': 20})
+        await api.get('/me/conversations', query: {'page': page, 'size': 20})
             as Map<String, dynamic>,
         (item) => item,
       );
 
   Future<Map<String, dynamic>> conversation(int id) async =>
-      (await api.get('/conversations/$id') as Map).cast<String, dynamic>();
+    (await api.get('/me/conversations/$id') as Map).cast<String, dynamic>();
 
   Future<PageResponse<Map<String, dynamic>>> messages(
     int conversationId, {
     int page = 0,
     int? beforeId,
   }) async => PageResponse.fromJson(
-        await api.get('/conversations/$conversationId/messages', query: {
+        await api.get('/me/conversations/$conversationId/messages', query: {
           'page': page,
           'size': 20,
           if (beforeId != null) 'beforeId': beforeId,
@@ -243,9 +247,21 @@ class MobileChatRepository {
         (item) => item,
       );
 
-  Future<Map<String, dynamic>> getOrCreateForRequest(int requestId) async =>
-      (await api.post('/conversations/requests/$requestId') as Map)
-          .cast<String, dynamic>();
+  Future<Map<String, dynamic>> getOrCreateForRequest(int requestId) async {
+    // A technician can participate in the manager conversation created by the
+    // admin panel. Reuse it when it exists; otherwise fall back to the normal
+    // customer-technician conversation endpoint.
+    final existing = await conversations(page: 0);
+    for (final item in existing.content) {
+      final sameRequest = (item['repairRequestId'] as num?)?.toInt() == requestId;
+      if (sameRequest && item['conversationType'] == 'TECHNICIAN_MANAGER') {
+        return item;
+      }
+    }
+
+    return (await api.post('/me/conversations/requests/$requestId') as Map)
+        .cast<String, dynamic>();
+  }
 
   Future<Map<String, dynamic>> sendMessage(
     int conversationId,
@@ -254,7 +270,7 @@ class MobileChatRepository {
     int? attachmentId,
     String? clientMessageId,
     int? replyToMessageId,
-  }) async => (await api.post('/conversations/$conversationId/messages', body: {
+  }) async => (await api.post('/me/conversations/$conversationId/messages', body: {
         'conversationId': conversationId,
         'clientMessageId': clientMessageId,
         'type': type,
@@ -264,7 +280,7 @@ class MobileChatRepository {
       }) as Map).cast<String, dynamic>();
 
   Future<void> markRead(int conversationId, int messageId) async {
-    await api.post('/conversations/$conversationId/read', body: {
+    await api.post('/me/conversations/$conversationId/read', body: {
       'messageId': messageId,
     });
   }

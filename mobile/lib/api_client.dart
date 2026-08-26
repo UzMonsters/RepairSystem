@@ -82,9 +82,12 @@ class ApiClient {
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
     final base = Uri.parse(apiBaseUrl);
+    final rootPath = path.startsWith('/root/')
+        ? path.substring('/root'.length)
+        : null;
     return base.replace(
       path:
-          '${base.path}/api/v1/mobile${path.startsWith('/') ? path : '/$path'}',
+          '${base.path}/api/v1${rootPath ?? '/mobile${path.startsWith('/') ? path : '/$path'}'}',
       queryParameters: query?.map((key, value) => MapEntry(key, '$value')),
     );
   }

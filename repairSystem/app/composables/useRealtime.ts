@@ -15,8 +15,10 @@ export function useRealtime() {
   function websocketUrl() {
     if (config.public.realtimeUrl) return config.public.realtimeUrl
     if (!import.meta.client) return ''
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${protocol}//${window.location.host}/ws`
+    // The Nuxt app and Spring backend are deployed as separate Render services.
+    // Falling back to window.location.host connects to the frontend service,
+    // where /ws is not exposed, so realtime silently never connects.
+    return 'wss://repair-auto.onrender.com/ws'
   }
 
   function refreshDashboard() {
