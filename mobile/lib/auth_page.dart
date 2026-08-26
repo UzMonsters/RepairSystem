@@ -28,6 +28,7 @@ class _LoginPageState extends State<LoginPage> {
   String role = 'CUSTOMER';
   String customerMethod = 'TELEGRAM';
   bool register = false;
+  bool telegramLoginInProgress = false;
   String language = 'ru';
   String? localError;
 
@@ -60,11 +61,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted || pendingRole == null) return;
       MobileLog.info('Login page resuming pending Telegram login role=$pendingRole');
       setState(() => role = pendingRole);
-      final idToken = await widget.onTelegramLogin(pendingRole);
-      MobileLog.info(
-        'Login page resumed Telegram token role=$pendingRole tokenLength=${MobileLog.safeLength(idToken)}',
-      );
-      if (mounted) await widget.onLogin(pendingRole, idToken);
+      await _runTelegramLogin(pendingRole, resumed: true);
     } catch (e) {
       MobileLog.warning(
         'Login page pending Telegram resume failed error=${e.runtimeType}',
@@ -87,26 +84,51 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => localError = 'This authentication method is not configured yet.');
   }
 
+  Future<void> _runTelegramLogin(String selectedRole, {bool resumed = false}) async {
+    if (telegramLoginInProgress) {
+      MobileLog.info('Login page ignored duplicate Telegram login role=$selectedRole');
+      return;
+    }
+    setState(() {
+      telegramLoginInProgress = true;
+      localError = null;
+    });
+    try {
+      final idToken = await widget.onTelegramLogin(selectedRole);
+      MobileLog.info(
+        'Login page received Telegram token role=$selectedRole resumed=$resumed '
+        'tokenLength=${MobileLog.safeLength(idToken)}',
+      );
+      if (mounted) await widget.onLogin(selectedRole, idToken);
+    } catch (e) {
+      MobileLog.warning(
+        'Login page Telegram login failed role=$selectedRole resumed=$resumed error=${e.runtimeType}',
+        error: e,
+      );
+      if (!mounted) return;
+      setState(() => localError = _telegramErrorMessage(e));
+    } finally {
+      if (mounted) {
+        setState(() => telegramLoginInProgress = false);
+      }
+    }
+  }
+
+  String _telegramErrorMessage(Object error) {
+    if (error is PlatformException &&
+        (error.message?.contains('No active login session') ?? false)) {
+      return 'Telegram login session expired. Please try again.';
+    }
+    return error.toString().replaceFirst('StateError: ', '');
+  }
+
   Future<void> submit() async {
     setState(() => localError = null);
     MobileLog.info(
       'Login page submit tapped role=$role method=$customerMethod register=$register',
     );
     if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM') {
-      try {
-        final idToken = await widget.onTelegramLogin(role);
-        MobileLog.info(
-          'Login page received Telegram token role=$role tokenLength=${MobileLog.safeLength(idToken)}',
-        );
-        if (mounted) await widget.onLogin(role, idToken);
-      } catch (e) {
-        MobileLog.warning(
-          'Login page Telegram submit failed role=$role error=${e.runtimeType}',
-          error: e,
-        );
-        if (!mounted) return;
-        setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
-      }
+      await _runTelegramLogin(role);
       return;
     }
     if (customerMethod == 'GOOGLE') {
@@ -268,7 +290,7 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                   const SizedBox(height: 18),
                   FilledButton.icon(
-                    onPressed: widget.loading ? null : submit,
+                    onPressed: widget.loading || telegramLoginInProgress ? null : submit,
                     icon: Icon(
                       role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE'
                           ? customerMethod == 'GOOGLE' ? Icons.account_circle_outlined : Icons.telegram
@@ -276,7 +298,7 @@ class _LoginPageState extends State<LoginPage> {
                               ? Icons.person_add
                               : Icons.login,
                     ),
-                    label: widget.loading
+                    label: widget.loading || telegramLoginInProgress
                         ? const CircularProgressIndicator()
                         : Text(
                             role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE'

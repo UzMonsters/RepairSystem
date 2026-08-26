@@ -97,8 +97,9 @@ class ApiClient {
   Future<Map<String, String>> _headers({
     String? language,
     String? token,
+    bool authenticated = true,
   }) async {
-    final access = token ?? await authStore.accessToken;
+    final access = authenticated ? token ?? await authStore.accessToken : token;
     return {
       HttpHeaders.acceptHeader: 'application/json',
       HttpHeaders.contentTypeHeader: 'application/json',
@@ -115,8 +116,9 @@ class ApiClient {
     Object? body,
     Map<String, String>? headers,
     bool retryOn401 = true,
+    bool authenticated = true,
   }) async {
-    final requestHeaders = await _headers();
+    final requestHeaders = await _headers(authenticated: authenticated);
     if (headers != null) requestHeaders.addAll(headers);
     final uri = _uri(path, query);
     final encoded = body == null ? null : jsonEncode(body);
@@ -145,7 +147,7 @@ class ApiClient {
       rethrow;
     }
 
-    if (response.statusCode == 401 && retryOn401 && await _refresh()) {
+    if (response.statusCode == 401 && retryOn401 && authenticated && await _refresh()) {
       MobileLog.info(
         'HTTP request retrying after refresh method=$method path=${_safePath(uri)}',
       );
@@ -156,6 +158,7 @@ class ApiClient {
         body: body,
         headers: headers,
         retryOn401: false,
+        authenticated: authenticated,
       );
     }
     return _decode(response);
@@ -262,7 +265,17 @@ class ApiClient {
     Object? body,
     Map<String, dynamic>? query,
     Map<String, String>? headers,
-  }) => request('POST', path, body: body, query: query, headers: headers);
+    bool retryOn401 = true,
+    bool authenticated = true,
+  }) => request(
+    'POST',
+    path,
+    body: body,
+    query: query,
+    headers: headers,
+    retryOn401: retryOn401,
+    authenticated: authenticated,
+  );
   Future<dynamic> patch(
     String path, {
     Object? body,
