@@ -11,6 +11,8 @@ class MainActivity : FlutterActivity() {
     private val channelName = "repair_auto/telegram_auth"
     private var pendingLogin: MethodChannel.Result? = null
     private var handledCallback: String? = null
+    private var flutterChannelReady = false
+    private var pendingCallbackUri: Uri? = null
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,6 +27,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "login" -> startTelegramLogin(call, result)
+                    "pendingRole" -> result.success(pendingCallbackUri?.let(::roleForCallback))
                     "cancel" -> {
                         val pending = pendingLogin
                         pendingLogin = null
@@ -34,6 +37,7 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        flutterChannelReady = true
     }
 
     private fun startTelegramLogin(call: MethodCall, result: MethodChannel.Result) {
@@ -54,6 +58,16 @@ class MainActivity : FlutterActivity() {
 
         pendingLogin = result
         TelegramLogin.init(clientId, redirectUri, scopes)
+
+        // Android may deliver the Telegram App Link while recreating the
+        // activity, before Flutter has called this method. Keep that URI and
+        // finish it only after the SDK has been initialized and a result is
+        // available for the current Flutter request.
+        pendingCallbackUri?.let { callbackUri ->
+            pendingCallbackUri = null
+            handleTelegramCallback(callbackUri)
+            if (pendingLogin == null) return
+        }
         TelegramLogin.startLogin(this)
     }
 
@@ -72,6 +86,11 @@ class MainActivity : FlutterActivity() {
 
     private fun handleTelegramCallback(uri: Uri) {
         if (uri.host?.endsWith("-login.tg.dev") != true) return
+        if (!flutterChannelReady || pendingLogin == null) {
+            pendingCallbackUri = uri
+            intent?.data = null
+            return
+        }
         val callbackKey = uri.toString()
         if (handledCallback == callbackKey) return
         handledCallback = callbackKey
@@ -94,5 +113,11 @@ class MainActivity : FlutterActivity() {
             // Prevent onResume from processing the same deep link repeatedly.
             intent?.data = null
         }
+    }
+
+    private fun roleForCallback(uri: Uri): String? = when (uri.host) {
+        "app2962537527-login.tg.dev" -> "CUSTOMER"
+        "app2657113889-login.tg.dev" -> "TECHNICIAN"
+        else -> null
     }
 }

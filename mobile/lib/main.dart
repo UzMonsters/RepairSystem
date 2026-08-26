@@ -130,6 +130,7 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     home: LoginPage(
       onLogin: login,
       onTelegramLogin: loginWithTelegram,
+      onPendingTelegramRole: telegram.pendingRole,
       onRequestPhoneOtp: requestPhoneOtp,
       onVerifyPhoneOtp: verifyPhoneOtp,
       loading: loading,
@@ -143,6 +144,7 @@ class LoginPage extends StatefulWidget {
     super.key,
     required this.onLogin,
     required this.onTelegramLogin,
+    required this.onPendingTelegramRole,
     required this.onRequestPhoneOtp,
     required this.onVerifyPhoneOtp,
     required this.loading,
@@ -150,6 +152,7 @@ class LoginPage extends StatefulWidget {
   });
   final Future<void> Function(String role, String idToken) onLogin;
   final Future<String> Function(String role) onTelegramLogin;
+  final Future<String?> Function() onPendingTelegramRole;
   final Future<String> Function(String role, String phone) onRequestPhoneOtp;
   final Future<void> Function(String role, String challengeId, String code) onVerifyPhoneOtp;
   final bool loading;
@@ -187,6 +190,21 @@ class _LoginPageState extends State<LoginPage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
+    _resumePendingTelegramLogin();
+  }
+
+  Future<void> _resumePendingTelegramLogin() async {
+    try {
+      final pendingRole = await widget.onPendingTelegramRole();
+      if (!mounted || pendingRole == null) return;
+      setState(() => role = pendingRole);
+      final idToken = await widget.onTelegramLogin(pendingRole);
+      if (mounted) await widget.onLogin(pendingRole, idToken);
+    } catch (e) {
+      if (mounted) {
+        setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
+      }
+    }
   }
 
   @override
