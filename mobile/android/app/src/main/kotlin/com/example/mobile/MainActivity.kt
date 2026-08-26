@@ -66,15 +66,10 @@ class MainActivity : FlutterActivity() {
         )
         pendingLogin = result
         TelegramLogin.init(clientId, redirectUri, scopes)
-
-        // Android may deliver the Telegram App Link while recreating the
-        // activity, before Flutter has called this method. Keep that URI and
-        // finish it only after the SDK has been initialized and a result is
-        // available for the current Flutter request.
-        pendingCallbackUri?.let { callbackUri ->
+        if (pendingCallbackUri != null) {
+            Log.w(logTag, "Telegram native login is dropping stale callback before starting a fresh SDK session")
             pendingCallbackUri = null
-            handleTelegramCallback(callbackUri)
-            if (pendingLogin == null) return
+            handledCallback = null
         }
         TelegramLogin.startLogin(this)
     }
@@ -95,6 +90,7 @@ class MainActivity : FlutterActivity() {
     private fun handleTelegramCallback(uri: Uri) {
         if (uri.host?.endsWith("-login.tg.dev") != true) return
         if (!flutterChannelReady || pendingLogin == null) {
+            Log.w(logTag, "Telegram native callback deferred because Flutter or pending login is not ready")
             pendingCallbackUri = uri
             intent?.data = null
             return
@@ -123,6 +119,13 @@ class MainActivity : FlutterActivity() {
             )
         } catch (error: Exception) {
             Log.e(logTag, "Telegram native callback threw ${error::class.java.simpleName}", error)
+            if (error.message?.contains("No active login session", ignoreCase = true) == true) {
+                Log.w(logTag, "Telegram SDK had no active session; restarting Telegram login")
+                pendingCallbackUri = null
+                handledCallback = null
+                TelegramLogin.startLogin(this)
+                return
+            }
             pendingLogin?.error("TELEGRAM_CALLBACK_FAILED", error.message, null)
             pendingLogin = null
         } finally {
