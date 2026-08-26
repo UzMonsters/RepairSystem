@@ -58,10 +58,18 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final pendingRole = await widget.onPendingTelegramRole();
       if (!mounted || pendingRole == null) return;
+      MobileLog.info('Login page resuming pending Telegram login role=$pendingRole');
       setState(() => role = pendingRole);
       final idToken = await widget.onTelegramLogin(pendingRole);
+      MobileLog.info(
+        'Login page resumed Telegram token role=$pendingRole tokenLength=${MobileLog.safeLength(idToken)}',
+      );
       if (mounted) await widget.onLogin(pendingRole, idToken);
     } catch (e) {
+      MobileLog.warning(
+        'Login page pending Telegram resume failed error=${e.runtimeType}',
+        error: e,
+      );
       if (mounted) {
         setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
       }
@@ -81,11 +89,21 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> submit() async {
     setState(() => localError = null);
+    MobileLog.info(
+      'Login page submit tapped role=$role method=$customerMethod register=$register',
+    );
     if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM') {
       try {
         final idToken = await widget.onTelegramLogin(role);
+        MobileLog.info(
+          'Login page received Telegram token role=$role tokenLength=${MobileLog.safeLength(idToken)}',
+        );
         if (mounted) await widget.onLogin(role, idToken);
       } catch (e) {
+        MobileLog.warning(
+          'Login page Telegram submit failed role=$role error=${e.runtimeType}',
+          error: e,
+        );
         if (!mounted) return;
         setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
       }

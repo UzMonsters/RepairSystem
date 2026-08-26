@@ -1,5 +1,7 @@
 import 'package:flutter/services.dart';
 
+import 'mobile_logger.dart';
+
 const telegramCustomerClientId = String.fromEnvironment(
   'TELEGRAM_CUSTOMER_CLIENT_ID',
   defaultValue: String.fromEnvironment(
@@ -55,18 +57,37 @@ class TelegramAuthService {
     final redirectUri = configuredRedirectUri.isNotEmpty
         ? configuredRedirectUri
         : 'https://app${clientId}-login.tg.dev/tglogin';
-    final idToken = await _channel.invokeMethod<String>('login', {
-      'clientId': clientId,
-      'redirectUri': redirectUri,
-      'scopes': const ['profile'],
-    });
+    MobileLog.info(
+      'Telegram native login started role=$role clientId=$clientId redirectHost=${Uri.parse(redirectUri).host}',
+    );
+    late final String? idToken;
+    try {
+      idToken = await _channel.invokeMethod<String>('login', {
+        'clientId': clientId,
+        'redirectUri': redirectUri,
+        'scopes': const ['profile'],
+      });
+    } catch (error, stackTrace) {
+      MobileLog.severe(
+        'Telegram native login failed role=$role error=${error.runtimeType}',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
     if (idToken == null || idToken.isEmpty) {
+      MobileLog.warning('Telegram native login returned empty token role=$role');
       throw StateError('Telegram did not return an ID token.');
     }
+    MobileLog.info(
+      'Telegram native login returned token role=$role tokenLength=${MobileLog.safeLength(idToken)}',
+    );
     return idToken;
   }
 
   Future<bool> cancel() async {
-    return await _channel.invokeMethod<bool>('cancel') ?? false;
+    final cancelled = await _channel.invokeMethod<bool>('cancel') ?? false;
+    MobileLog.info('Telegram native login cancel requested cancelled=$cancelled');
+    return cancelled;
   }
 }
