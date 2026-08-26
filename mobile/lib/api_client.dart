@@ -8,7 +8,7 @@ import 'mobile_logger.dart';
 
 const apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'https://api.repairauto.uz',
+  defaultValue: 'https://repair-auto.onrender.com',
 );
 
 class ApiException implements Exception {
