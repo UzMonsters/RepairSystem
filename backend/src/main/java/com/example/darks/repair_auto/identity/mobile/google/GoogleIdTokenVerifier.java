@@ -68,36 +68,50 @@ public class GoogleIdTokenVerifier {
     }
 
     public GoogleIdentity verify(String idToken, PushClientType clientType) {
-        if (!properties.isEnabled() || idToken == null || idToken.isBlank()) {
+        if (!properties.isEnabled()) {
+            LOGGER.warn("Google ID token verification rejected because Google OIDC is disabled.");
+            throw new BusinessException(ErrorCode.GOOGLE_AUTH_INVALID);
+        }
+        if (idToken == null || idToken.isBlank()) {
+            LOGGER.warn("Google ID token verification rejected because token is missing.");
             throw new BusinessException(ErrorCode.GOOGLE_AUTH_INVALID);
         }
         try {
             SignedJWT signedJwt = SignedJWT.parse(idToken);
             JWSHeader header = signedJwt.getHeader();
             if (!EXPECTED_ALGORITHM.equals(header.getAlgorithm())) {
+                LOGGER.warn("Google ID token verification rejected due to unsupported algorithm: {}", header.getAlgorithm());
                 throw new BusinessException(ErrorCode.GOOGLE_AUTH_INVALID);
             }
             JWTClaimsSet claims = jwtProcessor.process(signedJwt, null);
             if (!properties.getIssuers().contains(claims.getIssuer())) {
+                LOGGER.warn("Google ID token verification rejected due to invalid issuer: {}", claims.getIssuer());
                 throw new BusinessException(ErrorCode.GOOGLE_AUTH_INVALID);
             }
             List<String> allowedAudiences = clientType == PushClientType.CUSTOMER_MOBILE
                     ? properties.getCustomerAllowedAudiences()
                     : properties.getTechnicianAllowedAudiences();
             if (allowedAudiences.isEmpty() || claims.getAudience().stream().noneMatch(allowedAudiences::contains)) {
+                LOGGER.warn(
+                        "Google ID token verification rejected due to audience mismatch: clientType={} actual={}",
+                        clientType,
+                        claims.getAudience());
                 throw new BusinessException(ErrorCode.GOOGLE_AUTH_AUDIENCE_INVALID);
             }
             Instant now = clock.instant();
             Date expiresAt = claims.getExpirationTime();
             if (expiresAt == null || expiresAt.toInstant().isBefore(now.minus(properties.getAllowedClockSkew()))) {
+                LOGGER.warn("Google ID token verification rejected because token is expired or missing exp claim.");
                 throw new BusinessException(ErrorCode.GOOGLE_AUTH_INVALID);
             }
             Date issuedAt = claims.getIssueTime();
             if (issuedAt != null && issuedAt.toInstant().isAfter(now.plus(properties.getAllowedClockSkew()))) {
+                LOGGER.warn("Google ID token verification rejected because iat is in the future.");
                 throw new BusinessException(ErrorCode.GOOGLE_AUTH_INVALID);
             }
             String subject = claims.getSubject();
             if (subject == null || subject.isBlank()) {
+                LOGGER.warn("Google ID token verification rejected because subject is missing.");
                 throw new BusinessException(ErrorCode.GOOGLE_AUTH_INVALID);
             }
             Boolean emailVerified = claims.getBooleanClaim("email_verified");

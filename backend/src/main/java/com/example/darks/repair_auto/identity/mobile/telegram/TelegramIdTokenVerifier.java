@@ -87,6 +87,7 @@ public class TelegramIdTokenVerifier {
 
     public TelegramIdentity verify(String idToken, String expectedAudience) {
         if (idToken == null || idToken.isBlank()) {
+            LOGGER.warn("Telegram ID token verification rejected because token is missing.");
             throw new BusinessException(ErrorCode.TELEGRAM_AUTH_INVALID);
         }
         try {
