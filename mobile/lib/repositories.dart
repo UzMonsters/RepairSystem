@@ -76,6 +76,8 @@ class AuthRepository {
           'clientType': clientType,
           'phone': phone,
         },
+        authenticated: false,
+        retryOn401: false,
       ) as Map).cast<String, dynamic>();
   }
 
@@ -100,6 +102,8 @@ class AuthRepository {
     final data = await api.post(
       path,
       body: body,
+      authenticated: false,
+      retryOn401: false,
     ) as Map<String, dynamic>;
     MobileLog.info(
       'Auth repository backend login succeeded path=$path '
