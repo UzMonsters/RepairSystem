@@ -5,7 +5,6 @@ class LoginPage extends StatefulWidget {
     super.key,
     required this.onLogin,
     required this.onTelegramLogin,
-    required this.onPendingTelegramRole,
     required this.onRequestPhoneOtp,
     required this.onVerifyPhoneOtp,
     required this.loading,
@@ -13,7 +12,6 @@ class LoginPage extends StatefulWidget {
   });
   final Future<void> Function(String role, String idToken) onLogin;
   final Future<String> Function(String role) onTelegramLogin;
-  final Future<String?> Function() onPendingTelegramRole;
   final Future<String> Function(String role, String phone) onRequestPhoneOtp;
   final Future<void> Function(String role, String challengeId, String code) onVerifyPhoneOtp;
   final bool loading;
@@ -28,6 +26,7 @@ class _LoginPageState extends State<LoginPage> {
   String role = 'CUSTOMER';
   String customerMethod = 'TELEGRAM';
   bool register = false;
+  bool telegramLoginInProgress = false;
   String language = 'ru';
   String? localError;
 
@@ -51,21 +50,6 @@ class _LoginPageState extends State<LoginPage> {
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
-    _resumePendingTelegramLogin();
-  }
-
-  Future<void> _resumePendingTelegramLogin() async {
-    try {
-      final pendingRole = await widget.onPendingTelegramRole();
-      if (!mounted || pendingRole == null) return;
-      setState(() => role = pendingRole);
-      final idToken = await widget.onTelegramLogin(pendingRole);
-      if (mounted) await widget.onLogin(pendingRole, idToken);
-    } catch (e) {
-      if (mounted) {
-        setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
-      }
-    }
   }
 
   @override
@@ -79,16 +63,58 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => localError = 'This authentication method is not configured yet.');
   }
 
+  Future<void> _runTelegramLogin(String selectedRole, {bool resumed = false}) async {
+    if (telegramLoginInProgress) {
+      MobileLog.info('Login page ignored duplicate Telegram login role=$selectedRole');
+      return;
+    }
+    setState(() {
+      telegramLoginInProgress = true;
+      localError = null;
+    });
+    try {
+      final idToken = await widget.onTelegramLogin(selectedRole);
+      MobileLog.info(
+        'Login page received Telegram token role=$selectedRole resumed=$resumed '
+        'tokenLength=${MobileLog.safeLength(idToken)}',
+      );
+      if (mounted) await widget.onLogin(selectedRole, idToken);
+    } catch (e) {
+      MobileLog.warning(
+        'Login page Telegram login failed role=$selectedRole resumed=$resumed error=${e.runtimeType}',
+        error: e,
+      );
+      if (!mounted) return;
+      setState(() => localError = _telegramErrorMessage(e));
+    } finally {
+      if (mounted) {
+        setState(() => telegramLoginInProgress = false);
+      }
+    }
+  }
+
+  String _telegramErrorMessage(Object error) {
+    if (error is PlatformException) {
+      final message = error.message;
+      if (error.code == 'TELEGRAM_SESSION_EXPIRED' ||
+          (message?.contains('No active login session') ?? false)) {
+        return 'Telegram login session expired. Please try again.';
+      }
+      if (message != null && message.trim().isNotEmpty) {
+        return message;
+      }
+      return error.code;
+    }
+    return error.toString().replaceFirst('StateError: ', '');
+  }
+
   Future<void> submit() async {
     setState(() => localError = null);
+    MobileLog.info(
+      'Login page submit tapped role=$role method=$customerMethod register=$register',
+    );
     if (role == 'TECHNICIAN' || customerMethod == 'TELEGRAM') {
-      try {
-        final idToken = await widget.onTelegramLogin(role);
-        if (mounted) await widget.onLogin(role, idToken);
-      } catch (e) {
-        if (!mounted) return;
-        setState(() => localError = e.toString().replaceFirst('StateError: ', ''));
-      }
+      await _runTelegramLogin(role);
       return;
     }
     if (customerMethod == 'GOOGLE') {
@@ -250,7 +276,7 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                   const SizedBox(height: 18),
                   FilledButton.icon(
-                    onPressed: widget.loading ? null : submit,
+                    onPressed: widget.loading || telegramLoginInProgress ? null : submit,
                     icon: Icon(
                       role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE'
                           ? customerMethod == 'GOOGLE' ? Icons.account_circle_outlined : Icons.telegram
@@ -258,7 +284,7 @@ class _LoginPageState extends State<LoginPage> {
                               ? Icons.person_add
                               : Icons.login,
                     ),
-                    label: widget.loading
+                    label: widget.loading || telegramLoginInProgress
                         ? const CircularProgressIndicator()
                         : Text(
                             role == 'TECHNICIAN' || customerMethod == 'TELEGRAM' || customerMethod == 'GOOGLE'

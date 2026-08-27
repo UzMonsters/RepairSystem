@@ -2,17 +2,19 @@ package com.example.mobile
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.embedding.android.FlutterActivity
 import org.telegram.login.TelegramLogin
 
 class MainActivity : FlutterActivity() {
+    private val logTag = "RepairAutoMobile"
     private val channelName = "repair_auto/telegram_auth"
     private var pendingLogin: MethodChannel.Result? = null
     private var handledCallback: String? = null
     private var flutterChannelReady = false
-    private var pendingCallbackUri: Uri? = null
+    private var restartedAfterMissingSession = false
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,7 +29,6 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "login" -> startTelegramLogin(call, result)
-                    "pendingRole" -> result.success(pendingCallbackUri?.let(::roleForCallback))
                     "cancel" -> {
                         val pending = pendingLogin
                         pendingLogin = null
@@ -45,6 +46,7 @@ class MainActivity : FlutterActivity() {
             // A browser return can arrive after Android recreated the activity
             // without delivering the previous result. Release the stale request
             // so the user is not permanently locked out of Telegram login.
+            Log.w(logTag, "Telegram native login replaced stale pending request")
             pendingLogin?.error("LOGIN_REPLACED", "Previous Telegram login was reset", null)
             pendingLogin = null
         }
@@ -52,12 +54,19 @@ class MainActivity : FlutterActivity() {
         val redirectUri = call.argument<String>("redirectUri")
         val scopes = call.argument<List<String>>("scopes") ?: listOf("profile")
         if (clientId.isNullOrBlank() || redirectUri.isNullOrBlank()) {
+            Log.w(logTag, "Telegram native login rejected because configuration is missing")
             result.error("INVALID_CONFIGURATION", "Telegram clientId and redirectUri are required", null)
             return
         }
 
+        Log.i(
+            logTag,
+            "Telegram native login started clientId=$clientId redirectHost=${Uri.parse(redirectUri).host} scopes=${scopes.size}",
+        )
         pendingLogin = result
+        restartedAfterMissingSession = false
         TelegramLogin.init(clientId, redirectUri, scopes)
+<<<<<<< HEAD
 
         // Android can deliver the Telegram App Link while recreating the
         // activity, before Flutter has created the pending method call.
@@ -67,6 +76,9 @@ class MainActivity : FlutterActivity() {
             handleTelegramCallback(callbackUri)
             if (pendingLogin == null) return
         }
+=======
+        handledCallback = null
+>>>>>>> 14ac016cfe33434c5f2f6942891ef8c88e116783
         TelegramLogin.startLogin(this)
     }
 
@@ -86,26 +98,55 @@ class MainActivity : FlutterActivity() {
     private fun handleTelegramCallback(uri: Uri) {
         if (uri.host?.endsWith("-login.tg.dev") != true) return
         if (!flutterChannelReady || pendingLogin == null) {
-            pendingCallbackUri = uri
+            Log.w(logTag, "Telegram native callback ignored because there is no active login request")
             intent?.data = null
             return
         }
         val callbackKey = uri.toString()
         if (handledCallback == callbackKey) return
         handledCallback = callbackKey
+        Log.i(logTag, "Telegram native callback received host=${uri.host} pending=${pendingLogin != null}")
         try {
             TelegramLogin.handleLoginResponse(
                 uri,
                 onSuccess = { loginData ->
-                    pendingLogin?.success(loginData.idToken)
+                    val idToken = loginData.idToken
+                    Log.i(
+                        logTag,
+                        "Telegram native callback parsed successfully tokenPresent=${!idToken.isNullOrBlank()} tokenLength=${idToken?.length ?: 0}",
+                    )
+                    pendingLogin?.success(idToken)
                     pendingLogin = null
                 },
                 onError = { error ->
-                    pendingLogin?.error("TELEGRAM_LOGIN_FAILED", error.message, null)
-                    pendingLogin = null
+                    Log.w(logTag, "Telegram native callback failed error=${error.message}")
+                    if (error.message?.contains("No active login session", ignoreCase = true) == true) {
+                        if (!restartTelegramLoginAfterMissingSession()) {
+                            pendingLogin?.error(
+                                "TELEGRAM_SESSION_EXPIRED",
+                                "Telegram login session expired. Please try again.",
+                                null,
+                            )
+                            pendingLogin = null
+                        }
+                    } else {
+                        pendingLogin?.error("TELEGRAM_LOGIN_FAILED", error.message, null)
+                        pendingLogin = null
+                    }
                 },
             )
         } catch (error: Exception) {
+            Log.e(logTag, "Telegram native callback threw ${error::class.java.simpleName}", error)
+            if (error.message?.contains("No active login session", ignoreCase = true) == true) {
+                if (restartTelegramLoginAfterMissingSession()) return
+                pendingLogin?.error(
+                    "TELEGRAM_SESSION_EXPIRED",
+                    "Telegram login session expired. Please try again.",
+                    null,
+                )
+                pendingLogin = null
+                return
+            }
             pendingLogin?.error("TELEGRAM_CALLBACK_FAILED", error.message, null)
             pendingLogin = null
         } finally {
@@ -114,9 +155,15 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun roleForCallback(uri: Uri): String? = when (uri.host) {
-        "app2962537527-login.tg.dev" -> "CUSTOMER"
-        "app2657113889-login.tg.dev" -> "TECHNICIAN"
-        else -> null
+    private fun restartTelegramLoginAfterMissingSession(): Boolean {
+        if (restartedAfterMissingSession) {
+            Log.w(logTag, "Telegram SDK still has no active session after retry")
+            return false
+        }
+        Log.w(logTag, "Telegram SDK had no active session; restarting Telegram login")
+        restartedAfterMissingSession = true
+        handledCallback = null
+        TelegramLogin.startLogin(this)
+        return true
     }
 }
