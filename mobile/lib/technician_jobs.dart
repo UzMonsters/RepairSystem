@@ -60,22 +60,28 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
             const SizedBox(height: 8),
             Text(mobileText(language, 'filters'), style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 6),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SegmentedButton<String>(
-                showSelectedIcon: false,
-                segments: [
-                  ButtonSegment(value: 'ALL', label: Text(mobileText(language, 'all'))),
-                  ButtonSegment(value: 'NEW', label: Text(mobileText(language, 'new'))),
-                  ButtonSegment(value: 'ASSIGNED', label: Text(mobileText(language, 'assigned'))),
-                  ButtonSegment(value: 'IN_PROGRESS', label: Text(mobileText(language, 'inProgress'))),
-                  ButtonSegment(value: 'SCHEDULED', label: Text(mobileText(language, 'scheduled'))),
-                  ButtonSegment(value: 'WAITING_FOR_PARTS', label: Text(mobileText(language, 'waitingParts'))),
-                  ButtonSegment(value: 'COMPLETED', label: Text(mobileText(language, 'completed'))),
-                  ButtonSegment(value: 'CANCELLED', label: Text(mobileText(language, 'cancelled'))),
-                ],
-                selected: {statusFilter},
-                onSelectionChanged: (value) => setState(() => statusFilter = value.first),
+            SizedBox(
+              height: 42,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(right: 8),
+                children: [
+                  ['ALL', 'all'],
+                  ['NEW', 'new'],
+                  ['ASSIGNED', 'assigned'],
+                  ['IN_PROGRESS', 'inProgress'],
+                  ['SCHEDULED', 'scheduled'],
+                  ['WAITING_FOR_PARTS', 'waitingParts'],
+                  ['COMPLETED', 'completed'],
+                  ['CANCELLED', 'cancelled'],
+                ].map((filter) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(mobileText(language, filter[1])),
+                    selected: statusFilter == filter[0],
+                    onSelected: (_) => setState(() => statusFilter = filter[0]),
+                  ),
+                )).toList(),
               ),
             ),
             const SizedBox(height: 8),
@@ -98,4 +104,3 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
     ),
   );
 }
-

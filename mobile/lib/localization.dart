@@ -13,7 +13,7 @@ String mobileText(String language, String key) {
       'scheduled': 'Запланирована', 'waitingParts': 'Ожидание запчастей',
       'schedule': 'Расписание визитов', 'chat': 'Чат с техником',
       'message': 'Сообщение', 'sendFailed': 'Не удалось отправить сообщение',
-      'notifications': 'Уведомления', 'profile': 'Профиль', 'save': 'Сохранить',
+      'notifications': 'Уведомления', 'profile': 'Профиль', 'save': 'Сохранить', 'profileSaved': 'Профиль сохранён',
       'logout': 'Выйти', 'fullName': 'Имя и фамилия', 'markAllRead': 'Прочитать все',
     },
     'uz': {
@@ -27,7 +27,7 @@ String mobileText(String language, String key) {
       'scheduled': 'Rejalashtirilgan', 'waitingParts': 'Ehtiyot qismlar kutilmoqda',
       'schedule': 'Tashrif jadvali', 'chat': 'Texnik bilan chat',
       'message': 'Xabar', 'sendFailed': 'Xabar yuborilmadi',
-      'notifications': 'Bildirishnomalar', 'profile': 'Profil', 'save': 'Saqlash',
+      'notifications': 'Bildirishnomalar', 'profile': 'Profil', 'save': 'Saqlash', 'profileSaved': 'Profil saqlandi',
       'logout': 'Chiqish', 'fullName': 'Ism va familiya', 'markAllRead': 'Barchasini o‘qilgan qilish',
     },
     'en': {
@@ -41,7 +41,7 @@ String mobileText(String language, String key) {
       'scheduled': 'Scheduled', 'waitingParts': 'Waiting for parts',
       'schedule': 'Visit schedule', 'chat': 'Chat with technician',
       'message': 'Message', 'sendFailed': 'Message could not be sent',
-      'notifications': 'Notifications', 'profile': 'Profile', 'save': 'Save',
+      'notifications': 'Notifications', 'profile': 'Profile', 'save': 'Save', 'profileSaved': 'Profile saved',
       'logout': 'Logout', 'fullName': 'Full name', 'markAllRead': 'Mark all read',
     },
   };

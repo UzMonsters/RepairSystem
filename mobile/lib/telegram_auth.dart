@@ -20,14 +20,14 @@ const telegramCustomerRedirectUri = String.fromEnvironment(
   'TELEGRAM_CUSTOMER_REDIRECT_URI',
   defaultValue: String.fromEnvironment(
     'APP_TELEGRAM_CUSTOMER_LOGIN_APP_URL',
-    defaultValue: 'https://app2962537527-login.tg.dev/tglogin',
+    defaultValue: 'https://app1859875063-login.tg.dev/tglogin',
   ),
 );
 const telegramTechnicianRedirectUri = String.fromEnvironment(
   'TELEGRAM_TECHNICIAN_REDIRECT_URI',
   defaultValue: String.fromEnvironment(
     'APP_TELEGRAM_TECHNICIAN_LOGIN_APP_URL',
-    defaultValue: 'https://app2657113889-login.tg.dev/tglogin',
+    defaultValue: 'https://app1074067825-login.tg.dev/tglogin',
   ),
 );
 
@@ -47,45 +47,59 @@ class TelegramAuthService {
       );
     }
 
-    // BotFather provisions this native-app URL for the client ID. The plugin
-    // The official Android SDK expects Telegram's native App Link callback path.
     final configuredRedirectUri = role == 'TECHNICIAN'
         ? telegramTechnicianRedirectUri
         : telegramCustomerRedirectUri;
     final redirectUri = configuredRedirectUri.isNotEmpty
-        ? configuredRedirectUri
-        : 'https://app${clientId}-login.tg.dev/tglogin';
+        ? _normalizeTelegramRedirectUri(configuredRedirectUri)
+        : (role == 'TECHNICIAN'
+            ? 'https://app1074067825-login.tg.dev/tglogin'
+            : 'https://app1859875063-login.tg.dev/tglogin');
+
     MobileLog.info(
-      'Telegram native login started role=$role clientId=$clientId redirectHost=${Uri.parse(redirectUri).host}',
+      '[TELEGRAM_LOGIN_START] role=$role clientId=$clientId redirectHost=${Uri.tryParse(redirectUri)?.host ?? 'unknown'}',
     );
+
     late final String? idToken;
     try {
       idToken = await _channel.invokeMethod<String>('login', {
+        'role': role,
         'clientId': clientId,
         'redirectUri': redirectUri,
         'scopes': const ['profile'],
       });
     } catch (error, stackTrace) {
       MobileLog.severe(
-        'Telegram native login failed role=$role error=${error.runtimeType}',
+        '[TELEGRAM_LOGIN_ERROR] role=$role error=${error.runtimeType}',
         error: error,
         stackTrace: stackTrace,
       );
       rethrow;
     }
+
     if (idToken == null || idToken.isEmpty) {
-      MobileLog.warning('Telegram native login returned empty token role=$role');
+      MobileLog.warning('[TELEGRAM_LOGIN_ERROR] role=$role reason=empty_token_returned');
       throw StateError('Telegram did not return an ID token.');
     }
+
     MobileLog.info(
-      'Telegram native login returned token role=$role tokenLength=${MobileLog.safeLength(idToken)}',
+      '[TELEGRAM_LOGIN_SUCCESS] role=$role tokenPresent=true tokenLength=${MobileLog.safeLength(idToken)}',
     );
     return idToken;
   }
 
   Future<bool> cancel() async {
+    MobileLog.info('[TELEGRAM_LOGIN_CANCEL] cancel requested');
     final cancelled = await _channel.invokeMethod<bool>('cancel') ?? false;
-    MobileLog.info('Telegram native login cancel requested cancelled=$cancelled');
+    MobileLog.info('[TELEGRAM_LOGIN_CANCEL] cancel response=$cancelled');
     return cancelled;
+  }
+
+  String _normalizeTelegramRedirectUri(String value) {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null || uri.path.isNotEmpty) {
+      return value.trim();
+    }
+    return uri.replace(path: '/tglogin').toString();
   }
 }

@@ -42,9 +42,14 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
   String? error;
   bool loading = false;
 
+  Map<String, dynamic> _deviceContext() => {
+    'platform': Platform.isAndroid ? 'ANDROID' : 'IOS',
+    'appVersion': '1.0.0',
+  };
+
   Future<void> login(String role, String idToken) async {
     MobileLog.info(
-      'Login flow backend auth started role=$role tokenPresent=${MobileLog.present(idToken)} '
+      '[TELEGRAM_BACKEND_AUTH_START] role=$role tokenPresent=${MobileLog.present(idToken)} '
       'tokenLength=${MobileLog.safeLength(idToken)}',
     );
     setState(() {
@@ -53,22 +58,23 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     });
     try {
       final actor = role == 'CUSTOMER'
-          ? await auth.loginCustomer(idToken)
-          : await auth.loginTechnician(idToken);
+          ? await auth.loginCustomer(idToken, device: _deviceContext())
+          : await auth.loginTechnician(idToken, device: _deviceContext());
+      MobileLog.info('[TELEGRAM_BACKEND_AUTH_SUCCESS] role=$role actorType=${actor.type} actorId=${actor.id}');
       if (!mounted) return;
       navigatorKey.currentState?.pushReplacement(
         MaterialPageRoute(
           builder: (_) => HomePage(api: api, auth: auth, actor: actor),
         ),
       );
-      MobileLog.info('Login flow completed role=$role actorType=${actor.type} actorId=${actor.id}');
+      MobileLog.info('[NAVIGATE_HOME] role=$role actorType=${actor.type} actorId=${actor.id}');
     } on ApiException catch (e) {
       MobileLog.warning(
-        'Login flow API failure role=$role status=${e.statusCode} code=${e.code ?? 'unknown'}',
+        '[TELEGRAM_BACKEND_AUTH_ERROR] API failure role=$role status=${e.statusCode} code=${e.code ?? 'unknown'}',
       );
       setState(() => error = e.message);
     } catch (e) {
-      MobileLog.severe('Login flow unexpected failure role=$role error=${e.runtimeType}', error: e);
+      MobileLog.severe('[TELEGRAM_BACKEND_AUTH_ERROR] unexpected failure role=$role error=${e.runtimeType}', error: e);
       setState(() => error = '$e');
     } finally {
       if (mounted) setState(() => loading = false);
