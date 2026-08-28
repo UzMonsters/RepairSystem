@@ -32,9 +32,57 @@ class _LoginPageState extends State<LoginPage> {
 
   String tr(String key) {
     const values = {
-      'ru': {'customer': 'Клиент', 'technician': 'Техник', 'signIn': 'Войти', 'register': 'Регистрация', 'phone': 'Телефон', 'fullName': 'Имя и фамилия', 'phoneNumber': 'Номер телефона', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Продолжить через Google', 'continueTelegram': 'Продолжить через Telegram', 'anotherWay': 'Другой способ входа'},
-      'uz': {'customer': 'Mijoz', 'technician': 'Texnik', 'signIn': 'Kirish', 'register': 'Ro‘yxatdan o‘tish', 'phone': 'Telefon', 'fullName': 'Ism va familiya', 'phoneNumber': 'Telefon raqami', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Google orqali davom etish', 'continueTelegram': 'Telegram orqali davom etish', 'anotherWay': 'Boshqa kirish usuli'},
-      'en': {'customer': 'Customer', 'technician': 'Technician', 'signIn': 'Sign in', 'register': 'Register', 'phone': 'Phone', 'fullName': 'Full name', 'phoneNumber': 'Phone number', 'google': 'Google', 'telegram': 'Telegram', 'continueGoogle': 'Continue with Google', 'continueTelegram': 'Continue with Telegram', 'anotherWay': 'Sign in another way'},
+      'ru': {
+        'customer': 'Клиент',
+        'technician': 'Техник',
+        'signIn': 'Войти',
+        'register': 'Регистрация',
+        'phone': 'Телефон',
+        'fullName': 'Имя и фамилия',
+        'phoneNumber': 'Номер телефона',
+        'google': 'Google',
+        'telegram': 'Telegram',
+        'continueGoogle': 'Продолжить через Google',
+        'continueTelegram': 'Продолжить через Telegram',
+        'anotherWay': 'Другой способ входа',
+        'telegramFailed': 'Не удалось войти через Telegram. Попробуйте ещё раз.',
+        'telegramCancelled': 'Вход через Telegram отменен.',
+        'telegramExpired': 'Сессия входа через Telegram истекла. Попробуйте ещё раз.',
+      },
+      'uz': {
+        'customer': 'Mijoz',
+        'technician': 'Texnik',
+        'signIn': 'Kirish',
+        'register': 'Ro‘yxatdan o‘tish',
+        'phone': 'Telefon',
+        'fullName': 'Ism va familiya',
+        'phoneNumber': 'Telefon raqami',
+        'google': 'Google',
+        'telegram': 'Telegram',
+        'continueGoogle': 'Google orqali davom etish',
+        'continueTelegram': 'Telegram orqali davom etish',
+        'anotherWay': 'Boshqa kirish usuli',
+        'telegramFailed': 'Telegram orqali kirish amalga oshmadi. Qayta urinib ko‘ring.',
+        'telegramCancelled': 'Telegram orqali kirish bekor qilindi.',
+        'telegramExpired': 'Telegram sessiyasi muddati tugadi. Qayta urinib ko‘ring.',
+      },
+      'en': {
+        'customer': 'Customer',
+        'technician': 'Technician',
+        'signIn': 'Sign in',
+        'register': 'Register',
+        'phone': 'Phone',
+        'fullName': 'Full name',
+        'phoneNumber': 'Phone number',
+        'google': 'Google',
+        'telegram': 'Telegram',
+        'continueGoogle': 'Continue with Google',
+        'continueTelegram': 'Continue with Telegram',
+        'anotherWay': 'Sign in another way',
+        'telegramFailed': 'Telegram sign-in failed. Please try again.',
+        'telegramCancelled': 'Telegram sign-in cancelled.',
+        'telegramExpired': 'Telegram login session expired. Please try again.',
+      },
     };
     return values[language]?[key] ?? values['en']![key] ?? key;
   }
@@ -63,11 +111,12 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => localError = 'This authentication method is not configured yet.');
   }
 
-  Future<void> _runTelegramLogin(String selectedRole, {bool resumed = false}) async {
+  Future<void> _runTelegramLogin(String selectedRole) async {
     if (telegramLoginInProgress) {
-      MobileLog.info('Login page ignored duplicate Telegram login role=$selectedRole');
+      MobileLog.warning('[TELEGRAM_LOGIN_IGNORED_DUPLICATE] role=$selectedRole');
       return;
     }
+    MobileLog.info('[TELEGRAM_LOGIN_CLICK] role=$selectedRole');
     setState(() {
       telegramLoginInProgress = true;
       localError = null;
@@ -75,13 +124,13 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final idToken = await widget.onTelegramLogin(selectedRole);
       MobileLog.info(
-        'Login page received Telegram token role=$selectedRole resumed=$resumed '
-        'tokenLength=${MobileLog.safeLength(idToken)}',
+        '[TELEGRAM_LOGIN_TOKEN_RECEIVED] role=$selectedRole '
+        'tokenPresent=${MobileLog.present(idToken)} tokenLength=${MobileLog.safeLength(idToken)}',
       );
       if (mounted) await widget.onLogin(selectedRole, idToken);
     } catch (e) {
       MobileLog.warning(
-        'Login page Telegram login failed role=$selectedRole resumed=$resumed error=${e.runtimeType}',
+        '[TELEGRAM_LOGIN_ERROR] role=$selectedRole error=${e.runtimeType}',
         error: e,
       );
       if (!mounted) return;
@@ -95,17 +144,17 @@ class _LoginPageState extends State<LoginPage> {
 
   String _telegramErrorMessage(Object error) {
     if (error is PlatformException) {
-      final message = error.message;
+      if (error.code == 'CANCELLED') {
+        return tr('telegramCancelled');
+      }
       if (error.code == 'TELEGRAM_SESSION_EXPIRED' ||
-          (message?.contains('No active login session') ?? false)) {
-        return 'Telegram login session expired. Please try again.';
+          error.code == 'LOGIN_REPLACED' ||
+          (error.message?.contains('No active login session') ?? false)) {
+        return tr('telegramExpired');
       }
-      if (message != null && message.trim().isNotEmpty) {
-        return message;
-      }
-      return error.code;
+      return tr('telegramFailed');
     }
-    return error.toString().replaceFirst('StateError: ', '');
+    return tr('telegramFailed');
   }
 
   Future<void> submit() async {
@@ -234,6 +283,7 @@ class _LoginPageState extends State<LoginPage> {
                     onSelectionChanged: (value) =>
                         setState(() {
                           role = value.first;
+                          localError = null;
                           if (role == 'TECHNICIAN') {
                             customerMethod = 'TELEGRAM';
                             register = false;
@@ -332,4 +382,3 @@ class _LoginPageState extends State<LoginPage> {
     ),
   );
 }
-
