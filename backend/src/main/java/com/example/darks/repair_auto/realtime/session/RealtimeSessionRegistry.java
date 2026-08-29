@@ -21,7 +21,8 @@ public class RealtimeSessionRegistry {
             String principalName,
             ActorType actorType,
             Long actorId,
-            UserRole userRole
+            UserRole userRole,
+            Principal principal
     ) {}
 
     private final Map<String, SessionInfo> sessionById = new ConcurrentHashMap<>();
@@ -56,7 +57,7 @@ public class RealtimeSessionRegistry {
             return;
         }
 
-        SessionInfo info = new SessionInfo(sessionId, principal.getName(), actorType, actorId, role);
+        SessionInfo info = new SessionInfo(sessionId, principal.getName(), actorType, actorId, role, principal);
         sessionById.put(sessionId, info);
 
         String actorKey = toActorKey(actorType, actorId);
@@ -135,6 +136,18 @@ public class RealtimeSessionRegistry {
             }
         }
         return Collections.unmodifiableSet(principalNames);
+    }
+
+    public Set<String> findStaffSessionIds() {
+        return Collections.unmodifiableSet(staffSessionIds);
+    }
+
+    public Set<String> findRoleSessionIds(UserRole role) {
+        if (role == null) {
+            return Collections.emptySet();
+        }
+        Set<String> sessions = sessionsByRole.get(role);
+        return sessions != null ? Collections.unmodifiableSet(sessions) : Collections.emptySet();
     }
 
     public Set<String> findRolePrincipalNames(UserRole role) {

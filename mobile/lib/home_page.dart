@@ -14,22 +14,38 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int tab = 0;
   late final realtime = MobileRealtimeClient(widget.api.authStore);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.api.setLanguage(widget.actor.preferredLanguage ?? 'uz');
+    widget.api.onTokenRefreshed = (newAccessToken) {
+      MobileLog.info('API client refreshed token, reconnecting realtime');
+      unawaited(realtime.reconnectWithToken(newAccessToken));
+    };
     unawaited(realtime.connect());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      MobileLog.info('App resumed, ensuring realtime connection');
+      unawaited(realtime.connect());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.api.onTokenRefreshed = null;
     unawaited(realtime.dispose());
     super.dispose();
   }
+
   late final customer = CustomerRepository(widget.api);
   late final technician = TechnicianRepository(widget.api);
   late final notifications = NotificationRepository(widget.api);
@@ -52,21 +68,46 @@ class _HomePageState extends State<HomePage> {
     final isCustomer = widget.actor.type == 'CUSTOMER';
     final language = widget.api.language;
     final pages = isCustomer
-          ? [
-            CustomerRequests(repo: customer, chat: chat, categories: categories, events: realtime.events),
-            NotificationsScreen(repo: notifications, events: realtime.events),
-            ProfileScreen(actor: widget.actor, repo: profile, onLogout: logout),
+        ? [
+            CustomerRequests(
+              repo: customer,
+              chat: chat,
+              categories: categories,
+              realtime: realtime,
+            ),
+            NotificationsScreen(
+              repo: notifications,
+              realtime: realtime,
+            ),
+            ProfileScreen(
+              actor: widget.actor,
+              repo: profile,
+              onLogout: logout,
+            ),
           ]
         : [
-            TechnicianJobs(repo: technician, chat: chat, events: realtime.events),
-            NotificationsScreen(repo: notifications, events: realtime.events),
-            ProfileScreen(actor: widget.actor, repo: profile, onLogout: logout),
+            TechnicianJobs(
+              repo: technician,
+              chat: chat,
+              realtime: realtime,
+            ),
+            NotificationsScreen(
+              repo: notifications,
+              realtime: realtime,
+            ),
+            ProfileScreen(
+              actor: widget.actor,
+              repo: profile,
+              onLogout: logout,
+            ),
           ];
     return Scaffold(
       appBar: AppBar(
         title: Text(
           tab == 0
-              ? (isCustomer ? mobileText(language, 'requests') : 'Assigned jobs')
+              ? (isCustomer
+                  ? mobileText(language, 'requests')
+                  : 'Assigned jobs')
               : tab == 1
               ? mobileText(language, 'notifications')
               : mobileText(language, 'profile'),
@@ -78,15 +119,15 @@ class _HomePageState extends State<HomePage> {
         onDestinationSelected: (value) => setState(() => tab = value),
         destinations: [
           NavigationDestination(
-            icon: Icon(Icons.assignment_outlined),
+            icon: const Icon(Icons.assignment_outlined),
             label: mobileText(language, 'requests'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
+            icon: const Icon(Icons.notifications_outlined),
             label: mobileText(language, 'notifications'),
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
+            icon: const Icon(Icons.person_outline),
             label: mobileText(language, 'profile'),
           ),
         ],
@@ -94,4 +135,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-

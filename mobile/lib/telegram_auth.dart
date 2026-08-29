@@ -66,7 +66,7 @@ class TelegramAuthService {
         'role': role,
         'clientId': clientId,
         'redirectUri': redirectUri,
-        'scopes': const ['profile'],
+        'scopes': const ['profile', 'phone'],
       });
     } catch (error, stackTrace) {
       MobileLog.severe(

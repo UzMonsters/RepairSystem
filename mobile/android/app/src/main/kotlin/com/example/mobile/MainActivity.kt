@@ -66,19 +66,7 @@ class MainActivity : FlutterActivity() {
         pendingLogin = result
         restartedAfterMissingSession = false
         TelegramLogin.init(clientId, redirectUri, scopes)
-<<<<<<< HEAD
-
-        // Android can deliver the Telegram App Link while recreating the
-        // activity, before Flutter has created the pending method call.
-        // Process the saved callback only after the SDK and result are ready.
-        pendingCallbackUri?.let { callbackUri ->
-            pendingCallbackUri = null
-            handleTelegramCallback(callbackUri)
-            if (pendingLogin == null) return
-        }
-=======
         handledCallback = null
->>>>>>> 14ac016cfe33434c5f2f6942891ef8c88e116783
         TelegramLogin.startLogin(this)
     }
 

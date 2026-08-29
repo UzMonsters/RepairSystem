@@ -69,6 +69,22 @@ public class NotificationEventFactory {
         return technician(type, request, assignment.getTechnician(), assignment.getScheduledVisitAt(), eventKeyPart);
     }
 
+    public NotificationEvent staff(
+            NotificationType type,
+            RepairRequest request,
+            RepairAssignment assignment,
+            String reason,
+            Long staffUserId,
+            String eventKeyPart) {
+        return event(
+                type,
+                NotificationRecipientType.STAFF,
+                staffUserId,
+                request,
+                eventKey(type, request, eventKeyPart, "staff", staffUserId),
+                payload(request, assignment.getTechnician(), assignment.getScheduledVisitAt(), reason));
+    }
+
     private NotificationEvent event(
             NotificationType type,
             NotificationRecipientType recipientType,
@@ -87,20 +103,30 @@ public class NotificationEventFactory {
     }
 
     private String payload(RepairRequest request, Technician technician, OffsetDateTime scheduledVisitAt) {
+        return payload(request, technician, scheduledVisitAt, null);
+    }
+
+    private String payload(RepairRequest request, Technician technician, OffsetDateTime scheduledVisitAt, String reason) {
         Map<String, Object> payload = new LinkedHashMap<>();
         RepairCategory category = request.getCategory();
         payload.put("requestId", String.valueOf(request.getId()));
         payload.put("requestNumber", request.getRequestNumber());
-        payload.put("categoryNameEn", category.getNameEn());
-        payload.put("categoryNameRu", category.getNameRu());
-        payload.put("categoryNameUz", category.getNameUz());
+        if (category != null) {
+            payload.put("categoryNameEn", category.getNameEn());
+            payload.put("categoryNameRu", category.getNameRu());
+            payload.put("categoryNameUz", category.getNameUz());
+        }
         payload.put("priority", request.getPriority().name());
         payload.put("status", request.getStatus().name());
         if (technician != null) {
+            payload.put("technicianId", String.valueOf(technician.getId()));
             payload.put("technicianName", technician.getFullName());
         }
         if (scheduledVisitAt != null) {
             payload.put("scheduledVisitAt", scheduledVisitAt.toInstant().toString());
+        }
+        if (reason != null && !reason.isBlank()) {
+            payload.put("reason", reason);
         }
         return json(payload);
     }

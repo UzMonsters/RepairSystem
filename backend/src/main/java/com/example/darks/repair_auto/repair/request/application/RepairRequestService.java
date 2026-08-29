@@ -11,6 +11,7 @@ import com.example.darks.repair_auto.notification.application.NotificationEventF
 import com.example.darks.repair_auto.notification.application.NotificationOutboxService;
 import com.example.darks.repair_auto.notification.domain.NotificationType;
 import com.example.darks.repair_auto.realtime.event.application.RequestCreatedDomainEvent;
+import com.example.darks.repair_auto.realtime.event.application.RequestDeletedDomainEvent;
 import com.example.darks.repair_auto.realtime.event.application.RequestUpdatedDomainEvent;
 import com.example.darks.repair_auto.repair.assignment.infrastructure.RepairAssignmentRepository;
 import com.example.darks.repair_auto.repair.execution.application.RepairStatusHistoryService;
@@ -398,10 +399,14 @@ public class RepairRequestService {
                 validateInternalNote(request.internalNote()),
                 now);
         RepairRequest saved = repairRequestRepository.saveAndFlush(repairRequest);
+        Long techId = repairAssignmentRepository.findActiveByRequestId(id, RepairAssignmentRepository.ACTIVE_STATUSES)
+                .map(a -> a.getTechnician().getId())
+                .orElse(null);
         publishDomainEvent(new RequestUpdatedDomainEvent(
                 saved.getId(),
                 saved.getRequestNumber(),
-                saved.getCustomer().getId()));
+                saved.getCustomer().getId(),
+                techId));
         var execution = repairExecutionRepository.findByRepairRequestId(id).orElse(null);
         Language lang = effectiveLanguageResolver.resolveEffectiveLanguage();
         return RepairRequestMapper.details(saved, null, execution, lang, localizedValueResolver);
@@ -422,6 +427,14 @@ public class RepairRequestService {
         User deletedBy = userRepository.findById(user.id()).orElseThrow(this::creatorNotFound);
         repairRequest.softDelete(deletedBy, now());
         repairRequestRepository.saveAndFlush(repairRequest);
+        Long techId = repairAssignmentRepository.findActiveByRequestId(id, RepairAssignmentRepository.ACTIVE_STATUSES)
+                .map(a -> a.getTechnician().getId())
+                .orElse(null);
+        publishDomainEvent(new RequestDeletedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                repairRequest.getCustomer().getId(),
+                techId));
     }
 
     @Transactional(readOnly = true)

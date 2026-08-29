@@ -11,24 +11,41 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @ActiveProfiles("test")
 public abstract class PostgreSqlIntegrationTest {
 
-    static final PostgreSQLContainer<?> POSTGRES =
-            new PostgreSQLContainer<>("postgres:17-alpine")
+    static final PostgreSQLContainer<?> POSTGRES;
+    static final boolean USE_CONTAINER;
+
+    static {
+        PostgreSQLContainer<?> container = null;
+        boolean started = false;
+        try {
+            container = new PostgreSQLContainer<>("postgres:17-alpine")
                     .withDatabaseName("repair_auto_test")
                     .withUsername("repair_auto")
                     .withPassword("repair_auto");
+            container.start();
+            started = true;
+        } catch (Throwable ex) {
+            container = null;
+            started = false;
+        }
+        POSTGRES = container;
+        USE_CONTAINER = started;
+    }
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    static {
-        POSTGRES.start();
-    }
-
     @DynamicPropertySource
     static void configurePostgres(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
+        if (USE_CONTAINER && POSTGRES != null) {
+            registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+            registry.add("spring.datasource.username", POSTGRES::getUsername);
+            registry.add("spring.datasource.password", POSTGRES::getPassword);
+        } else {
+            registry.add("spring.datasource.url", () -> "jdbc:postgresql://localhost:5432/repair_auto_test");
+            registry.add("spring.datasource.username", () -> "repair_auto");
+            registry.add("spring.datasource.password", () -> "repair_auto");
+        }
     }
 
     @BeforeEach

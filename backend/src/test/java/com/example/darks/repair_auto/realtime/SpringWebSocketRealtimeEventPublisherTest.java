@@ -32,8 +32,8 @@ class SpringWebSocketRealtimeEventPublisherTest {
 
     @Test
     void publishToUser_chatEvent_publishesExclusivelyToChatQueue() {
-        when(sessionRegistry.findPrincipalNamesForActor(ActorType.CUSTOMER, 100L))
-                .thenReturn(Set.of("customer:100"));
+        when(sessionRegistry.findSessionIdsForActor(ActorType.CUSTOMER, 100L))
+                .thenReturn(Set.of("session-100"));
 
         RealtimeEvent<String> chatEvent = RealtimeEvent.of(
                 RealtimeEventType.CHAT_MESSAGE_CREATED,
@@ -41,14 +41,14 @@ class SpringWebSocketRealtimeEventPublisherTest {
 
         publisher.publishToUser(ActorType.CUSTOMER, 100L, chatEvent);
 
-        verify(messagingTemplate).convertAndSendToUser(eq("customer:100"), eq("/queue/chat"), eq(chatEvent));
-        verify(messagingTemplate, never()).convertAndSendToUser(eq("customer:100"), eq("/queue/events"), any());
+        verify(messagingTemplate).convertAndSend(eq("/queue/chat-user" + "session-100"), eq(chatEvent));
+        verify(messagingTemplate, never()).convertAndSend(eq("/queue/events-user" + "session-100"), any(Object.class));
     }
 
     @Test
     void publishToUser_domainEvent_publishesExclusivelyToEventsQueue() {
-        when(sessionRegistry.findPrincipalNamesForActor(ActorType.TECHNICIAN, 200L))
-                .thenReturn(Set.of("technician:200"));
+        when(sessionRegistry.findSessionIdsForActor(ActorType.TECHNICIAN, 200L))
+                .thenReturn(Set.of("session-200"));
 
         RealtimeEvent<String> requestEvent = RealtimeEvent.of(
                 RealtimeEventType.REQUEST_STATUS_CHANGED,
@@ -56,14 +56,14 @@ class SpringWebSocketRealtimeEventPublisherTest {
 
         publisher.publishToUser(ActorType.TECHNICIAN, 200L, requestEvent);
 
-        verify(messagingTemplate).convertAndSendToUser(eq("technician:200"), eq("/queue/events"), eq(requestEvent));
-        verify(messagingTemplate, never()).convertAndSendToUser(eq("technician:200"), eq("/queue/chat"), any());
+        verify(messagingTemplate).convertAndSend(eq("/queue/events-user" + "session-200"), eq(requestEvent));
+        verify(messagingTemplate, never()).convertAndSend(eq("/queue/chat-user" + "session-200"), any(Object.class));
     }
 
     @Test
-    void publishToStaff_domainEvent_publishesToEventsQueueAndStaffTopic() {
-        when(sessionRegistry.findStaffPrincipalNames())
-                .thenReturn(Set.of("staff:1"));
+    void publishToStaff_domainEvent_publishesExclusivelyToEventsQueueAndNeverToBroadcastTopic() {
+        when(sessionRegistry.findStaffSessionIds())
+                .thenReturn(Set.of("session-staff-1"));
 
         RealtimeEvent<String> dashboardEvent = RealtimeEvent.of(
                 RealtimeEventType.DASHBOARD_INVALIDATED,
@@ -71,8 +71,8 @@ class SpringWebSocketRealtimeEventPublisherTest {
 
         publisher.publishToStaff(dashboardEvent);
 
-        verify(messagingTemplate).convertAndSendToUser(eq("staff:1"), eq("/queue/events"), eq(dashboardEvent));
-        verify(messagingTemplate, never()).convertAndSendToUser(eq("staff:1"), eq("/queue/chat"), any());
-        verify(messagingTemplate).convertAndSend(eq("/topic/staff.events"), eq(dashboardEvent));
+        verify(messagingTemplate).convertAndSend(eq("/queue/events-user" + "session-staff-1"), eq(dashboardEvent));
+        verify(messagingTemplate, never()).convertAndSend(eq("/queue/chat-user" + "session-staff-1"), any(Object.class));
+        verify(messagingTemplate, never()).convertAndSend(eq("/topic/staff.events"), any(Object.class));
     }
 }

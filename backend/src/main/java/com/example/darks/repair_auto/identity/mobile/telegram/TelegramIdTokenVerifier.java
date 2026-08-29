@@ -149,8 +149,9 @@ public class TelegramIdTokenVerifier {
                 username = claims.getStringClaim("username");
             }
             String phoneNumber = claims.getStringClaim("phone_number");
+            boolean phoneNumberVerified = Boolean.TRUE.equals(claims.getBooleanClaim("phone_number_verified"));
 
-            return new TelegramIdentity(telegramUserId, subject, name, username, phoneNumber);
+            return new TelegramIdentity(telegramUserId, subject, name, username, phoneNumber, phoneNumberVerified);
         } catch (BusinessException e) {
             throw e;
         } catch (com.nimbusds.jose.proc.BadJOSEException e) {

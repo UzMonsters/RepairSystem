@@ -48,6 +48,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.darks.repair_auto.realtime.event.application.RequestAttachmentsChangedDomainEvent;
+import com.example.darks.repair_auto.repair.assignment.infrastructure.RepairAssignmentRepository;
+import org.springframework.context.ApplicationEventPublisher;
+
 @Service
 public class AttachmentService {
 
@@ -60,13 +64,42 @@ public class AttachmentService {
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
     private final TechnicianRepository technicianRepository;
+    private final RepairAssignmentRepository repairAssignmentRepository;
     private final ObjectStorageService objectStorageService;
     private final StorageProperties storageProperties;
     private final AttachmentValidator validator;
     private final TransactionTemplate transactionTemplate;
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final Clock clock;
 
     @Autowired
+    public AttachmentService(
+            RepairAttachmentRepository attachmentRepository,
+            RepairRequestRepository repairRequestRepository,
+            UserRepository userRepository,
+            CustomerRepository customerRepository,
+            TechnicianRepository technicianRepository,
+            RepairAssignmentRepository repairAssignmentRepository,
+            ObjectStorageService objectStorageService,
+            StorageProperties storageProperties,
+            AttachmentValidator validator,
+            TransactionTemplate transactionTemplate,
+            ApplicationEventPublisher applicationEventPublisher) {
+        this(
+                attachmentRepository,
+                repairRequestRepository,
+                userRepository,
+                customerRepository,
+                technicianRepository,
+                repairAssignmentRepository,
+                objectStorageService,
+                storageProperties,
+                validator,
+                transactionTemplate,
+                applicationEventPublisher,
+                Clock.systemUTC());
+    }
+
     public AttachmentService(
             RepairAttachmentRepository attachmentRepository,
             RepairRequestRepository repairRequestRepository,
@@ -83,10 +116,12 @@ public class AttachmentService {
                 userRepository,
                 customerRepository,
                 technicianRepository,
+                null,
                 objectStorageService,
                 storageProperties,
                 validator,
                 transactionTemplate,
+                null,
                 Clock.systemUTC());
     }
 
@@ -96,21 +131,25 @@ public class AttachmentService {
             UserRepository userRepository,
             CustomerRepository customerRepository,
             TechnicianRepository technicianRepository,
+            RepairAssignmentRepository repairAssignmentRepository,
             ObjectStorageService objectStorageService,
             StorageProperties storageProperties,
             AttachmentValidator validator,
             TransactionTemplate transactionTemplate,
+            ApplicationEventPublisher applicationEventPublisher,
             Clock clock) {
         this.attachmentRepository = attachmentRepository;
         this.repairRequestRepository = repairRequestRepository;
         this.userRepository = userRepository;
         this.customerRepository = customerRepository;
         this.technicianRepository = technicianRepository;
+        this.repairAssignmentRepository = repairAssignmentRepository;
         this.objectStorageService = objectStorageService;
         this.storageProperties = storageProperties;
         this.validator = validator;
         this.transactionTemplate = transactionTemplate;
         this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        this.applicationEventPublisher = applicationEventPublisher;
         this.clock = clock;
     }
 
@@ -306,9 +345,26 @@ public class AttachmentService {
                 throw new BusinessRuleException("ATTACHMENT_NOT_AVAILABLE", "Attachment is not available.", 409);
             }
             attachment.markDeleted(user(user), reason, now());
+            Long techId = repairAssignmentRepository != null
+                    ? repairAssignmentRepository.findActiveByRequestId(requestId, RepairAssignmentRepository.ACTIVE_STATUSES)
+                            .map(a -> a.getTechnician().getId()).orElse(null)
+                    : null;
+            publishDomainEvent(new RequestAttachmentsChangedDomainEvent(
+                    repairRequest.getId(),
+                    repairRequest.getRequestNumber(),
+                    attachmentId,
+                    "DELETED",
+                    repairRequest.getCustomer().getId(),
+                    techId));
             return attachment.getStorageKey();
         });
         bestEffortDelete(storageKey);
+    }
+
+    private void publishDomainEvent(Object event) {
+        if (applicationEventPublisher != null) {
+            applicationEventPublisher.publishEvent(event);
+        }
     }
 
     private RepairAttachment reserve(
@@ -414,6 +470,17 @@ public class AttachmentService {
             }
             RepairAttachment finalized = attachmentRepository.findByIdAndStatus(attachmentId, AttachmentStatus.AVAILABLE)
                     .orElseThrow(this::attachmentNotFound);
+            Long techId = repairAssignmentRepository != null
+                    ? repairAssignmentRepository.findActiveByRequestId(requestId, RepairAssignmentRepository.ACTIVE_STATUSES)
+                            .map(a -> a.getTechnician().getId()).orElse(null)
+                    : null;
+            publishDomainEvent(new RequestAttachmentsChangedDomainEvent(
+                    repairRequest.getId(),
+                    repairRequest.getRequestNumber(),
+                    attachmentId,
+                    "UPLOADED",
+                    repairRequest.getCustomer().getId(),
+                    techId));
             return AttachmentMapper.response(finalized);
         });
     }
