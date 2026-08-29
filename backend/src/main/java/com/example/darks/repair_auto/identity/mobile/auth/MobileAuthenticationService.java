@@ -158,14 +158,20 @@ public class MobileAuthenticationService {
             LOGGER.info("Mobile customer phone auth resolved customerId={}", customer.getId());
         } else if (identity.provider() == MobileAuthProvider.TELEGRAM) {
             Long telegramUserId = parseLongSubject(identity.providerSubject());
+            String verifiedTelegramPhone = requireVerifiedTelegramPhone(normalizedPhone, identity.phoneVerified());
             customer = customerRepository.findByTelegramUserIdForUpdate(telegramUserId)
                     .orElseGet(() -> customerRepository.saveAndFlush(Customer.telegram(
                             fallbackName(identity, "Telegram Customer"),
-                            normalizedPhone,
+                            verifiedTelegramPhone,
                             telegramUserId,
                             null,
                             LanguageCode.UZ,
                             now)));
+            if (customer.getPhone() == null || customer.getPhone().isBlank()) {
+                customer.setPhone(verifiedTelegramPhone, now, now);
+            } else if (customer.getPhoneVerifiedAt() == null) {
+                customer.markPhoneVerified(now);
+            }
             LOGGER.info("Mobile customer telegram auth resolved customerId={}", customer.getId());
         } else {
             if (!identity.emailVerified() || normalizedEmail == null) {
@@ -417,6 +423,18 @@ public class MobileAuthenticationService {
             LOGGER.info("Mobile auth rejected reason=provider_subject_not_numeric subjectHash={}", fingerprint(subject));
             throw new BusinessException(ErrorCode.VALIDATION_ERROR);
         }
+    }
+
+    private String requireVerifiedTelegramPhone(String normalizedPhone, boolean phoneVerified) {
+        if (normalizedPhone == null) {
+            LOGGER.info("Mobile customer telegram auth rejected reason=phone_missing");
+            throw new BusinessException(ErrorCode.PHONE_REQUIRED);
+        }
+        if (!phoneVerified) {
+            LOGGER.info("Mobile customer telegram auth rejected reason=phone_not_verified");
+            throw new BusinessException(ErrorCode.TELEGRAM_AUTH_INVALID);
+        }
+        return normalizedPhone;
     }
 
     private OffsetDateTime now() {

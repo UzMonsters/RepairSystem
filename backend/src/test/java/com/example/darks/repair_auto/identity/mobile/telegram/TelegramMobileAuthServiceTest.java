@@ -64,7 +64,7 @@ class TelegramMobileAuthServiceTest {
 
     @Test
     void givenValidCustomerTokenAndActiveLinkedCustomerWhenLoginCustomerThenReturnsRepairAutoTokens() {
-        TelegramIdentity identity = new TelegramIdentity(112233L, "112233", "Ali Valiyev", "alivaliyev", "+998901234567");
+        TelegramIdentity identity = new TelegramIdentity(112233L, "112233", "Ali Valiyev", "alivaliyev", "+998901234567", true);
         when(idTokenVerifier.verifyCustomerToken("valid-customer-token")).thenReturn(identity);
 
         Customer customer = new Customer("Ali Valiyev", "+998901234567", LanguageCode.UZ, OffsetDateTime.now(ZoneOffset.UTC));
@@ -101,7 +101,7 @@ class TelegramMobileAuthServiceTest {
 
     @Test
     void givenValidCustomerTokenAndUnlinkedCustomerWhenLoginCustomerThenThrowsTelegramAccountNotLinked() {
-        TelegramIdentity identity = new TelegramIdentity(999999L, "999999", "Unknown", null, null);
+        TelegramIdentity identity = new TelegramIdentity(999999L, "999999", "Unknown", null, null, false);
         when(idTokenVerifier.verifyCustomerToken("unlinked-customer-token")).thenReturn(identity);
         when(customerRepository.findByTelegramUserId(999999L)).thenReturn(Optional.empty());
 
@@ -118,7 +118,7 @@ class TelegramMobileAuthServiceTest {
 
     @Test
     void givenValidCustomerTokenAndInactiveCustomerWhenLoginCustomerThenThrowsAccountInactive() {
-        TelegramIdentity identity = new TelegramIdentity(112233L, "112233", "Inactive Customer", null, null);
+        TelegramIdentity identity = new TelegramIdentity(112233L, "112233", "Inactive Customer", null, null, false);
         when(idTokenVerifier.verifyCustomerToken("inactive-customer-token")).thenReturn(identity);
 
         Customer customer = new Customer("Inactive Customer", "+998901234567", LanguageCode.UZ, OffsetDateTime.now(ZoneOffset.UTC));
@@ -138,7 +138,7 @@ class TelegramMobileAuthServiceTest {
 
     @Test
     void givenValidTechnicianTokenAndActiveLinkedTechnicianWhenLoginTechnicianThenReturnsRepairAutoTokens() {
-        TelegramIdentity identity = new TelegramIdentity(445566L, "445566", "Vali Master", "valimaster", "+998909876543");
+        TelegramIdentity identity = new TelegramIdentity(445566L, "445566", "Vali Master", "valimaster", "+998909876543", true);
         when(idTokenVerifier.verifyTechnicianToken("valid-tech-token")).thenReturn(identity);
 
         Technician technician = new Technician("Vali Master", "+998909876543", "Diagnostics", "Notes", 5, LanguageCode.RU, true, OffsetDateTime.now(ZoneOffset.UTC));
@@ -175,7 +175,7 @@ class TelegramMobileAuthServiceTest {
 
     @Test
     void givenValidTechnicianTokenAndUnlinkedTechnicianWhenLoginTechnicianThenThrowsTelegramAccountNotLinked() {
-        TelegramIdentity identity = new TelegramIdentity(888888L, "888888", "Unknown Tech", null, null);
+        TelegramIdentity identity = new TelegramIdentity(888888L, "888888", "Unknown Tech", null, null, false);
         when(idTokenVerifier.verifyTechnicianToken("unlinked-tech-token")).thenReturn(identity);
         when(technicianRepository.findByTelegramUserId(888888L)).thenReturn(Optional.empty());
 
@@ -191,7 +191,7 @@ class TelegramMobileAuthServiceTest {
 
     @Test
     void givenValidTechnicianTokenAndInactiveTechnicianWhenLoginTechnicianThenThrowsAccountInactive() {
-        TelegramIdentity identity = new TelegramIdentity(445566L, "445566", "Inactive Tech", null, null);
+        TelegramIdentity identity = new TelegramIdentity(445566L, "445566", "Inactive Tech", null, null, false);
         when(idTokenVerifier.verifyTechnicianToken("inactive-tech-token")).thenReturn(identity);
 
         Technician technician = new Technician("Inactive Tech", "+998909876543", "Diagnostics", "Notes", 5, LanguageCode.RU, false, OffsetDateTime.now(ZoneOffset.UTC));

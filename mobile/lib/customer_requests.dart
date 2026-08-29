@@ -1,11 +1,20 @@
 part of 'main.dart';
 
 class CustomerRequests extends StatefulWidget {
-  const CustomerRequests({super.key, required this.repo, required this.chat, required this.categories, this.events});
+  const CustomerRequests({
+    super.key,
+    required this.repo,
+    required this.chat,
+    required this.categories,
+    this.realtime,
+    this.events,
+  });
   final CustomerRepository repo;
   final MobileChatRepository chat;
   final CategoryRepository categories;
-  final Stream<Map<String, dynamic>>? events;
+  final MobileRealtimeClient? realtime;
+  final Stream<RealtimeEnvelope<dynamic>>? events;
+
   @override
   State<CustomerRequests> createState() => _CustomerRequestsState();
 }
@@ -17,7 +26,8 @@ class _CustomerRequestsState extends State<CustomerRequests> {
   double? latitude;
   double? longitude;
   bool locating = false;
-  StreamSubscription<Map<String, dynamic>>? eventSubscription;
+  StreamSubscription<RealtimeEnvelope<dynamic>>? eventSubscription;
+  StreamSubscription<void>? reconnectSubscription;
   final description = TextEditingController();
   final address = TextEditingController();
 
@@ -26,7 +36,12 @@ class _CustomerRequestsState extends State<CustomerRequests> {
     super.initState();
     future = widget.repo.requests();
     categories = loadCategories();
-    eventSubscription = widget.events?.listen((_) {
+    final stream = widget.events ?? widget.realtime?.events;
+    eventSubscription = stream?.listen((envelope) {
+      if (!envelope.type.isRequestDomainEvent) return;
+      if (mounted) setState(() => future = widget.repo.requests());
+    });
+    reconnectSubscription = widget.realtime?.onReconnected.listen((_) {
       if (mounted) setState(() => future = widget.repo.requests());
     });
   }
@@ -46,6 +61,7 @@ class _CustomerRequestsState extends State<CustomerRequests> {
     description.dispose();
     address.dispose();
     eventSubscription?.cancel();
+    reconnectSubscription?.cancel();
     super.dispose();
   }
 
@@ -88,10 +104,16 @@ class _CustomerRequestsState extends State<CustomerRequests> {
         longitude = position.longitude;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mobileText(widget.repo.api.language, 'locationReady'))),
+        SnackBar(
+          content: Text(mobileText(widget.repo.api.language, 'locationReady')),
+        ),
       );
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$error')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$error')));
+      }
     } finally {
       if (mounted) setState(() => locating = false);
     }
@@ -104,16 +126,24 @@ class _CustomerRequestsState extends State<CustomerRequests> {
       builder: (sheetContext) => SafeArea(
         child: ListView(
           shrinkWrap: true,
-          children: items.map((item) => ListTile(
-            leading: const Icon(Icons.build_outlined),
-            title: Text(item.name),
-            trailing: item.id == selectedCategoryId ? const Icon(Icons.check) : null,
-            onTap: () => Navigator.pop(sheetContext, item.id),
-          )).toList(),
+          children: items
+              .map(
+                (item) => ListTile(
+                  leading: const Icon(Icons.build_outlined),
+                  title: Text(item.name),
+                  trailing: item.id == selectedCategoryId
+                      ? const Icon(Icons.check)
+                      : null,
+                  onTap: () => Navigator.pop(sheetContext, item.id),
+                ),
+              )
+              .toList(),
         ),
       ),
     );
-    if (selected != null && mounted) setState(() => selectedCategoryId = selected);
+    if (selected != null && mounted) {
+      setState(() => selectedCategoryId = selected);
+    }
   }
 
   @override
@@ -130,15 +160,18 @@ class _CustomerRequestsState extends State<CustomerRequests> {
               children: [
                 Text(
                   mobileText(widget.repo.api.language, 'createRequest'),
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: description,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    labelText: mobileText(widget.repo.api.language, 'description'),
-                    border: OutlineInputBorder(),
+                    labelText: mobileText(
+                      widget.repo.api.language,
+                      'description',
+                    ),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -151,10 +184,12 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                       onPressed: () => chooseCategory(items),
                       icon: const Icon(Icons.add),
                       label: Text(
-                        items.firstWhere(
-                          (item) => item.id == selectedCategoryId,
-                          orElse: () => items.first,
-                        ).name,
+                        items
+                            .firstWhere(
+                              (item) => item.id == selectedCategoryId,
+                              orElse: () => items.first,
+                            )
+                            .name,
                       ),
                     );
                   },
@@ -165,9 +200,12 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                   maxLength: 500,
                   decoration: InputDecoration(
                     labelText: mobileText(widget.repo.api.language, 'location'),
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                     prefixIcon: IconButton(
-                      tooltip: mobileText(widget.repo.api.language, 'getLocation'),
+                      tooltip: mobileText(
+                        widget.repo.api.language,
+                        'getLocation',
+                      ),
                       onPressed: locating ? null : useCurrentLocation,
                       icon: const Icon(Icons.location_on_outlined),
                     ),
@@ -177,7 +215,11 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                 OutlinedButton.icon(
                   onPressed: locating ? null : useCurrentLocation,
                   icon: locating
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Icon(Icons.my_location),
                   label: Text(
                     latitude == null
@@ -208,7 +250,11 @@ class _CustomerRequestsState extends State<CustomerRequests> {
               );
             }
             final items = snapshot.data?.content ?? [];
-            if (items.isEmpty) return Center(child: Text(mobileText(widget.repo.api.language, 'noRequests')));
+            if (items.isEmpty) {
+              return Center(
+                child: Text(mobileText(widget.repo.api.language, 'noRequests')),
+              );
+            }
             return Column(
               children: items
                   .map(
@@ -220,8 +266,12 @@ class _CustomerRequestsState extends State<CustomerRequests> {
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                RequestDetails(repo: widget.repo, chat: widget.chat, item: item),
+                            builder: (_) => RequestDetails(
+                              repo: widget.repo,
+                              chat: widget.chat,
+                              item: item,
+                              realtime: widget.realtime,
+                            ),
                           ),
                         ),
                       ),
@@ -235,4 +285,3 @@ class _CustomerRequestsState extends State<CustomerRequests> {
     ),
   );
 }
-

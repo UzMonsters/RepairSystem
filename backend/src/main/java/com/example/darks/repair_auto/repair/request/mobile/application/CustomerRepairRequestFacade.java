@@ -4,6 +4,7 @@ import com.example.darks.repair_auto.catalog.category.domain.RepairCategory;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedMobileActor;
 import com.example.darks.repair_auto.repair.access.application.RepairResourceAccessPolicy;
 import com.example.darks.repair_auto.repair.action.application.RepairActionCapabilityService;
+import com.example.darks.repair_auto.repair.assignment.domain.AssignmentStatus;
 import com.example.darks.repair_auto.repair.assignment.domain.RepairAssignment;
 import com.example.darks.repair_auto.repair.assignment.infrastructure.RepairAssignmentRepository;
 import com.example.darks.repair_auto.repair.execution.domain.RepairRequestStatusHistory;
@@ -200,7 +201,9 @@ public class CustomerRepairRequestFacade {
                 .findActiveByRequestId(request.getId(), RepairResourceAccessPolicy.ACTIVE_ASSIGNMENT_STATUSES)
                 .orElse(null);
 
-        OffsetDateTime scheduledVisitAt = activeAssignment != null ? activeAssignment.getScheduledVisitAt() : null;
+        OffsetDateTime scheduledVisitAt = (activeAssignment != null && activeAssignment.getStatus() == AssignmentStatus.ACCEPTED)
+                ? activeAssignment.getScheduledVisitAt()
+                : null;
 
         return new CustomerRepairRequestSummaryResponse(
                 request.getId(),
@@ -223,7 +226,7 @@ public class CustomerRepairRequestFacade {
         CustomerRepairRequestDetailResponse.TechnicianSummary technicianSummary = null;
         CustomerRepairRequestDetailResponse.ScheduleInfo scheduleInfo = null;
 
-        if (assignment != null) {
+        if (assignment != null && assignment.getStatus() == AssignmentStatus.ACCEPTED) {
             Technician tech = assignment.getTechnician();
             technicianSummary = new CustomerRepairRequestDetailResponse.TechnicianSummary(
                     tech.getId(),

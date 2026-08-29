@@ -5,7 +5,8 @@ public record TelegramIdentity(
         String subject,
         String name,
         String username,
-        String phoneNumber
+        String phoneNumber,
+        boolean phoneNumberVerified
 ) {
     public TelegramIdentity {
         if (telegramUserId == null || telegramUserId <= 0) {

@@ -30,6 +30,13 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             """)
     long countActiveAdmins();
 
+    @Query("""
+            select u from User u
+            where u.role in ('ADMIN', 'MANAGER') and u.active = true
+            order by u.id
+            """)
+    List<User> findActiveStaff();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select u from User u

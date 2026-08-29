@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,58 +21,70 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('repair_auto/telegram_auth'),
-        (MethodCall methodCall) async {
-          channelCalls.add(methodCall);
-          if (mockExceptionToThrow != null) {
-            throw mockExceptionToThrow!;
-          }
-          if (methodCall.method == 'login') {
-            return mockIdTokenToReturn;
-          }
-          if (methodCall.method == 'cancel') {
-            return true;
-          }
-          return null;
-        },
-      );
+            const MethodChannel('repair_auto/telegram_auth'),
+            (MethodCall methodCall) async {
+              channelCalls.add(methodCall);
+              if (mockExceptionToThrow != null) {
+                throw mockExceptionToThrow!;
+              }
+              if (methodCall.method == 'login') {
+                return mockIdTokenToReturn;
+              }
+              if (methodCall.method == 'cancel') {
+                return true;
+              }
+              return null;
+            },
+          );
     });
 
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('repair_auto/telegram_auth'),
-        null,
-      );
+            const MethodChannel('repair_auto/telegram_auth'),
+            null,
+          );
     });
 
-    test('Customer role invokes channel with customer client configuration', () async {
-      final service = TelegramAuthService();
-      final token = await service.login('CUSTOMER');
+    test(
+      'Customer role invokes channel with customer client configuration',
+      () async {
+        final service = TelegramAuthService();
+        final token = await service.login('CUSTOMER');
 
-      expect(token, 'mock.jwt.token');
-      expect(channelCalls.length, 1);
-      final call = channelCalls.first;
-      expect(call.method, 'login');
-      expect(call.arguments['role'], 'CUSTOMER');
-      expect(call.arguments['clientId'], '8957154846');
-      expect(call.arguments['redirectUri'], 'https://app1859875063-login.tg.dev/tglogin');
-      expect(call.arguments['scopes'], ['profile']);
-    });
+        expect(token, 'mock.jwt.token');
+        expect(channelCalls.length, 1);
+        final call = channelCalls.first;
+        expect(call.method, 'login');
+        expect(call.arguments['role'], 'CUSTOMER');
+        expect(call.arguments['clientId'], '8957154846');
+        expect(
+          call.arguments['redirectUri'],
+          'https://app1859875063-login.tg.dev/tglogin',
+        );
+        expect(call.arguments['scopes'], ['profile', 'phone']);
+      },
+    );
 
-    test('Technician role invokes channel with technician client configuration', () async {
-      final service = TelegramAuthService();
-      final token = await service.login('TECHNICIAN');
+    test(
+      'Technician role invokes channel with technician client configuration',
+      () async {
+        final service = TelegramAuthService();
+        final token = await service.login('TECHNICIAN');
 
-      expect(token, 'mock.jwt.token');
-      expect(channelCalls.length, 1);
-      final call = channelCalls.first;
-      expect(call.method, 'login');
-      expect(call.arguments['role'], 'TECHNICIAN');
-      expect(call.arguments['clientId'], '8854105729');
-      expect(call.arguments['redirectUri'], 'https://app1074067825-login.tg.dev/tglogin');
-      expect(call.arguments['scopes'], ['profile']);
-    });
+        expect(token, 'mock.jwt.token');
+        expect(channelCalls.length, 1);
+        final call = channelCalls.first;
+        expect(call.method, 'login');
+        expect(call.arguments['role'], 'TECHNICIAN');
+        expect(call.arguments['clientId'], '8854105729');
+        expect(
+          call.arguments['redirectUri'],
+          'https://app1074067825-login.tg.dev/tglogin',
+        );
+        expect(call.arguments['scopes'], ['profile', 'phone']);
+      },
+    );
 
     test('Throws StateError when native SDK returns empty token', () async {
       mockIdTokenToReturn = '';
@@ -89,7 +102,13 @@ void main() {
 
       expect(
         () => service.login('CUSTOMER'),
-        throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'TELEGRAM_CALLBACK_FAILED')),
+        throwsA(
+          isA<PlatformException>().having(
+            (e) => e.code,
+            'code',
+            'TELEGRAM_CALLBACK_FAILED',
+          ),
+        ),
       );
     });
 
@@ -103,77 +122,90 @@ void main() {
   });
 
   group('LoginPage Telegram UI & State Tests', () {
-    testWidgets('Single-flight protection prevents duplicate concurrent login invocations', (tester) async {
-      int telegramLoginCalls = 0;
-      final completer = Completer<String>();
+    testWidgets(
+      'Single-flight protection prevents duplicate concurrent login invocations',
+      (tester) async {
+        int telegramLoginCalls = 0;
+        final completer = Completer<String>();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LoginPage(
-            onLogin: (_, _) async {},
-            onTelegramLogin: (role) {
-              telegramLoginCalls++;
-              return completer.future;
-            },
-            onRequestPhoneOtp: (_, _) async => 'challenge-1',
-            onVerifyPhoneOtp: (_, _, _) async {},
-            loading: false,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LoginPage(
+              onLogin: (_, _) async {},
+              onTelegramLogin: (role) {
+                telegramLoginCalls++;
+                return completer.future;
+              },
+              onGoogleLogin: (_) async {},
+              onRequestPhoneOtp: (_, _) async => 'challenge-1',
+              onVerifyPhoneOtp: (_, _, _) async {},
+              loading: false,
+            ),
           ),
-        ),
-      );
+        );
 
-      // Find the submit button (FilledButton)
-      final submitButton = find.byType(FilledButton);
-      expect(submitButton, findsOneWidget);
+        // Find the submit button (FilledButton)
+        final submitButton = find.byType(FilledButton);
+        expect(submitButton, findsOneWidget);
 
-      // First tap
-      await tester.tap(submitButton);
-      await tester.pump();
+        // First tap
+        await tester.tap(submitButton);
+        await tester.pump();
 
-      expect(telegramLoginCalls, 1);
+        expect(telegramLoginCalls, 1);
 
-      // Second tap while login is in progress
-      await tester.tap(submitButton);
-      await tester.pump();
+        // Second tap while login is in progress
+        await tester.tap(submitButton);
+        await tester.pump();
 
-      // Should still be 1 (ignored duplicate tap)
-      expect(telegramLoginCalls, 1);
+        // Should still be 1 (ignored duplicate tap)
+        expect(telegramLoginCalls, 1);
 
-      // Resolve login
-      completer.complete('token-123');
-      await tester.pumpAndSettle();
-    });
+        // Resolve login
+        completer.complete('token-123');
+        await tester.pumpAndSettle();
+      },
+    );
 
-    testWidgets('PlatformException maps to localized user-friendly error without raw platform strings', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LoginPage(
-            onLogin: (_, _) async {},
-            onTelegramLogin: (role) async {
-              throw PlatformException(
-                code: 'TELEGRAM_CALLBACK_FAILED',
-                message: 'No active login session. Call startLogin() first.',
-              );
-            },
-            onRequestPhoneOtp: (_, _) async => 'challenge-1',
-            onVerifyPhoneOtp: (_, _, _) async {},
-            loading: false,
+    testWidgets(
+      'PlatformException maps to localized user-friendly error without raw platform strings',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LoginPage(
+              onLogin: (_, _) async {},
+              onTelegramLogin: (role) async {
+                throw PlatformException(
+                  code: 'TELEGRAM_CALLBACK_FAILED',
+                  message: 'No active login session. Call startLogin() first.',
+                );
+              },
+              onGoogleLogin: (_) async {},
+              onRequestPhoneOtp: (_, _) async => 'challenge-1',
+              onVerifyPhoneOtp: (_, _, _) async {},
+              loading: false,
+            ),
           ),
-        ),
-      );
+        );
 
-      final submitButton = find.byType(FilledButton);
-      await tester.tap(submitButton);
-      await tester.pumpAndSettle();
+        final submitButton = find.byType(FilledButton);
+        await tester.tap(submitButton);
+        await tester.pumpAndSettle();
 
-      // In Russian (default), session expired maps to user-friendly message
-      expect(find.text('Сессия входа через Telegram истекла. Попробуйте ещё раз.'), findsOneWidget);
-      // Raw technical message must NOT appear
-      expect(find.textContaining('No active login session'), findsNothing);
-      expect(find.textContaining('PlatformException'), findsNothing);
-    });
+        // In Russian (default), session expired maps to user-friendly message
+        expect(
+          find.text('Сессия входа через Telegram истекла. Попробуйте ещё раз.'),
+          findsOneWidget,
+        );
+        // Raw technical message must NOT appear
+        expect(find.textContaining('No active login session'), findsNothing);
+        expect(find.textContaining('PlatformException'), findsNothing);
+      },
+    );
 
-    testWidgets('Cancelled login maps to localized cancellation message', (tester) async {
+    testWidgets('Cancelled login maps to localized cancellation message', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         MaterialApp(
           home: LoginPage(
@@ -184,6 +216,7 @@ void main() {
                 message: 'Telegram login cancelled by user',
               );
             },
+            onGoogleLogin: (_) async {},
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -198,7 +231,9 @@ void main() {
       expect(find.text('Вход через Telegram отменен.'), findsOneWidget);
     });
 
-    testWidgets('Successful token triggers onLogin exactly once', (tester) async {
+    testWidgets('Successful token triggers onLogin exactly once', (
+      tester,
+    ) async {
       int backendLoginCalls = 0;
       String? receivedRole;
       String? receivedToken;
@@ -212,6 +247,7 @@ void main() {
               receivedToken = token;
             },
             onTelegramLogin: (role) async => 'valid-oidc-id-token',
+            onGoogleLogin: (_) async {},
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -228,7 +264,9 @@ void main() {
       expect(receivedToken, 'valid-oidc-id-token');
     });
 
-    testWidgets('Failed Telegram auth does NOT invoke backend onLogin', (tester) async {
+    testWidgets('Failed Telegram auth does NOT invoke backend onLogin', (
+      tester,
+    ) async {
       int backendLoginCalls = 0;
 
       await tester.pumpWidget(
@@ -240,6 +278,7 @@ void main() {
             onTelegramLogin: (role) async {
               throw PlatformException(code: 'TELEGRAM_LOGIN_FAILED');
             },
+            onGoogleLogin: (_) async {},
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -252,7 +291,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(backendLoginCalls, 0);
-      expect(find.text('Не удалось войти через Telegram. Попробуйте ещё раз.'), findsOneWidget);
+      expect(
+        find.text('Не удалось войти через Telegram. Попробуйте ещё раз.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('Role toggle resets error message state', (tester) async {
@@ -263,6 +305,7 @@ void main() {
             onTelegramLogin: (role) async {
               throw PlatformException(code: 'TELEGRAM_LOGIN_FAILED');
             },
+            onGoogleLogin: (_) async {},
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -274,14 +317,99 @@ void main() {
       final submitButton = find.byType(FilledButton);
       await tester.tap(submitButton);
       await tester.pumpAndSettle();
-      expect(find.text('Не удалось войти через Telegram. Попробуйте ещё раз.'), findsOneWidget);
+      expect(
+        find.text('Не удалось войти через Telegram. Попробуйте ещё раз.'),
+        findsOneWidget,
+      );
 
       // Toggle to Technician
       await tester.tap(find.text('Техник'));
       await tester.pumpAndSettle();
 
       // Error should be cleared
-      expect(find.text('Не удалось войти через Telegram. Попробуйте ещё раз.'), findsNothing);
+      expect(
+        find.text('Не удалось войти через Telegram. Попробуйте ещё раз.'),
+        findsNothing,
+      );
     });
+
+    testWidgets('Customer Google option invokes Google login callback', (
+      tester,
+    ) async {
+      int googleLoginCalls = 0;
+      String? receivedRole;
+      int telegramLoginCalls = 0;
+      int backendTelegramLoginCalls = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LoginPage(
+            onLogin: (_, _) async {
+              backendTelegramLoginCalls++;
+            },
+            onTelegramLogin: (role) async {
+              telegramLoginCalls++;
+              return 'telegram-token';
+            },
+            onGoogleLogin: (role) async {
+              googleLoginCalls++;
+              receivedRole = role;
+            },
+            onRequestPhoneOtp: (_, _) async => 'challenge-1',
+            onVerifyPhoneOtp: (_, _, _) async {},
+            loading: false,
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Google').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(googleLoginCalls, 1);
+      expect(receivedRole, 'CUSTOMER');
+      expect(telegramLoginCalls, 0);
+      expect(backendTelegramLoginCalls, 0);
+    });
+
+    testWidgets(
+      'Technician Google option invokes Google login callback with technician role',
+      (tester) async {
+        int googleLoginCalls = 0;
+        String? receivedRole;
+        int telegramLoginCalls = 0;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LoginPage(
+              onLogin: (_, _) async {},
+              onTelegramLogin: (role) async {
+                telegramLoginCalls++;
+                return 'telegram-token';
+              },
+              onGoogleLogin: (role) async {
+                googleLoginCalls++;
+                receivedRole = role;
+              },
+              onRequestPhoneOtp: (_, _) async => 'challenge-1',
+              onVerifyPhoneOtp: (_, _, _) async {},
+              loading: false,
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Техник'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Google').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(FilledButton));
+        await tester.pumpAndSettle();
+
+        expect(googleLoginCalls, 1);
+        expect(receivedRole, 'TECHNICIAN');
+        expect(telegramLoginCalls, 0);
+      },
+    );
   });
 }

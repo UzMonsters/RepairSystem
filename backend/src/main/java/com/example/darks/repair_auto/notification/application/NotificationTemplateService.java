@@ -79,7 +79,16 @@ public class NotificationTemplateService {
                 .replace("{technicianName}", value(payload, "technicianName"))
                 .replace("{scheduledVisitAt}", scheduledVisitAt(payload, language))
                 .replace("{priority}", priority(payload, language))
-                .replace("{status}", status(payload, language));
+                .replace("{status}", status(payload, language))
+                .replace("{reason}", reason(payload, language));
+    }
+
+    private String reason(Map<String, String> payload, LanguageCode language) {
+        String reason = payload.get("reason");
+        if (reason == null || reason.isBlank()) {
+            return switchDefault("No reason provided", "Причина не указана", "Sabab ko'rsatilmadi", language);
+        }
+        return escape(reason);
     }
 
     private Map<String, String> payload(String payloadJson) {
@@ -275,6 +284,10 @@ public class NotificationTemplateService {
                 "Request cancelled", "Repair request {requestNumber} assigned to you has been cancelled.",
                 "Заявка отменена", "Назначенная вам заявка {requestNumber} отменена.",
                 "Ariza bekor qilindi", "Sizga biriktirilgan {requestNumber} arizasi bekor qilindi.");
+        put(NotificationType.TECHNICIAN_REJECTED, NotificationRecipientType.STAFF,
+                "Technician rejected assignment", "Technician {technicianName} rejected assignment for request {requestNumber}.\nReassignment is required.\nReason: {reason}.",
+                "Мастер отклонил назначение", "Мастер {technicianName} отклонил заявку {requestNumber}.\nТребуется переназначение.\nПричина: {reason}.",
+                "Usta topshiriqni rad etdi", "Usta {technicianName} {requestNumber} arizasini rad etdi.\nQayta biriktirish talab qilinadi.\nSabab: {reason}.");
     }
 
     private void put(

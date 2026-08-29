@@ -25,6 +25,8 @@ import com.example.darks.repair_auto.identity.infrastructure.persistence.PhoneOt
 import com.example.darks.repair_auto.identity.infrastructure.security.JwtTokenService;
 import com.example.darks.repair_auto.identity.mobile.google.GoogleIdTokenVerifier;
 import com.example.darks.repair_auto.identity.mobile.google.GoogleIdentity;
+import com.example.darks.repair_auto.identity.mobile.telegram.TelegramIdentity;
+import com.example.darks.repair_auto.identity.mobile.telegram.TelegramIdTokenVerifier;
 import com.example.darks.repair_auto.notification.push.domain.PushClientType;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.technician.domain.Technician;
@@ -80,6 +82,9 @@ class MobileAuthRedesignIntegrationTest extends PostgreSqlIntegrationTest {
 
     @MockitoBean
     private GoogleIdTokenVerifier googleIdTokenVerifier;
+
+    @MockitoBean
+    private TelegramIdTokenVerifier telegramIdTokenVerifier;
 
     private OffsetDateTime now;
 
@@ -166,6 +171,119 @@ class MobileAuthRedesignIntegrationTest extends PostgreSqlIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phone").value(phone))
                 .andExpect(jsonPath("$.phoneVerified").value(true));
+    }
+
+    @Test
+    void givenTelegramCustomerWithVerifiedUzbekPhoneWhenLoginThenRegistersCustomerWithVerifiedPhone() throws Exception {
+        Mockito.when(telegramIdTokenVerifier.verifyCustomerToken("telegram-token-cust-1"))
+                .thenReturn(new TelegramIdentity(
+                        1122334455L,
+                        "1122334455",
+                        "Telegram Customer",
+                        "telegram_customer",
+                        "998901234567",
+                        true));
+
+        MvcResult loginResult = mockMvc.perform(post("/api/v1/mobile/auth/telegram/customer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "idToken": "telegram-token-cust-1"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.actor.type").value("CUSTOMER"))
+                .andExpect(jsonPath("$.actor.fullName").value("Telegram Customer"))
+                .andExpect(jsonPath("$.actor.phone").value("+998901234567"))
+                .andReturn();
+
+        Customer customer = customerRepository.findByTelegramUserId(1122334455L).orElseThrow();
+        assertThat(customer.getPhone()).isEqualTo("+998901234567");
+        assertThat(customer.getPhoneVerifiedAt()).isNotNull();
+
+        MobileAuthIdentity identity = identityRepository
+                .findActiveByProvider(ActorType.CUSTOMER, MobileAuthProvider.TELEGRAM, "1122334455")
+                .orElseThrow();
+        assertThat(identity.getProviderPhone()).isEqualTo("+998901234567");
+
+        String accessToken = JsonPath.read(loginResult.getResponse().getContentAsString(), "$.accessToken");
+        mockMvc.perform(get("/api/v1/mobile/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value("+998901234567"))
+                .andExpect(jsonPath("$.phoneVerified").value(true));
+    }
+
+    @Test
+    void givenTelegramCustomerWithoutPhoneWhenLoginThenRegistrationFails() throws Exception {
+        Mockito.when(telegramIdTokenVerifier.verifyCustomerToken("telegram-token-no-phone"))
+                .thenReturn(new TelegramIdentity(
+                        2233445566L,
+                        "2233445566",
+                        "No Phone",
+                        null,
+                        null,
+                        false));
+
+        mockMvc.perform(post("/api/v1/mobile/auth/telegram/customer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "idToken": "telegram-token-no-phone"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PHONE_REQUIRED"));
+
+        assertThat(customerRepository.findByTelegramUserId(2233445566L)).isEmpty();
+    }
+
+    @Test
+    void givenTelegramCustomerWithUnverifiedPhoneWhenLoginThenRegistrationFails() throws Exception {
+        Mockito.when(telegramIdTokenVerifier.verifyCustomerToken("telegram-token-unverified-phone"))
+                .thenReturn(new TelegramIdentity(
+                        3344556677L,
+                        "3344556677",
+                        "Unverified Phone",
+                        null,
+                        "+998901234567",
+                        false));
+
+        mockMvc.perform(post("/api/v1/mobile/auth/telegram/customer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "idToken": "telegram-token-unverified-phone"
+                                }
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("TELEGRAM_AUTH_INVALID"));
+
+        assertThat(customerRepository.findByTelegramUserId(3344556677L)).isEmpty();
+    }
+
+    @Test
+    void givenTelegramCustomerWithNonUzbekPhoneWhenLoginThenRegistrationFails() throws Exception {
+        Mockito.when(telegramIdTokenVerifier.verifyCustomerToken("telegram-token-foreign-phone"))
+                .thenReturn(new TelegramIdentity(
+                        4455667788L,
+                        "4455667788",
+                        "Foreign Phone",
+                        null,
+                        "+971577777777",
+                        true));
+
+        mockMvc.perform(post("/api/v1/mobile/auth/telegram/customer")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "idToken": "telegram-token-foreign-phone"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PHONE_NUMBER"));
+
+        assertThat(customerRepository.findByTelegramUserId(4455667788L)).isEmpty();
     }
 
     @Test
