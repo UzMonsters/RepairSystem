@@ -232,6 +232,7 @@ public class PhoneOtpService {
                         null,
                         false,
                         challenge.getPhone(),
+                        true,
                         challenge.getPhone()),
                 request.device(),
                 ip,

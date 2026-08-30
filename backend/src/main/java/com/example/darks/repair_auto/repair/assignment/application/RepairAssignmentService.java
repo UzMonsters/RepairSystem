@@ -41,6 +41,11 @@ import com.example.darks.repair_auto.localization.infrastructure.EffectiveLangua
 import com.example.darks.repair_auto.settings.domain.Language;
 import com.example.darks.repair_auto.chat.application.ChatService;
 import com.example.darks.repair_auto.realtime.event.application.RequestAssignedDomainEvent;
+import com.example.darks.repair_auto.realtime.event.application.RequestAssignmentAcceptedDomainEvent;
+import com.example.darks.repair_auto.realtime.event.application.RequestAssignmentCreatedDomainEvent;
+import com.example.darks.repair_auto.realtime.event.application.RequestAssignmentRejectedDomainEvent;
+import com.example.darks.repair_auto.realtime.event.application.RequestReassignedDomainEvent;
+import com.example.darks.repair_auto.realtime.event.application.RequestScheduleChangedDomainEvent;
 import com.example.darks.repair_auto.realtime.event.application.RequestUnassignedDomainEvent;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -159,12 +164,12 @@ public class RepairAssignmentService {
         applyRequestStatus(repairRequest, assignment, now);
         statusHistoryService.recordTransition(repairRequest, fromStatus, "Technician assigned.", assignedBy, now);
         enqueueAssignmentCreated(repairRequest, assignment);
-        publishDomainEvent(new RequestAssignedDomainEvent(
+        publishDomainEvent(new RequestAssignmentCreatedDomainEvent(
                 repairRequest.getId(),
                 repairRequest.getRequestNumber(),
-                repairRequest.getCustomer().getId(),
                 technician.getId(),
-                assignment.getId()));
+                assignment.getId(),
+                repairRequest.getCustomer().getId()));
         return details(repairRequest);
     }
 
@@ -200,17 +205,13 @@ public class RepairAssignmentService {
                 repairRequest,
                 next,
                 eventPart));
-        notificationOutboxService.enqueue(notificationEventFactory.customer(
-                NotificationType.TECHNICIAN_ASSIGNED,
-                repairRequest,
-                next,
-                eventPart));
-        publishDomainEvent(new RequestAssignedDomainEvent(
+        publishDomainEvent(new RequestReassignedDomainEvent(
                 repairRequest.getId(),
                 repairRequest.getRequestNumber(),
-                repairRequest.getCustomer().getId(),
+                current.getTechnician().getId(),
                 technician.getId(),
-                next.getId()));
+                next.getId(),
+                repairRequest.getCustomer().getId()));
         return details(repairRequest);
     }
 
@@ -266,6 +267,18 @@ public class RepairAssignmentService {
         applyRequestStatus(repairRequest, assignment, now);
         statusHistoryService.recordTransition(repairRequest, fromStatus, "Schedule changed.", changedBy, now);
         enqueueScheduleChanged(repairRequest, assignment, previousScheduledVisitAt, scheduledVisitAt);
+        String scheduleAction = scheduledVisitAt == null
+                ? "CLEARED"
+                : (previousScheduledVisitAt == null ? "SCHEDULED" : "RESCHEDULED");
+        publishDomainEvent(new RequestScheduleChangedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                assignment.getId(),
+                assignment.getTechnician().getId(),
+                repairRequest.getCustomer().getId(),
+                scheduledVisitAt,
+                scheduledVisitAt != null ? scheduledVisitAt.plusHours(2) : null,
+                scheduleAction));
         return details(repairRequest);
     }
 
@@ -285,6 +298,13 @@ public class RepairAssignmentService {
         }
         assignment.accept(now);
         applyRequestStatus(repairRequest, assignment, now);
+        enqueueAssignmentAccepted(repairRequest, assignment);
+        publishDomainEvent(new RequestAssignmentAcceptedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                repairRequest.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                assignment.getId()));
         return details(repairRequest);
     }
 
@@ -306,6 +326,13 @@ public class RepairAssignmentService {
         }
         assignment.accept(now);
         applyRequestStatus(repairRequest, assignment, now);
+        enqueueAssignmentAccepted(repairRequest, assignment);
+        publishDomainEvent(new RequestAssignmentAcceptedDomainEvent(
+                repairRequest.getId(),
+                repairRequest.getRequestNumber(),
+                repairRequest.getCustomer().getId(),
+                assignment.getTechnician().getId(),
+                assignment.getId()));
         return details(repairRequest);
     }
 
@@ -335,12 +362,14 @@ public class RepairAssignmentService {
         if (chatService != null) {
             chatService.handleTechnicianUnassigned(repairRequest.getId(), assignment.getTechnician().getId());
         }
-        publishDomainEvent(new RequestUnassignedDomainEvent(
+        notifyStaffAssignmentRejected(repairRequest, assignment, reason);
+        publishDomainEvent(new RequestAssignmentRejectedDomainEvent(
                 repairRequest.getId(),
                 repairRequest.getRequestNumber(),
                 repairRequest.getCustomer().getId(),
                 assignment.getTechnician().getId(),
-                assignment.getId()));
+                assignment.getId(),
+                reason));
         return details(repairRequest);
     }
 
@@ -371,12 +400,14 @@ public class RepairAssignmentService {
         if (chatService != null) {
             chatService.handleTechnicianUnassigned(repairRequest.getId(), assignment.getTechnician().getId());
         }
-        publishDomainEvent(new RequestUnassignedDomainEvent(
+        notifyStaffAssignmentRejected(repairRequest, assignment, reason);
+        publishDomainEvent(new RequestAssignmentRejectedDomainEvent(
                 repairRequest.getId(),
                 repairRequest.getRequestNumber(),
                 repairRequest.getCustomer().getId(),
                 assignment.getTechnician().getId(),
-                assignment.getId()));
+                assignment.getId(),
+                reason));
         return details(repairRequest);
     }
 
@@ -541,16 +572,37 @@ public class RepairAssignmentService {
 
     private void enqueueAssignmentCreated(RepairRequest request, RepairAssignment assignment) {
         String eventPart = "assignment:%d:created".formatted(assignment.getId());
-        notificationOutboxService.enqueue(notificationEventFactory.customer(
-                NotificationType.TECHNICIAN_ASSIGNED,
-                request,
-                assignment,
-                eventPart));
         notificationOutboxService.enqueue(notificationEventFactory.technician(
                 NotificationType.TECHNICIAN_ASSIGNED,
                 request,
                 assignment,
                 eventPart));
+    }
+
+    private void enqueueAssignmentAccepted(RepairRequest request, RepairAssignment assignment) {
+        String eventPart = "assignment:%d:accepted".formatted(assignment.getId());
+        notificationOutboxService.enqueue(notificationEventFactory.customer(
+                NotificationType.TECHNICIAN_ASSIGNED,
+                request,
+                assignment,
+                eventPart));
+    }
+
+    private void notifyStaffAssignmentRejected(
+            RepairRequest request,
+            RepairAssignment assignment,
+            String reason) {
+        List<User> staffUsers = userRepository.findActiveStaff();
+        String eventPart = "assignment:%d:rejected".formatted(assignment.getId());
+        for (User staffUser : staffUsers) {
+            notificationOutboxService.enqueue(notificationEventFactory.staff(
+                    NotificationType.TECHNICIAN_REJECTED,
+                    request,
+                    assignment,
+                    reason,
+                    staffUser.getId(),
+                    eventPart));
+        }
     }
 
     private void enqueueScheduleChanged(

@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.darks.repair_auto.localization.application.LocalizedValueResolver;
 import com.example.darks.repair_auto.localization.infrastructure.EffectiveLanguageResolver;
+import com.example.darks.repair_auto.realtime.event.application.RequestDiagnosisUpdatedDomainEvent;
 import com.example.darks.repair_auto.realtime.event.application.RequestStatusChangedDomainEvent;
 import com.example.darks.repair_auto.settings.domain.Language;
 import org.springframework.context.ApplicationEventPublisher;
@@ -247,7 +248,17 @@ public class RepairExecutionService {
                 "INVALID_DIAGNOSIS",
                 "Diagnosis must be between 1 and 4000 characters.",
                 false), changedBy, now);
-        return RepairExecutionMapper.details(saveExecution(execution));
+        RepairExecution saved = saveExecution(execution);
+        Long techId = repairAssignmentRepository.findActiveByRequestId(requestId, RepairAssignmentRepository.ACTIVE_STATUSES)
+                .map(a -> a.getTechnician().getId())
+                .orElse(null);
+        publishDomainEvent(new RequestDiagnosisUpdatedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                saved.getId(),
+                techId,
+                request.getCustomer().getId()));
+        return RepairExecutionMapper.details(saved);
     }
 
     @Transactional(noRollbackFor = BusinessRuleException.class)
@@ -271,7 +282,14 @@ public class RepairExecutionService {
                 "INVALID_DIAGNOSIS",
                 "Diagnosis must be between 1 and 4000 characters.",
                 false), changedBy, now);
-        return RepairExecutionMapper.details(saveExecution(execution));
+        RepairExecution saved = saveExecution(execution);
+        publishDomainEvent(new RequestDiagnosisUpdatedDomainEvent(
+                request.getId(),
+                request.getRequestNumber(),
+                saved.getId(),
+                changedBy.getId(),
+                request.getCustomer().getId()));
+        return RepairExecutionMapper.details(saved);
     }
 
     @Transactional

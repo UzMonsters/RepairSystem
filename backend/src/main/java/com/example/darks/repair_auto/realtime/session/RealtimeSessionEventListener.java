@@ -23,8 +23,10 @@ public class RealtimeSessionEventListener {
     @EventListener
     public void handleSessionConnected(SessionConnectedEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-        String sessionId = accessor.getSessionId();
-        Principal principal = accessor.getUser();
+        String sessionId = accessor.getSessionId() != null
+                ? accessor.getSessionId()
+                : (String) event.getMessage().getHeaders().get("simpSessionId");
+        Principal principal = event.getUser() != null ? event.getUser() : accessor.getUser();
         if (sessionId != null && principal != null) {
             sessionRegistry.register(sessionId, principal);
             LOGGER.debug("WebSocket session connected: sessionId={}, principal={}", sessionId, principal.getName());

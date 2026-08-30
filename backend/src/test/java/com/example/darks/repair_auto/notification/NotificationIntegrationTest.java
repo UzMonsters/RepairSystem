@@ -464,9 +464,7 @@ class NotificationIntegrationTest extends PostgreSqlIntegrationTest {
                 new UnassignmentRequest("Customer requested reassessment."),
                 principal(admin));
 
-        assertNotification(created.id(), NotificationType.TECHNICIAN_ASSIGNED, customerId);
         assertNotification(created.id(), NotificationType.TECHNICIAN_ASSIGNED, technicianId);
-        assertNotification(created.id(), NotificationType.TECHNICIAN_ASSIGNED, customerId);
         assertNotification(created.id(), NotificationType.TECHNICIAN_UNASSIGNED, technicianId);
         assertNotification(created.id(), NotificationType.TECHNICIAN_ASSIGNED, secondTechnicianId);
         assertNotification(created.id(), NotificationType.TECHNICIAN_UNASSIGNED, customerId);

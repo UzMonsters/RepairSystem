@@ -15,9 +15,8 @@ import org.springframework.stereotype.Service;
 public class SpringWebSocketRealtimeEventPublisher implements RealtimeEventPublisher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SpringWebSocketRealtimeEventPublisher.class);
-    private static final String USER_QUEUE_EVENTS = "/queue/events";
-    private static final String USER_QUEUE_CHAT = "/queue/chat";
-    private static final String STAFF_TOPIC_EVENTS = "/topic/staff.events";
+    private static final String QUEUE_EVENTS_USER_PREFIX = "/queue/events-user";
+    private static final String QUEUE_CHAT_USER_PREFIX = "/queue/chat-user";
 
     private final SimpMessagingTemplate messagingTemplate;
     private final RealtimeSessionRegistry sessionRegistry;
@@ -35,19 +34,18 @@ public class SpringWebSocketRealtimeEventPublisher implements RealtimeEventPubli
             return;
         }
 
-        Set<String> principalNames = sessionRegistry.findPrincipalNamesForActor(actorType, actorId);
+        Set<String> sessionIds = sessionRegistry.findSessionIdsForActor(actorType, actorId);
         LOGGER.debug("Publishing realtime event {} to {} id={}, matching active sessions count={}",
-                event.type(), actorType, actorId, principalNames.size());
+                event.type(), actorType, actorId, sessionIds.size());
 
         boolean isChatEvent = isChatEventType(event.type());
+        String prefix = isChatEvent ? QUEUE_CHAT_USER_PREFIX : QUEUE_EVENTS_USER_PREFIX;
 
-        if (principalNames.isEmpty()) {
-            // If session registry didn't catch or user uses standard username pattern
-            String fallbackPrincipal = actorType.name().toLowerCase() + ":" + actorId;
-            sendToUserDestination(fallbackPrincipal, isChatEvent, event);
+        if (sessionIds.isEmpty()) {
+            LOGGER.debug("No active sessions found for {} id={}, skipping delivery", actorType, actorId);
         } else {
-            for (String principal : principalNames) {
-                sendToUserDestination(principal, isChatEvent, event);
+            for (String sessionId : sessionIds) {
+                sendToSessionDestination(prefix + sessionId, event);
             }
         }
     }
@@ -58,20 +56,15 @@ public class SpringWebSocketRealtimeEventPublisher implements RealtimeEventPubli
             return;
         }
 
-        Set<String> staffPrincipals = sessionRegistry.findStaffPrincipalNames();
+        Set<String> staffSessions = sessionRegistry.findStaffSessionIds();
         LOGGER.debug("Publishing realtime event {} to staff, active staff sessions count={}",
-                event.type(), staffPrincipals.size());
+                event.type(), staffSessions.size());
 
         boolean isChatEvent = isChatEventType(event.type());
-        for (String principal : staffPrincipals) {
-            sendToUserDestination(principal, isChatEvent, event);
-        }
+        String prefix = isChatEvent ? QUEUE_CHAT_USER_PREFIX : QUEUE_EVENTS_USER_PREFIX;
 
-        // Also publish to staff broadcast topic for web dashboards/lists
-        try {
-            messagingTemplate.convertAndSend(STAFF_TOPIC_EVENTS, event);
-        } catch (Exception ex) {
-            LOGGER.warn("Failed to publish event to {}: {}", STAFF_TOPIC_EVENTS, ex.getMessage());
+        for (String sessionId : staffSessions) {
+            sendToSessionDestination(prefix + sessionId, event);
         }
     }
 
@@ -81,10 +74,12 @@ public class SpringWebSocketRealtimeEventPublisher implements RealtimeEventPubli
             return;
         }
 
-        Set<String> rolePrincipals = sessionRegistry.findRolePrincipalNames(role);
+        Set<String> roleSessions = sessionRegistry.findRoleSessionIds(role);
         boolean isChatEvent = isChatEventType(event.type());
-        for (String principal : rolePrincipals) {
-            sendToUserDestination(principal, isChatEvent, event);
+        String prefix = isChatEvent ? QUEUE_CHAT_USER_PREFIX : QUEUE_EVENTS_USER_PREFIX;
+
+        for (String sessionId : roleSessions) {
+            sendToSessionDestination(prefix + sessionId, event);
         }
     }
 
@@ -93,15 +88,11 @@ public class SpringWebSocketRealtimeEventPublisher implements RealtimeEventPubli
         publishToStaff(event);
     }
 
-    private void sendToUserDestination(String principal, boolean isChatEvent, RealtimeEvent<?> event) {
+    private void sendToSessionDestination(String destination, RealtimeEvent<?> event) {
         try {
-            if (isChatEvent) {
-                messagingTemplate.convertAndSendToUser(principal, USER_QUEUE_CHAT, event);
-            } else {
-                messagingTemplate.convertAndSendToUser(principal, USER_QUEUE_EVENTS, event);
-            }
+            messagingTemplate.convertAndSend(destination, event);
         } catch (Exception ex) {
-            LOGGER.warn("Failed to send realtime event to user {}: {}", principal, ex.getMessage());
+            LOGGER.warn("Failed to send realtime event to destination {}: {}", destination, ex.getMessage());
         }
     }
 

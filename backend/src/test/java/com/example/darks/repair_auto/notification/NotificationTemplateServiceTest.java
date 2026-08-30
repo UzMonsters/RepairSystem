@@ -108,4 +108,41 @@ class NotificationTemplateServiceTest {
                 .contains("Arizangiz bo'yicha usta qayta tayinlanmoqda.")
                 .doesNotContain("olib tashlandi");
     }
+
+    @Test
+    void staffRejectionNotificationIncludesTechnicianRequestNumberReasonInAllLanguages() {
+        String payload = """
+                {
+                  "requestId":"2",
+                  "requestNumber":"REP-2026-000002",
+                  "technicianId":"5",
+                  "technicianName":"John Week",
+                  "priority":"HIGH",
+                  "status":"NEW",
+                  "reason":"Too busy today"
+                }
+                """;
+
+        var en = service.render(NotificationType.TECHNICIAN_REJECTED, NotificationRecipientType.STAFF, payload, 1, LanguageCode.EN);
+        var ru = service.render(NotificationType.TECHNICIAN_REJECTED, NotificationRecipientType.STAFF, payload, 1, LanguageCode.RU);
+        var uz = service.render(NotificationType.TECHNICIAN_REJECTED, NotificationRecipientType.STAFF, payload, 1, LanguageCode.UZ);
+
+        assertThat(en.title()).isEqualTo("Technician rejected assignment");
+        assertThat(en.message())
+                .contains("Technician John Week rejected assignment for request REP-2026-000002.")
+                .contains("Reassignment is required.")
+                .contains("Reason: Too busy today.");
+
+        assertThat(ru.title()).isEqualTo("Мастер отклонил назначение");
+        assertThat(ru.message())
+                .contains("Мастер John Week отклонил заявку REP-2026-000002.")
+                .contains("Требуется переназначение.")
+                .contains("Причина: Too busy today.");
+
+        assertThat(uz.title()).isEqualTo("Usta topshiriqni rad etdi");
+        assertThat(uz.message())
+                .contains("Usta John Week REP-2026-000002 arizasini rad etdi.")
+                .contains("Qayta biriktirish talab qilinadi.")
+                .contains("Sabab: Too busy today.");
+    }
 }

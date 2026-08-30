@@ -13,6 +13,18 @@ import org.springframework.data.repository.query.Param;
 
 public interface MobileAuthIdentityRepository extends JpaRepository<MobileAuthIdentity, Long> {
 
+    @Query("""
+            select i from MobileAuthIdentity i
+            where i.actorType = :actorType
+              and i.provider = :provider
+              and i.providerSubject = :providerSubject
+              and i.disabledAt is null
+            """)
+    Optional<MobileAuthIdentity> findActiveByProvider(
+            @Param("actorType") ActorType actorType,
+            @Param("provider") MobileAuthProvider provider,
+            @Param("providerSubject") String providerSubject);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select i from MobileAuthIdentity i

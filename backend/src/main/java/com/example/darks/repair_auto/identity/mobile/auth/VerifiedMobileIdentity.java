@@ -8,6 +8,7 @@ public record VerifiedMobileIdentity(
         String email,
         boolean emailVerified,
         String phone,
+        boolean phoneVerified,
         String displayName
 ) {
 }

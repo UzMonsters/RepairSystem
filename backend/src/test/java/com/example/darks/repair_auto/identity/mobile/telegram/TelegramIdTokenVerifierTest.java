@@ -71,6 +71,7 @@ class TelegramIdTokenVerifierTest {
                 .claim("name", "John Doe")
                 .claim("preferred_username", "johndoe")
                 .claim("phone_number", "+998901234567")
+                .claim("phone_number_verified", true)
                 .issueTime(Date.from(NOW.minusSeconds(10)))
                 .expirationTime(Date.from(NOW.plusSeconds(300)))
                 .build();
@@ -84,6 +85,7 @@ class TelegramIdTokenVerifierTest {
         assertThat(identity.name()).isEqualTo("John Doe");
         assertThat(identity.username()).isEqualTo("johndoe");
         assertThat(identity.phoneNumber()).isEqualTo("+998901234567");
+        assertThat(identity.phoneNumberVerified()).isTrue();
     }
 
     @Test

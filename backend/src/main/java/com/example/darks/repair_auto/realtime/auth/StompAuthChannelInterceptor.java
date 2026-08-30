@@ -23,9 +23,13 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private static final Logger LOGGER = LoggerFactory.getLogger(StompAuthChannelInterceptor.class);
 
     private final WebSocketAuthenticator authenticator;
+    private final com.example.darks.repair_auto.realtime.session.RealtimeSessionRegistry sessionRegistry;
 
-    public StompAuthChannelInterceptor(WebSocketAuthenticator authenticator) {
+    public StompAuthChannelInterceptor(
+            WebSocketAuthenticator authenticator,
+            com.example.darks.repair_auto.realtime.session.RealtimeSessionRegistry sessionRegistry) {
         this.authenticator = authenticator;
+        this.sessionRegistry = sessionRegistry;
     }
 
     @Override
@@ -37,10 +41,20 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             handleConnect(accessor);
-        } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-            handleSubscribe(accessor);
-        } else if (StompCommand.SEND.equals(accessor.getCommand())) {
-            handleSend(accessor);
+            accessor.setLeaveMutable(true);
+        } else {
+            if (accessor.getUser() == null && accessor.getSessionId() != null) {
+                var info = sessionRegistry.getSession(accessor.getSessionId());
+                if (info != null && info.principal() != null) {
+                    accessor.setUser(info.principal());
+                    accessor.setLeaveMutable(true);
+                }
+            }
+            if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                handleSubscribe(accessor);
+            } else if (StompCommand.SEND.equals(accessor.getCommand())) {
+                handleSend(accessor);
+            }
         }
 
         return message;
@@ -56,6 +70,9 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         try {
             Authentication authentication = authenticator.authenticate(authHeader);
             accessor.setUser(authentication);
+            if (accessor.getSessionId() != null) {
+                sessionRegistry.register(accessor.getSessionId(), authentication);
+            }
             LOGGER.debug("STOMP CONNECT authenticated for principal: {}", authentication.getName());
         } catch (Exception ex) {
             LOGGER.debug("STOMP CONNECT rejected: authentication failed ({})", ex.getMessage());

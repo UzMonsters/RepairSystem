@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.mobile"
+    namespace = "uz.repairauto.mobile"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,32 +15,77 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.mobile"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        applicationId = "uz.repairauto.mobile"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
-        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
-        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
-        // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = providers.environmentVariable("RELEASE_KEYSTORE_PATH")
+                .orElse(providers.gradleProperty("RELEASE_KEYSTORE_PATH"))
+                .orNull
+                ?: providers.environmentVariable("RELEASE_STORE_FILE")
+                .orElse(providers.gradleProperty("RELEASE_STORE_FILE"))
+                .orNull
+
+            val keystorePassword = providers.environmentVariable("RELEASE_KEYSTORE_PASSWORD")
+                .orElse(providers.gradleProperty("RELEASE_KEYSTORE_PASSWORD"))
+                .orNull
+                ?: providers.environmentVariable("RELEASE_STORE_PASSWORD")
+                .orElse(providers.gradleProperty("RELEASE_STORE_PASSWORD"))
+                .orNull
+
+            val keyAlias = providers.environmentVariable("RELEASE_KEY_ALIAS")
+                .orElse(providers.gradleProperty("RELEASE_KEY_ALIAS"))
+                .orNull
+                ?: providers.environmentVariable("KEY_ALIAS")
+                .orElse(providers.gradleProperty("KEY_ALIAS"))
+                .orNull
+
+            val keyPassword = providers.environmentVariable("RELEASE_KEY_PASSWORD")
+                .orElse(providers.gradleProperty("RELEASE_KEY_PASSWORD"))
+                .orNull
+                ?: providers.environmentVariable("KEY_PASSWORD")
+                .orElse(providers.gradleProperty("KEY_PASSWORD"))
+                .orNull
+
+            if (keystorePath != null && keystorePassword != null && keyAlias != null && keyPassword != null) {
+                storeFile = file(keystorePath)
+                storePassword = keystorePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
+            }
+        }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseSigning = signingConfigs.getByName("release")
+            val allowDebugFallback = providers.gradleProperty("ALLOW_DEBUG_SIGNING_FALLBACK")
+                .orElse(providers.environmentVariable("ALLOW_DEBUG_SIGNING_FALLBACK"))
+                .map { it.toBoolean() }
+                .getOrElse(false)
+
+            if (releaseSigning.storeFile != null && releaseSigning.storeFile!!.exists()) {
+                signingConfig = releaseSigning
+            } else if (allowDebugFallback) {
+                // Explicitly opted-in non-production development build mode
+                logger.warn("WARNING: Using debug signing for release build because ALLOW_DEBUG_SIGNING_FALLBACK=true is set.")
+                signingConfig = signingConfigs.getByName("debug")
+            } else {
+                // Release builds must not silently use machine-specific debug keys
+                signingConfig = null
+            }
         }
     }
 }
 
 dependencies {
-    implementation("org.telegram:login-sdk:1.0.0")
+    implementation("androidx.browser:browser:1.8.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }
 
 kotlin {

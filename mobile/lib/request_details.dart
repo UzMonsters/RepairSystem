@@ -1,22 +1,81 @@
 part of 'main.dart';
 
 class RequestDetails extends StatefulWidget {
-  const RequestDetails({super.key, required this.repo, required this.chat, required this.item});
+  const RequestDetails({
+    super.key,
+    required this.repo,
+    required this.chat,
+    required this.item,
+    this.realtime,
+  });
   final CustomerRepository repo;
   final MobileChatRepository chat;
   final RequestItem item;
+  final MobileRealtimeClient? realtime;
+
   @override
   State<RequestDetails> createState() => _RequestDetailsState();
 }
 
 class _RequestDetailsState extends State<RequestDetails> {
   bool uploading = false;
+  late RequestItem currentItem;
+  StreamSubscription<RealtimeEnvelope<dynamic>>? eventSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    currentItem = widget.item;
+    eventSubscription = widget.realtime?.events.listen((envelope) {
+      if (envelope.targetRequestId != currentItem.id) return;
+
+      if (envelope.type == RealtimeEventType.requestDeleted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Repair request was deleted')),
+          );
+          Navigator.of(context).pop();
+        }
+        return;
+      }
+
+      if (envelope.type.isRequestDomainEvent) {
+        if (mounted) {
+          _refreshRequest();
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    eventSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshRequest() async {
+    try {
+      final response = await widget.repo.requests();
+      final updated = response.content.cast<RequestItem?>().firstWhere(
+        (r) => r?.id == currentItem.id,
+        orElse: () => null,
+      );
+      if (updated != null && mounted) {
+        setState(() => currentItem = updated);
+      }
+    } catch (_) {}
+  }
 
   Future<void> openChat() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => MobileChatScreen(repo: widget.chat, requestId: widget.item.id, language: widget.chat.api.language),
+        builder: (_) => MobileChatScreen(
+          repo: widget.chat,
+          requestId: currentItem.id,
+          language: widget.chat.api.language,
+          realtime: widget.realtime,
+        ),
       ),
     );
   }
@@ -26,15 +85,17 @@ class _RequestDetailsState extends State<RequestDetails> {
     if (picked == null) return;
     setState(() => uploading = true);
     try {
-      await widget.repo.uploadPhoto(widget.item.id, File(picked.path));
+      await widget.repo.uploadPhoto(currentItem.id, File(picked.path));
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Photo uploaded')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Photo uploaded')));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$error')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$error')));
       }
     } finally {
       if (mounted) setState(() => uploading = false);
@@ -43,26 +104,37 @@ class _RequestDetailsState extends State<RequestDetails> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.item.number)),
+    appBar: AppBar(title: Text(currentItem.number)),
     body: ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          widget.item.description,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                currentItem.description,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Chip(label: Text(currentItem.status)),
+          ],
         ),
-        if (widget.item.address != null)
+        if (currentItem.address != null)
           ListTile(
             leading: const Icon(Icons.location_on_outlined),
-            title: Text(widget.item.address!),
+            title: Text(currentItem.address!),
           ),
-        if (widget.item.location?.latitude != null &&
-            widget.item.location?.longitude != null)
+        if (currentItem.location?.latitude != null &&
+            currentItem.location?.longitude != null)
           ListTile(
             leading: const Icon(Icons.pin_drop_outlined),
             title: Text(
-              '${widget.item.location!.latitude}, '
-              '${widget.item.location!.longitude}',
+              '${currentItem.location!.latitude}, '
+              '${currentItem.location!.longitude}',
             ),
           ),
         const SizedBox(height: 16),
@@ -81,10 +153,11 @@ class _RequestDetailsState extends State<RequestDetails> {
         const Text('Review after completion'),
         FilledButton(
           onPressed: () async {
-            await widget.repo.submitReview(widget.item.id, 5, '');
+            await widget.repo.submitReview(currentItem.id, 5, '');
             if (context.mounted) {
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Review sent')));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Review sent')));
             }
           },
           child: const Text('Submit 5-star review'),
@@ -93,4 +166,3 @@ class _RequestDetailsState extends State<RequestDetails> {
     ),
   );
 }
-
