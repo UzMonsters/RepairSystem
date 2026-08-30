@@ -223,6 +223,7 @@ const en = {
   'executionDetails': 'Repair details',
   'waitingReason': 'Waiting reason',
   'completionNote': 'Completion note',
+  'completed': 'Completed',
   'noExecutionDetails': 'No repair details.',
   'assignmentHistory': 'Assignment history',
   'noAssignmentHistory': 'No assignment history.',

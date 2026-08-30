@@ -223,6 +223,7 @@ const ru = {
   'executionDetails': 'Детали ремонта',
   'waitingReason': 'Причина ожидания',
   'completionNote': 'Примечание о завершении',
+  'completed': 'Завершено',
   'noExecutionDetails': 'Деталей ремонта нет.',
   'assignmentHistory': 'История назначений',
   'noAssignmentHistory': 'История назначений пуста.',

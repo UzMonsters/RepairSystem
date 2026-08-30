@@ -223,6 +223,7 @@ const uz = {
   'executionDetails': 'Ta’mirlash tafsilotlari',
   'waitingReason': 'Kutish sababi',
   'completionNote': 'Yakunlash izohi',
+  'completed': 'Yakunlangan',
   'noExecutionDetails': 'Ta’mirlash tafsilotlari yo’q.',
   'assignmentHistory': 'Tayinlovlar tarixi',
   'noAssignmentHistory': 'Tayinlovlar tarixi yo’q.',

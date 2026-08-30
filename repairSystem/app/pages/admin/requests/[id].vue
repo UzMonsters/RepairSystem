@@ -100,7 +100,21 @@ let stopRealtime: (() => boolean) | undefined
 onMounted(() => {
   stopRealtime = realtime.subscribe((event: RealtimeEvent) => {
     const payload = event.payload as { requestId?: number }
-    const requestEvents = ['REQUEST_UPDATED', 'REQUEST_ASSIGNED', 'REQUEST_UNASSIGNED', 'REQUEST_STATUS_CHANGED']
+    const requestEvents = [
+      'REQUEST_CREATED',
+      'REQUEST_UPDATED',
+      'REQUEST_ASSIGNED',
+      'REQUEST_ASSIGNMENT_CREATED',
+      'REQUEST_ASSIGNMENT_ACCEPTED',
+      'REQUEST_ASSIGNMENT_REJECTED',
+      'REQUEST_REASSIGNED',
+      'REQUEST_UNASSIGNED',
+      'REQUEST_SCHEDULE_CHANGED',
+      'REQUEST_DIAGNOSIS_UPDATED',
+      'REQUEST_ATTACHMENTS_CHANGED',
+      'REQUEST_STATUS_CHANGED',
+      'REQUEST_DELETED'
+    ]
     if (payload.requestId === id && requestEvents.includes(event.type)) {
       void refreshRequestData()
     }
@@ -538,9 +552,108 @@ function can(action: string) {
                     </div>
                     <div class="text-muted small">
                       {{ assignedTechnician.phone || '' }}
+              </div>
+            </div>
+
+            <div class="card mb-4">
+              <div class="card-header">
+                <h3 class="card-title mb-0">
+                  {{ t('attachments') }}
+                </h3>
+              </div>
+              <div class="card-body">
+                <div class="attachment-upload-grid mb-3">
+                  <div class="col-md-5">
+                    <select
+                      v-model="attachmentType"
+                      class="form-select"
+                    >
+                      <option value="GENERAL_DOCUMENT">
+                        {{ t('generalDocument') }}
+                      </option>
+                      <option value="CUSTOMER_PROBLEM_PHOTO">
+                        {{ t('customerProblemPhoto') }}
+                      </option>
+                      <option value="DIAGNOSIS_PHOTO">
+                        {{ t('diagnosisPhoto') }}
+                      </option>
+                      <option value="COMPLETION_PHOTO">
+                        {{ t('completionPhoto') }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="col-md-7 attachment-file-column">
+                    <div class="file-input-control">
+                      <input
+                        id="request-attachment-file"
+                        type="file"
+                        class="visually-hidden"
+                        @change="selectAttachment"
+                      >
+                      <label
+                        for="request-attachment-file"
+                        class="file-input-button"
+                      >
+                        <i class="bi bi-folder2-open me-1" />{{ t('chooseFile') }}
+                      </label>
+                      <span
+                        class="file-input-name"
+                        :class="{ 'is-empty': !attachmentFile }"
+                      >
+                        {{ attachmentFile?.name || t('noFileChosen') }}
+                      </span>
                     </div>
                   </div>
                 </div>
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm attachment-upload-button mb-3"
+                  :disabled="uploadingAttachment || !attachmentFile"
+                  @click="uploadAttachment"
+                >
+                  <i class="bi bi-upload me-1" />{{ uploadingAttachment ? t('saving') : t('upload') }}
+                </button>
+                <div
+                  v-if="!attachments?.length"
+                  class="text-muted"
+                >
+                  {{ t('noAttachments') }}
+                </div>
+                <div
+                  v-for="attachment in attachments"
+                  :key="attachment.id"
+                  class="attachment-list-item"
+                >
+                  <div class="attachment-info">
+                    <div class="fw-semibold attachment-file-name">
+                      {{ attachment.originalFileName }}
+                    </div>
+                    <div class="small text-muted attachment-meta">
+                      {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
+                    </div>
+                  </div>
+                  <div class="btn-group btn-group-sm attachment-actions">
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary"
+                      :title="t('download')"
+                      @click="downloadAttachment(attachment)"
+                    >
+                      <i class="bi bi-download" />
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-outline-danger"
+                      :title="t('delete')"
+                      @click="deleteAttachment(attachment)"
+                    >
+                      <i class="bi bi-trash" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
                 <div
                   v-else
                   class="text-muted mb-3"
