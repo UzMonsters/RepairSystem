@@ -421,6 +421,16 @@ function can(action: string) {
                   {{ t('history') || 'История' }}
                 </button>
               </li>
+              <li class="nav-item">
+                <button
+                  type="button"
+                  class="nav-link"
+                  :class="{ active: activeTab === 'actions' }"
+                  @click="activeTab = 'actions'"
+                >
+                  {{ t('actions') || 'Действия' }}
+                </button>
+              </li>
             </ul>
 
             <div v-show="activeTab === 'general'">
@@ -470,7 +480,13 @@ function can(action: string) {
                       {{ t('address') }}
                     </dt>
                     <dd class="col-sm-8">
-                      {{ locationAddress }}
+                      <span>{{ locationAddress }}</span>
+                      <span
+                        v-if="locationCoordinates !== '-'"
+                        class="d-block small text-muted mt-1"
+                      >
+                        {{ t('coordinates') || 'Координаты' }}: {{ locationCoordinates }}
+                      </span>
                       <a
                         v-if="locationMapUrl"
                         :href="locationMapUrl"

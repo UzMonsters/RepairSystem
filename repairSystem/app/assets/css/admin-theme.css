@@ -1754,13 +1754,32 @@ select option {
 }
 
 
-/* Tabs Hover Fix */
-[data-bs-theme="dark"] .nav-tabs .nav-link {
-  color: #adb5bd !important;
+/* Tabs: the app uses data-theme="light" for light mode and no attribute for
+   dark mode. Keep inactive tabs readable and prevent Bootstrap's blue hover. */
+.nav-tabs .nav-link {
+  color: var(--rs-text-2) !important;
+  background: transparent !important;
+  border-color: transparent !important;
 }
-[data-bs-theme="dark"] .nav-tabs .nav-link:hover,
-[data-bs-theme="dark"] .nav-tabs .nav-link.active {
-  color: #ffffff !important;
+.nav-tabs .nav-link:hover,
+.nav-tabs .nav-link:focus-visible {
+  color: var(--rs-text) !important;
+  background: transparent !important;
+  border-color: var(--rs-border) !important;
+}
+.nav-tabs .nav-link.active {
+  color: var(--rs-text) !important;
+  background: var(--rs-panel) !important;
+  border-color: var(--rs-border) var(--rs-border) transparent !important;
+}
+
+html[data-theme="light"] .nav-tabs .nav-link {
+  color: var(--rs-text-2) !important;
+}
+html[data-theme="light"] .nav-tabs .nav-link:hover,
+html[data-theme="light"] .nav-tabs .nav-link:focus-visible,
+html[data-theme="light"] .nav-tabs .nav-link.active {
+  color: var(--rs-text) !important;
 }
 
 /* Breadcrumbs White Text in Dark Mode */
