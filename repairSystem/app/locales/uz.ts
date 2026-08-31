@@ -1,6 +1,6 @@
 const uz = {
-  phoneNotLinked: 'Telefon ulanmagan',
-  notSpecified: 'Kiritilmagan',
+  'phoneNotLinked': 'Telefon ulanmagan',
+  'notSpecified': 'Kiritilmagan',
   'main': 'Asosiy',
   'system': 'Tizim',
   'home': 'Bosh sahifa',

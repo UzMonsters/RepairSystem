@@ -1779,3 +1779,39 @@ select option {
   color: #212529 !important;
   text-decoration: none;
 }
+
+/* Forced Breadcrumb Fix */
+html[data-bs-theme="dark"] .breadcrumb-item,
+html[data-bs-theme="dark"] .breadcrumb-item a,
+html[data-bs-theme="dark"] .breadcrumb-item.active,
+html[data-bs-theme="dark"] .breadcrumb-item::before,
+.breadcrumb-item, .breadcrumb-item a {
+    color: #ffffff !important;
+}
+html[data-bs-theme="light"] .breadcrumb-item,
+html[data-bs-theme="light"] .breadcrumb-item a,
+html[data-bs-theme="light"] .breadcrumb-item.active {
+    color: #000000 !important;
+}
+
+/* Forced Breadcrumb Fix v2 */
+body .breadcrumb-item,
+body .breadcrumb-item a,
+body .breadcrumb-item.active,
+body .breadcrumb-item::before {
+    color: var(--rs-text, #ffffff) !important;
+}
+
+html[data-bs-theme="dark"] body .breadcrumb-item,
+html[data-bs-theme="dark"] body .breadcrumb-item a,
+html[data-bs-theme="dark"] body .breadcrumb-item.active,
+html[data-bs-theme="dark"] body .breadcrumb-item::before {
+    color: #ffffff !important;
+}
+
+html[data-bs-theme="light"] body .breadcrumb-item,
+html[data-bs-theme="light"] body .breadcrumb-item a,
+html[data-bs-theme="light"] body .breadcrumb-item.active,
+html[data-bs-theme="light"] body .breadcrumb-item::before {
+    color: #333333 !important;
+}
