@@ -25,6 +25,11 @@ class GoogleAuthService {
     if (!Platform.isAndroid) {
       throw UnsupportedError('Google sign-in is configured for Android only.');
     }
+    if (_serverClientId.isEmpty) {
+      throw StateError(
+        'Google sign-in requires GOOGLE_SERVER_CLIENT_ID for Android builds.',
+      );
+    }
 
     MobileLog.info(
       '[GOOGLE_LOGIN_START] role=$role serverClientIdConfigured=${_serverClientId.isNotEmpty}',

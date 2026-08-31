@@ -1,11 +1,25 @@
 package com.example.darks.repair_auto.technician.application;
 
+import com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService;
+import com.example.darks.repair_auto.identity.application.EmailNormalizer;
+import com.example.darks.repair_auto.profile.api.dto.AvatarResponse;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentValidator;
+import com.example.darks.repair_auto.repair.attachment.application.DetectedFile;
+import com.example.darks.repair_auto.repair.attachment.application.ImageAttachmentUtils;
+import com.example.darks.repair_auto.repair.attachment.domain.AttachmentStatus;
+import com.example.darks.repair_auto.repair.attachment.domain.AttachmentType;
+import com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.persistence.RepairAttachmentRepository;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.ObjectStorageService;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StorageUpload;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObjectDownload;
 import com.example.darks.repair_auto.shared.error.BusinessException;
-import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
+import com.example.darks.repair_auto.shared.error.ErrorCode;
+import com.example.darks.repair_auto.shared.error.ResourceNotFoundException;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import com.example.darks.repair_auto.shared.phone.PhoneNumberNormalizer;
-import com.example.darks.repair_auto.identity.application.EmailNormalizer;
 import com.example.darks.repair_auto.technician.api.dto.TechnicianCreateRequest;
 import com.example.darks.repair_auto.technician.api.dto.TechnicianDetailResponse;
 import com.example.darks.repair_auto.technician.api.dto.TechnicianMapper;
@@ -13,16 +27,26 @@ import com.example.darks.repair_auto.technician.api.dto.TechnicianSummaryRespons
 import com.example.darks.repair_auto.technician.api.dto.TechnicianUpdateRequest;
 import com.example.darks.repair_auto.technician.domain.Technician;
 import com.example.darks.repair_auto.technician.infrastructure.TechnicianRepository;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HexFormat;
 import java.util.Locale;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class TechnicianService {
@@ -30,20 +54,40 @@ public class TechnicianService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TechnicianService.class);
 
     private final TechnicianRepository technicianRepository;
+    private final RepairAttachmentRepository attachmentRepository;
+    private final ObjectStorageService objectStorageService;
+    private final AttachmentValidator validator;
     private final PhoneNumberNormalizer phoneNumberNormalizer;
     private final EmailNormalizer emailNormalizer;
-    private final com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService;
+    private final ActorAccessLifecycleService actorAccessLifecycleService;
+    private final Clock clock;
 
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
+    public TechnicianService(
+            TechnicianRepository technicianRepository,
+            RepairAttachmentRepository attachmentRepository,
+            ObjectStorageService objectStorageService,
+            AttachmentValidator validator,
+            PhoneNumberNormalizer phoneNumberNormalizer,
+            EmailNormalizer emailNormalizer,
+            ActorAccessLifecycleService actorAccessLifecycleService,
+            Clock clock) {
+        this.technicianRepository = technicianRepository;
+        this.attachmentRepository = attachmentRepository;
+        this.objectStorageService = objectStorageService;
+        this.validator = validator != null ? validator : new AttachmentValidator();
+        this.phoneNumberNormalizer = phoneNumberNormalizer;
+        this.emailNormalizer = emailNormalizer;
+        this.actorAccessLifecycleService = actorAccessLifecycleService;
+        this.clock = clock != null ? clock : Clock.systemUTC();
+    }
+
     public TechnicianService(
             TechnicianRepository technicianRepository,
             PhoneNumberNormalizer phoneNumberNormalizer,
             EmailNormalizer emailNormalizer,
-            com.example.darks.repair_auto.identity.application.ActorAccessLifecycleService actorAccessLifecycleService) {
-        this.technicianRepository = technicianRepository;
-        this.phoneNumberNormalizer = phoneNumberNormalizer;
-        this.emailNormalizer = emailNormalizer;
-        this.actorAccessLifecycleService = actorAccessLifecycleService;
+            ActorAccessLifecycleService actorAccessLifecycleService) {
+        this(technicianRepository, null, null, new AttachmentValidator(), phoneNumberNormalizer, emailNormalizer, actorAccessLifecycleService, Clock.systemUTC());
     }
 
     public TechnicianService(
@@ -132,6 +176,127 @@ public class TechnicianService {
                 active,
                 reason == null ? "" : reason.trim());
         return TechnicianMapper.details(technician);
+    }
+
+    @Transactional
+    public AvatarResponse uploadAvatar(Long technicianId, MultipartFile file) {
+        Technician technician = technicianRepository.findByIdForUpdate(technicianId)
+                .orElseThrow(this::notFound);
+        if (!technician.isActive()) {
+            throw new BusinessRuleException(ErrorCode.ACCOUNT_INACTIVE);
+        }
+
+        String originalFileName = validator.validateOriginalFileName(file);
+        OffsetDateTime now = now();
+
+        byte[] bytes;
+        DetectedFile detected;
+        String checksum;
+        try (BufferedInputStream input = new BufferedInputStream(file.getInputStream())) {
+            input.mark(64);
+            detected = validator.detectAndValidate(AttachmentType.AVATAR, input);
+            input.reset();
+            bytes = input.readAllBytes();
+            checksum = sha256Hex(bytes);
+        } catch (IOException e) {
+            throw new BusinessRuleException("ATTACHMENT_STORAGE_FAILED", "Avatar upload failed.", 503);
+        }
+
+        String storageKey = "avatars/technicians/%d/%s".formatted(technicianId, UUID.randomUUID());
+
+        try {
+            objectStorageService.upload(new StorageUpload(
+                    storageKey,
+                    detected.contentType(),
+                    bytes.length,
+                    new ByteArrayInputStream(bytes)
+            ));
+        } catch (RuntimeException e) {
+            LOGGER.warn("Technician avatar object storage upload failed technicianId={} storageKey={}", technicianId, storageKey, e);
+            throw new BusinessRuleException("ATTACHMENT_STORAGE_FAILED", "Avatar storage operation failed.", 503);
+        }
+
+        RepairAttachment newAttachment = RepairAttachment.technicianUpload(
+                null,
+                AttachmentType.AVATAR,
+                storageKey,
+                originalFileName,
+                technician,
+                now
+        );
+        newAttachment.markAvailable(detected.contentType(), bytes.length, checksum, now);
+        RepairAttachment savedAttachment = attachmentRepository.saveAndFlush(newAttachment);
+
+        RepairAttachment previousAvatar = technician.getAvatarAttachment();
+        technician.setAvatarAttachment(savedAttachment, now);
+        technicianRepository.save(technician);
+
+        if (previousAvatar != null && previousAvatar.getStatus() == AttachmentStatus.AVAILABLE) {
+            previousAvatar.markDeleted("AVATAR_REPLACED", now);
+            attachmentRepository.save(previousAvatar);
+        }
+
+        LOGGER.info("Technician event operation=avatar_uploaded result=success technicianId={} attachmentId={}", technicianId, savedAttachment.getId());
+        return ImageAttachmentUtils.toAvatarResponse(savedAttachment, ImageAttachmentUtils.technicianAvatarDownloadUrl(technicianId));
+    }
+
+    @Transactional(readOnly = true)
+    public AttachmentDownload downloadAvatar(Long technicianId) {
+        Technician technician = find(technicianId);
+        RepairAttachment avatar = technician.getAvatarAttachment();
+        if (avatar == null || !avatar.isAvailable()) {
+            throw new ResourceNotFoundException("Avatar was not found.");
+        }
+        if (objectStorageService == null) {
+            throw new ResourceNotFoundException("Avatar was not found.");
+        }
+        StoredObjectDownload object = objectStorageService.download(avatar.getStorageKey());
+        String contentType = object.contentType() == null || object.contentType().isBlank()
+                ? "application/octet-stream"
+                : object.contentType();
+        return new AttachmentDownload(
+                safeDownloadFileName(avatar),
+                contentType,
+                object.sizeBytes(),
+                object.inputStream());
+    }
+
+    @Transactional
+    public void deleteAvatar(Long technicianId) {
+        Technician technician = technicianRepository.findByIdForUpdate(technicianId)
+                .orElseThrow(this::notFound);
+        OffsetDateTime now = now();
+
+        RepairAttachment avatar = technician.getAvatarAttachment();
+        if (avatar != null) {
+            technician.setAvatarAttachment(null, now);
+            technicianRepository.save(technician);
+            if (avatar.getStatus() == AttachmentStatus.AVAILABLE) {
+                avatar.markDeleted("AVATAR_REMOVED", now);
+                attachmentRepository.save(avatar);
+            }
+            LOGGER.info("Technician event operation=avatar_deleted result=success technicianId={} attachmentId={}", technicianId, avatar.getId());
+        }
+    }
+
+    private String safeDownloadFileName(RepairAttachment attachment) {
+        String extension = validator.extensionFor(attachment.getContentType());
+        String fallback = "avatar-" + attachment.getId() + (extension == null ? "" : extension);
+        String original = attachment.getOriginalFileName();
+        if (original == null || original.isBlank() || original.indexOf('"') >= 0 || original.indexOf('\\') >= 0) {
+            return fallback;
+        }
+        return original;
+    }
+
+    private String sha256Hex(byte[] bytes) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(bytes);
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is unavailable.", e);
+        }
     }
 
     private Technician find(Long id) {

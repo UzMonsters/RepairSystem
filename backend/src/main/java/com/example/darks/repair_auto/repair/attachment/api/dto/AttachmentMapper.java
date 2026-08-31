@@ -2,6 +2,7 @@ package com.example.darks.repair_auto.repair.attachment.api.dto;
 
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.repair.assignment.api.dto.AssignmentTechnicianSummary;
+import com.example.darks.repair_auto.repair.attachment.application.ImageAttachmentUtils;
 import com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment;
 import com.example.darks.repair_auto.repair.request.api.dto.RepairRequestUserSummary;
 import com.example.darks.repair_auto.technician.domain.Technician;
@@ -12,9 +13,10 @@ public final class AttachmentMapper {
     }
 
     public static AttachmentResponse response(RepairAttachment attachment) {
+        Long repairRequestId = attachment.getRepairRequest() != null ? attachment.getRepairRequest().getId() : null;
         return new AttachmentResponse(
                 attachment.getId(),
-                attachment.getRepairRequest().getId(),
+                repairRequestId,
                 attachment.getAttachmentType(),
                 attachment.getOriginalFileName(),
                 attachment.getContentType(),
@@ -22,6 +24,8 @@ public final class AttachmentMapper {
                 attachment.getStatus(),
                 user(attachment.getUploadedByUser()),
                 technician(attachment.getUploadedByTechnician()),
+                ImageAttachmentUtils.requestAttachmentDownloadUrl(attachment.getId()),
+                ImageAttachmentUtils.isImagePreviewable(attachment.getContentType()),
                 attachment.getUploadedAt());
     }
 

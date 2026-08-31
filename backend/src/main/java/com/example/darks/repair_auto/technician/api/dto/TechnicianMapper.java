@@ -1,5 +1,6 @@
 package com.example.darks.repair_auto.technician.api.dto;
 
+import com.example.darks.repair_auto.repair.attachment.application.ImageAttachmentUtils;
 import com.example.darks.repair_auto.technician.domain.Technician;
 
 public final class TechnicianMapper {
@@ -21,7 +22,8 @@ public final class TechnicianMapper {
                 technician.isActive(),
                 technician.isTelegramLinked(),
                 technician.getCreatedAt(),
-                technician.getUpdatedAt());
+                technician.getUpdatedAt(),
+                ImageAttachmentUtils.toAvatarResponse(technician.getAvatarAttachment(), ImageAttachmentUtils.technicianAvatarDownloadUrl(technician.getId())));
     }
 
     public static TechnicianDetailResponse details(Technician technician) {
@@ -39,6 +41,7 @@ public final class TechnicianMapper {
                 technician.isActive(),
                 technician.isTelegramLinked(),
                 technician.getCreatedAt(),
-                technician.getUpdatedAt());
+                technician.getUpdatedAt(),
+                ImageAttachmentUtils.toAvatarResponse(technician.getAvatarAttachment(), ImageAttachmentUtils.technicianAvatarDownloadUrl(technician.getId())));
     }
 }

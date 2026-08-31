@@ -56,6 +56,7 @@ class _LoginPageState extends State<LoginPage> {
             'Сессия входа через Telegram истекла. Попробуйте ещё раз.',
         'googleFailed': 'Не удалось войти через Google. Попробуйте ещё раз.',
         'googleCancelled': 'Вход через Google отменен.',
+        'googleConfiguration': 'Google вход настроен неправильно. Проверьте OAuth client ID, package name и SHA-1.',
         'googleUnavailable':
             'Google вход пока доступен только в Android приложении.',
       },
@@ -80,6 +81,7 @@ class _LoginPageState extends State<LoginPage> {
         'googleFailed':
             'Google orqali kirish amalga oshmadi. Qayta urinib ko‘ring.',
         'googleCancelled': 'Google orqali kirish bekor qilindi.',
+        'googleConfiguration': 'Google orqali kirish noto‘g‘ri sozlangan. OAuth client ID, package name va SHA-1 ni tekshiring.',
         'googleUnavailable':
             'Google orqali kirish hozircha faqat Android ilovasida mavjud.',
       },
@@ -101,6 +103,7 @@ class _LoginPageState extends State<LoginPage> {
         'telegramExpired': 'Telegram login session expired. Please try again.',
         'googleFailed': 'Google sign-in failed. Please try again.',
         'googleCancelled': 'Google sign-in cancelled.',
+        'googleConfiguration': 'Google sign-in is not configured correctly. Check OAuth client ID, package name, and SHA-1.',
         'googleUnavailable':
             'Google sign-in is only available in the Android app for now.',
       },
@@ -210,6 +213,9 @@ class _LoginPageState extends State<LoginPage> {
 
   String _googleErrorMessage(Object error) {
     if (error is GoogleSignInException) {
+      MobileLog.warning(
+        '[GOOGLE_LOGIN_EXCEPTION_DETAIL] code=${error.code} description=${error.description}',
+      );
       if (error.code == GoogleSignInExceptionCode.canceled ||
           error.code == GoogleSignInExceptionCode.interrupted) {
         return tr('googleCancelled');
@@ -217,9 +223,19 @@ class _LoginPageState extends State<LoginPage> {
       if (error.code == GoogleSignInExceptionCode.uiUnavailable) {
         return tr('googleUnavailable');
       }
+      if (error.code == GoogleSignInExceptionCode.clientConfigurationError) {
+        return tr('googleConfiguration');
+      }
+      final description = error.description;
+      if (description != null && description.isNotEmpty) {
+        return '${tr('googleFailed')} ($description)';
+      }
     }
     if (error is UnsupportedError) {
       return tr('googleUnavailable');
+    }
+    if (error is StateError) {
+      return tr('googleConfiguration');
     }
     return tr('googleFailed');
   }

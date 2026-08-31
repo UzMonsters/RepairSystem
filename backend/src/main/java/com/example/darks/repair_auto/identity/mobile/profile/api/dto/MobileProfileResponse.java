@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.identity.mobile.profile.api.dto;
 
 import com.example.darks.repair_auto.identity.domain.ActorType;
+import com.example.darks.repair_auto.profile.api.dto.AvatarResponse;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -33,6 +34,9 @@ public record MobileProfileResponse(
         @Schema(description = "Whether a Telegram account is linked", example = "true")
         boolean telegramLinked,
 
+        @Schema(description = "Profile avatar metadata")
+        AvatarResponse avatar,
+
         @Schema(description = "Technician operational metadata (omitted for Customer)")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         TechnicianProfileMetadata technician
@@ -44,7 +48,7 @@ public record MobileProfileResponse(
             String phone,
             String preferredLanguage,
             boolean telegramLinked) {
-        return forCustomer(id, fullName, phone, false, null, false, preferredLanguage, telegramLinked);
+        return forCustomer(id, fullName, phone, false, null, false, preferredLanguage, telegramLinked, null);
     }
 
     public static MobileProfileResponse forCustomer(
@@ -56,6 +60,19 @@ public record MobileProfileResponse(
             boolean emailVerified,
             String preferredLanguage,
             boolean telegramLinked) {
+        return forCustomer(id, fullName, phone, phoneVerified, email, emailVerified, preferredLanguage, telegramLinked, null);
+    }
+
+    public static MobileProfileResponse forCustomer(
+            Long id,
+            String fullName,
+            String phone,
+            boolean phoneVerified,
+            String email,
+            boolean emailVerified,
+            String preferredLanguage,
+            boolean telegramLinked,
+            AvatarResponse avatar) {
         return new MobileProfileResponse(
                 ActorType.CUSTOMER,
                 id,
@@ -66,6 +83,7 @@ public record MobileProfileResponse(
                 emailVerified,
                 preferredLanguage,
                 telegramLinked,
+                avatar,
                 null);
     }
 
@@ -89,7 +107,8 @@ public record MobileProfileResponse(
                 telegramLinked,
                 specialization,
                 maxActiveJobs,
-                active);
+                active,
+                null);
     }
 
     public static MobileProfileResponse forTechnician(
@@ -104,6 +123,34 @@ public record MobileProfileResponse(
             String specialization,
             int maxActiveJobs,
             boolean active) {
+        return forTechnician(
+                id,
+                fullName,
+                phone,
+                phoneVerified,
+                email,
+                emailVerified,
+                preferredLanguage,
+                telegramLinked,
+                specialization,
+                maxActiveJobs,
+                active,
+                null);
+    }
+
+    public static MobileProfileResponse forTechnician(
+            Long id,
+            String fullName,
+            String phone,
+            boolean phoneVerified,
+            String email,
+            boolean emailVerified,
+            String preferredLanguage,
+            boolean telegramLinked,
+            String specialization,
+            int maxActiveJobs,
+            boolean active,
+            AvatarResponse avatar) {
         return new MobileProfileResponse(
                 ActorType.TECHNICIAN,
                 id,
@@ -114,6 +161,7 @@ public record MobileProfileResponse(
                 emailVerified,
                 preferredLanguage,
                 telegramLinked,
+                avatar,
                 new TechnicianProfileMetadata(specialization, maxActiveJobs, active));
     }
 

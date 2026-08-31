@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.identity.api.dto;
 
 import com.example.darks.repair_auto.identity.domain.User;
+import com.example.darks.repair_auto.repair.attachment.application.ImageAttachmentUtils;
 
 public final class UserMapper {
 
@@ -8,7 +9,12 @@ public final class UserMapper {
     }
 
     public static UserSummaryResponse summary(User user) {
-        return new UserSummaryResponse(user.getId(), user.getFullName(), user.getEmail(), user.getRole());
+        return new UserSummaryResponse(
+                user.getId(),
+                user.getFullName(),
+                user.getEmail(),
+                user.getRole(),
+                ImageAttachmentUtils.toAvatarResponse(user.getAvatarAttachment(), ImageAttachmentUtils.staffAvatarDownloadUrl(user.getId())));
     }
 
     public static UserDetailsResponse details(User user) {
@@ -19,6 +25,7 @@ public final class UserMapper {
                 user.getRole(),
                 user.isActive(),
                 user.getLastLoginAt(),
-                user.getCreatedAt());
+                user.getCreatedAt(),
+                ImageAttachmentUtils.toAvatarResponse(user.getAvatarAttachment(), ImageAttachmentUtils.staffAvatarDownloadUrl(user.getId())));
     }
 }

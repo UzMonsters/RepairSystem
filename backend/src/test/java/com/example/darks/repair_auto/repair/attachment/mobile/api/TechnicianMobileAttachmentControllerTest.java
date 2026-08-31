@@ -94,6 +94,8 @@ class TechnicianMobileAttachmentControllerTest {
                 "image/jpeg",
                 3L,
                 AttachmentStatus.AVAILABLE,
+                "/api/v1/mobile/me/attachments/502/download",
+                true,
                 NOW);
 
         when(facade.uploadTechnicianAttachment(eq(currentActor), eq(42L), eq(AttachmentType.DIAGNOSIS_PHOTO), any(MultipartFile.class)))
@@ -106,6 +108,8 @@ class TechnicianMobileAttachmentControllerTest {
                 .andExpect(jsonPath("$.id").value(502))
                 .andExpect(jsonPath("$.type").value("DIAGNOSIS_PHOTO"))
                 .andExpect(jsonPath("$.originalFileName").value("diagnosis.jpg"))
+                .andExpect(jsonPath("$.downloadUrl").value("/api/v1/mobile/me/attachments/502/download"))
+                .andExpect(jsonPath("$.imagePreview").value(true))
                 .andExpect(jsonPath("$.status").value("AVAILABLE"));
     }
 

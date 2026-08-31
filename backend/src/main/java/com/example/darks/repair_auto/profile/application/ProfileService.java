@@ -7,6 +7,7 @@ import com.example.darks.repair_auto.profile.api.dto.ProfileResponse;
 import com.example.darks.repair_auto.profile.api.dto.UpdateProfileRequest;
 import com.example.darks.repair_auto.repair.attachment.application.AttachmentValidator;
 import com.example.darks.repair_auto.repair.attachment.application.DetectedFile;
+import com.example.darks.repair_auto.repair.attachment.application.ImageAttachmentUtils;
 import com.example.darks.repair_auto.repair.attachment.domain.AttachmentStatus;
 import com.example.darks.repair_auto.repair.attachment.domain.AttachmentType;
 import com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment;
@@ -250,14 +251,7 @@ public class ProfileService {
     }
 
     private AvatarResponse buildAvatarResponse(RepairAttachment attachment) {
-        if (attachment == null || !attachment.isAvailable()) {
-            return null;
-        }
-        return new AvatarResponse(
-                attachment.getId(),
-                attachment.getOriginalFileName(),
-                attachment.getContentType()
-        );
+        return ImageAttachmentUtils.toAvatarResponse(attachment, ImageAttachmentUtils.currentStaffAvatarDownloadUrl());
     }
 
     private String safeDownloadFileName(RepairAttachment attachment) {

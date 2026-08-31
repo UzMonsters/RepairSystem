@@ -2,6 +2,7 @@ package com.example.darks.repair_auto.identity.mobile.profile.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -11,11 +12,20 @@ import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedMobileActor;
 import com.example.darks.repair_auto.identity.mobile.profile.api.dto.MobileProfilePatchRequest;
 import com.example.darks.repair_auto.identity.mobile.profile.api.dto.MobileProfileResponse;
+import com.example.darks.repair_auto.profile.api.dto.AvatarResponse;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentValidator;
+import com.example.darks.repair_auto.repair.attachment.domain.AttachmentStatus;
+import com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.persistence.RepairAttachmentRepository;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.ObjectStorageService;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObjectDownload;
 import com.example.darks.repair_auto.shared.error.BusinessException;
 import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.technician.domain.Technician;
 import com.example.darks.repair_auto.technician.infrastructure.TechnicianRepository;
+import java.io.ByteArrayInputStream;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -23,6 +33,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class MobileProfileServiceTest {
@@ -31,13 +42,25 @@ class MobileProfileServiceTest {
 
     private CustomerRepository customerRepository;
     private TechnicianRepository technicianRepository;
+    private RepairAttachmentRepository attachmentRepository;
+    private ObjectStorageService objectStorageService;
+    private AttachmentValidator validator;
     private MobileProfileService service;
 
     @BeforeEach
     void setUp() {
         customerRepository = mock(CustomerRepository.class);
         technicianRepository = mock(TechnicianRepository.class);
-        service = new MobileProfileService(customerRepository, technicianRepository, Clock.fixed(NOW, ZoneOffset.UTC));
+        attachmentRepository = mock(RepairAttachmentRepository.class);
+        objectStorageService = mock(ObjectStorageService.class);
+        validator = new AttachmentValidator();
+        service = new MobileProfileService(
+                customerRepository,
+                technicianRepository,
+                attachmentRepository,
+                objectStorageService,
+                validator,
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test
@@ -218,5 +241,112 @@ class MobileProfileServiceTest {
         assertThat(response.preferredLanguage()).isEqualTo("en");
         assertThat(technician.getFullName()).isEqualTo("Aziz Karimov");
         assertThat(technician.getPreferredLanguage()).isEqualTo(LanguageCode.EN);
+    }
+
+    @Test
+    void givenCustomerActor_whenUploadAvatar_thenUploadsAndReturnsAvatarResponse() {
+        Customer customer = new Customer("Ali Valiyev", "+998901234567", LanguageCode.UZ, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        ReflectionTestUtils.setField(customer, "id", 42L);
+
+        when(customerRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(customer));
+        when(attachmentRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            RepairAttachment att = invocation.getArgument(0);
+            ReflectionTestUtils.setField(att, "id", 701L);
+            return att;
+        });
+
+        AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.CUSTOMER, 42L, "+998901234567", true);
+        // Valid JPEG header bytes
+        byte[] jpegBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10, 'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1};
+        MockMultipartFile file = new MockMultipartFile("file", "avatar.jpg", "image/jpeg", jpegBytes);
+
+        AvatarResponse response = service.uploadAvatar(actor, file);
+
+        assertThat(response).isNotNull();
+        assertThat(response.attachmentId()).isEqualTo(701L);
+        assertThat(response.fileName()).isEqualTo("avatar.jpg");
+        assertThat(response.contentType()).isEqualTo("image/jpeg");
+        assertThat(response.downloadUrl()).isEqualTo("/api/v1/mobile/me/avatar");
+        assertThat(customer.getAvatarAttachment()).isNotNull();
+    }
+
+    @Test
+    void givenCustomerActor_whenDownloadAvatar_thenReturnsStream() {
+        Customer customer = new Customer("Ali Valiyev", "+998901234567", LanguageCode.UZ, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        ReflectionTestUtils.setField(customer, "id", 42L);
+
+        RepairAttachment avatar = RepairAttachment.customerUpload(
+                null,
+                com.example.darks.repair_auto.repair.attachment.domain.AttachmentType.AVATAR,
+                "avatars/customers/42/key.jpg",
+                "avatar.jpg",
+                customer,
+                OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC)
+        );
+        avatar.markAvailable("image/jpeg", 16L, "checksum", OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        ReflectionTestUtils.setField(avatar, "id", 701L);
+        customer.setAvatarAttachment(avatar, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+
+        when(customerRepository.findById(42L)).thenReturn(Optional.of(customer));
+        when(objectStorageService.download("avatars/customers/42/key.jpg"))
+                .thenReturn(new StoredObjectDownload("image/jpeg", 3L, new ByteArrayInputStream(new byte[]{1, 2, 3})));
+
+        AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.CUSTOMER, 42L, "+998901234567", true);
+        AttachmentDownload download = service.downloadAvatar(actor);
+
+        assertThat(download).isNotNull();
+        assertThat(download.fileName()).isEqualTo("avatar.jpg");
+        assertThat(download.contentType()).isEqualTo("image/jpeg");
+        assertThat(download.sizeBytes()).isEqualTo(3L);
+    }
+
+    @Test
+    void givenCustomerActor_whenDeleteAvatar_thenClearsAvatarAndMarksDeleted() {
+        Customer customer = new Customer("Ali Valiyev", "+998901234567", LanguageCode.UZ, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        ReflectionTestUtils.setField(customer, "id", 42L);
+
+        RepairAttachment avatar = RepairAttachment.customerUpload(
+                null,
+                com.example.darks.repair_auto.repair.attachment.domain.AttachmentType.AVATAR,
+                "avatars/customers/42/key.jpg",
+                "avatar.jpg",
+                customer,
+                OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC)
+        );
+        avatar.markAvailable("image/jpeg", 16L, "checksum", OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        ReflectionTestUtils.setField(avatar, "id", 701L);
+        customer.setAvatarAttachment(avatar, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+
+        when(customerRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(customer));
+
+        AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.CUSTOMER, 42L, "+998901234567", true);
+        service.deleteAvatar(actor);
+
+        assertThat(customer.getAvatarAttachment()).isNull();
+        assertThat(avatar.getStatus()).isEqualTo(AttachmentStatus.DELETED);
+    }
+
+    @Test
+    void givenTechnicianActor_whenUploadAvatar_thenUploadsAndReturnsAvatarResponse() {
+        Technician technician = new Technician("Aziz Karimov", "+998901112233", "Washer", "Notes", 5, LanguageCode.UZ, true, OffsetDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        ReflectionTestUtils.setField(technician, "id", 17L);
+
+        when(technicianRepository.findByIdForUpdate(17L)).thenReturn(Optional.of(technician));
+        when(attachmentRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            RepairAttachment att = invocation.getArgument(0);
+            ReflectionTestUtils.setField(att, "id", 702L);
+            return att;
+        });
+
+        AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.TECHNICIAN, 17L, "+998901112233", true);
+        byte[] jpegBytes = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 0, 0x10, 'J', 'F', 'I', 'F', 0, 1, 1, 0, 0, 1};
+        MockMultipartFile file = new MockMultipartFile("file", "tech.jpg", "image/jpeg", jpegBytes);
+
+        AvatarResponse response = service.uploadAvatar(actor, file);
+
+        assertThat(response).isNotNull();
+        assertThat(response.attachmentId()).isEqualTo(702L);
+        assertThat(response.downloadUrl()).isEqualTo("/api/v1/mobile/me/avatar");
+        assertThat(technician.getAvatarAttachment()).isNotNull();
     }
 }

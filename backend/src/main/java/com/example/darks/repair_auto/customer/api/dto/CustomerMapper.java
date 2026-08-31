@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.customer.api.dto;
 
 import com.example.darks.repair_auto.customer.domain.Customer;
+import com.example.darks.repair_auto.repair.attachment.application.ImageAttachmentUtils;
 
 public final class CustomerMapper {
 
@@ -20,7 +21,8 @@ public final class CustomerMapper {
                 customer.isActive(),
                 customer.isTelegramLinked(),
                 customer.getCreatedAt(),
-                customer.getUpdatedAt());
+                customer.getUpdatedAt(),
+                ImageAttachmentUtils.toAvatarResponse(customer.getAvatarAttachment(), ImageAttachmentUtils.customerAvatarDownloadUrl(customer.getId())));
     }
 
     public static CustomerDetailResponse details(Customer customer) {
@@ -36,6 +38,7 @@ public final class CustomerMapper {
                 customer.isActive(),
                 customer.isTelegramLinked(),
                 customer.getCreatedAt(),
-                customer.getUpdatedAt());
+                customer.getUpdatedAt(),
+                ImageAttachmentUtils.toAvatarResponse(customer.getAvatarAttachment(), ImageAttachmentUtils.customerAvatarDownloadUrl(customer.getId())));
     }
 }

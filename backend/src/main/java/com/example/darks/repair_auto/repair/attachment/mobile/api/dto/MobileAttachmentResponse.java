@@ -28,7 +28,25 @@ public record MobileAttachmentResponse(
         @Schema(description = "Attachment lifecycle status", example = "AVAILABLE")
         AttachmentStatus status,
 
+        @Schema(description = "API-relative download URL", example = "/api/v1/mobile/me/attachments/501/download")
+        String downloadUrl,
+
+        @Schema(description = "Whether the file is an image previewable inline", example = "true")
+        Boolean imagePreview,
+
         @Schema(description = "Upload timestamp", example = "2026-08-18T10:30:00Z")
         OffsetDateTime uploadedAt
 ) {
+    public MobileAttachmentResponse(
+            Long id,
+            Long repairRequestId,
+            AttachmentType type,
+            String originalFileName,
+            String contentType,
+            Long sizeBytes,
+            AttachmentStatus status,
+            OffsetDateTime uploadedAt
+    ) {
+        this(id, repairRequestId, type, originalFileName, contentType, sizeBytes, status, null, null, uploadedAt);
+    }
 }

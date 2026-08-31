@@ -10,12 +10,17 @@ import com.example.darks.repair_auto.identity.api.dto.UserRoleChangeRequest;
 import com.example.darks.repair_auto.identity.api.dto.UserSummaryResponse;
 import com.example.darks.repair_auto.identity.api.dto.UserUpdateRequest;
 import com.example.darks.repair_auto.identity.application.UserManagementService;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -63,6 +68,27 @@ public class UserManagementController {
     @GetMapping("/{id}")
     public UserDetailsResponse get(@PathVariable Long id) {
         return userManagementService.get(id);
+    }
+
+    @GetMapping("/{id}/avatar")
+    @Operation(summary = "Get staff user avatar stream", description = "Streams the avatar image. Requires ADMIN role.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "User avatar image stream returned"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Administrator role required"),
+            @ApiResponse(responseCode = "404", description = "Target user or avatar not found")
+    })
+    public ResponseEntity<InputStreamResource> getAvatar(@PathVariable Long id) {
+        AttachmentDownload download = userManagementService.downloadAvatar(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(download.contentType()))
+                .contentLength(download.sizeBytes())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename(download.fileName())
+                        .build()
+                        .toString())
+                .header(HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .body(new InputStreamResource(download.inputStream()));
     }
 
     @PostMapping

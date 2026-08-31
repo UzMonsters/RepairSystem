@@ -1,14 +1,18 @@
 package com.example.darks.repair_auto.customer.domain;
 
+import com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.OffsetDateTime;
@@ -35,6 +39,10 @@ public class Customer {
 
     @Column(name = "phone_verified_at")
     private OffsetDateTime phoneVerifiedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "avatar_attachment_id")
+    private RepairAttachment avatarAttachment;
 
     @JsonIgnore
     @Column(name = "telegram_user_id", unique = true)
@@ -244,6 +252,15 @@ public class Customer {
 
     public void incrementAuthVersion(OffsetDateTime now) {
         this.authVersion++;
+        this.updatedAt = now;
+    }
+
+    public RepairAttachment getAvatarAttachment() {
+        return avatarAttachment;
+    }
+
+    public void setAvatarAttachment(RepairAttachment avatarAttachment, OffsetDateTime now) {
+        this.avatarAttachment = avatarAttachment;
         this.updatedAt = now;
     }
 }
