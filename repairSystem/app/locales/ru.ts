@@ -2,7 +2,7 @@ const ru = {
   'main': 'Главная',
   'system': 'Система',
   'home': 'Главная',
-  'dashboard': 'Панель',
+  'dashboard': 'Панель1',
   'requests': 'Заявки',
   'customers': 'Клиенты',
   'technicians': 'Техники',
