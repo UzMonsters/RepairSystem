@@ -356,7 +356,7 @@ async function toggleActive(u: CrmUser) {
                   :disabled="togglingId === u.id"
                   @click="toggleActive(u)"
                 >
-                  <i class="bi bi-toggle-on" />
+                  <i :class="u.active ? 'bi bi-toggle-on text-success' : 'bi bi-toggle-off text-danger'" />
                 </button>
                 <button
                   type="button"

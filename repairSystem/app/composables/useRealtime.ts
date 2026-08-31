@@ -68,26 +68,29 @@ export function useRealtime() {
 
   async function connect(token?: string) {
     if (!import.meta.client || client != null) return
-    let accessToken = token
-    if (!accessToken && import.meta.client) {
-      try {
-        const res = await $fetch<{ token: string }>('/api/auth/ws-token')
-        accessToken = res.token
-      } catch {
-        return
-      }
-    }
-    if (client != null) return // Prevent race condition after await
     const url = websocketUrl()
-    if (!accessToken || !url) return
+    if (!url) return
 
     client = new Client({
       brokerURL: url,
-      connectHeaders: { Authorization: `Bearer ${accessToken}` },
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
       debug: () => undefined,
+      beforeConnect: async () => {
+        let currentToken = token
+        if (!currentToken) {
+          try {
+            const res = await $fetch<{ token: string }>('/api/auth/ws-token')
+            currentToken = res.token
+          } catch {
+            // failed to fetch token, will likely fail connect
+          }
+        }
+        if (currentToken && client) {
+          client.connectHeaders = { Authorization: `Bearer ${currentToken}` }
+        }
+      },
       onConnect: () => {
         connected.value = true
         lastError.value = null

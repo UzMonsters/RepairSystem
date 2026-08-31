@@ -197,7 +197,10 @@ function openCustomer(id: number) {
                   class="bi bi-telephone text-success fs-5"
                   :title="t('phone')"
                 />
-                <span v-else>-</span>
+                <span
+                  v-else
+                  class="text-muted small"
+                ><i class="bi bi-telephone-x me-1" />{{ t('phoneNotLinked') }}</span>
               </td>
               <td>
                 <span

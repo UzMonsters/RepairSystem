@@ -262,7 +262,7 @@ async function handlePasswordSubmit() {
         </div>
         <button
           type="button"
-          class="btn btn-outline-danger"
+          class="btn btn-outline-danger bg-body"
           @click="logoutAll"
         >
           <i class="bi bi-box-arrow-right me-2" />

@@ -123,12 +123,12 @@ onBeforeUnmount(() => stopRealtime?.())
 const categoryName = computed(() => {
   const c = request.value?.category
   if (!c) return '-'
-  return c.name || '-'
+  return c.name || t('notSpecified')
 })
 
-const customerName = computed(() => request.value?.customer?.fullName || '-')
-const customerPhone = computed(() => request.value?.customer?.phone || '-')
-const locationAddress = computed(() => request.value?.location?.address || request.value?.address || '-')
+const customerName = computed(() => request.value?.customer?.fullName || t('notSpecified'))
+const customerPhone = computed(() => request.value?.customer?.phone || t('notSpecified'))
+const locationAddress = computed(() => request.value?.location?.address || request.value?.address || t('notSpecified'))
 const locationCoordinates = computed(() => {
   const latitude = request.value?.location?.latitude ?? request.value?.latitude
   const longitude = request.value?.location?.longitude ?? request.value?.longitude
@@ -435,7 +435,7 @@ function can(action: string) {
                 </div>
                 <div class="card-body">
                   <p class="mb-0">
-                    {{ request.description || '-' }}
+                    {{ request.description || t('notSpecified') }}
                   </p>
                 </div>
               </div>
@@ -608,25 +608,25 @@ function can(action: string) {
                       {{ t('diagnosis') }}
                     </dt>
                     <dd class="col-sm-7">
-                      {{ execution.diagnosis || '-' }}
+                      {{ execution.diagnosis || t('notSpecified') }}
                     </dd>
                     <dt class="col-sm-5">
                       {{ t('waitingReason') }}
                     </dt>
                     <dd class="col-sm-7">
-                      {{ execution.waitingReason || '-' }}
+                      {{ execution.waitingReason || t('notSpecified') }}
                     </dd>
                     <dt class="col-sm-5">
                       {{ t('workPerformed') }}
                     </dt>
                     <dd class="col-sm-7">
-                      {{ execution.workPerformed || '-' }}
+                      {{ execution.workPerformed || t('notSpecified') }}
                     </dd>
                     <dt class="col-sm-5">
                       {{ t('completionNote') }}
                     </dt>
                     <dd class="col-sm-7">
-                      {{ execution.completionNote || '-' }}
+                      {{ execution.completionNote || t('notSpecified') }}
                     </dd>
                     <dt class="col-sm-5">
                       {{ t('completed') }}
@@ -716,6 +716,115 @@ function can(action: string) {
                           {{ historyReason(item.reason) }}
                         </div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-show="activeTab === 'actions'">
+              <div class="card mb-4">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    <i class="bi bi-grid me-2" />{{ t('actions') }}
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-6 col-lg-4">
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        :disabled="deletingRequest"
+                        @click="showModal('request-delete-modal')"
+                      >
+                        <i class="bi bi-trash fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('deleteRequest') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('diagnosis')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('diagnosis')"
+                      >
+                        <i class="bi bi-search fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('diagnosis') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('start')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('start')"
+                      >
+                        <i class="bi bi-play-circle fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('start') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('wait-for-parts')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('wait-for-parts')"
+                      >
+                        <i class="bi bi-box-seam fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('waitForParts') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('resume')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('resume')"
+                      >
+                        <i class="bi bi-play-circle fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('resume') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('complete')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-success w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('complete')"
+                      >
+                        <i class="bi bi-check2-circle fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('complete') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('cancel')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('cancel')"
+                      >
+                        <i class="bi bi-x-circle fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('cancelRequest') }}</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -873,71 +982,6 @@ function can(action: string) {
               :request-status="request.status"
               class="mb-4"
             />
-            <div class="card mb-4">
-              <div class="card-header">
-                <h3 class="card-title">
-                  {{ t('actions') }}
-                </h3>
-              </div>
-              <div class="card-body d-flex flex-column gap-2">
-                <button
-                  type="button"
-                  class="btn btn-outline-danger"
-                  :disabled="deletingRequest"
-                  @click="showModal('request-delete-modal')"
-                >
-                  <i class="bi bi-trash me-2" />{{ t('deleteRequest') }}
-                </button>
-                <button
-                  v-if="can('diagnosis')"
-                  type="button"
-                  class="btn btn-outline-info"
-                  @click="openExecModal('diagnosis')"
-                >
-                  <i class="bi bi-clipboard2-pulse me-2" />{{ t('diagnosis') }}
-                </button>
-                <button
-                  v-if="can('start')"
-                  type="button"
-                  class="btn btn-primary"
-                  @click="openExecModal('start')"
-                >
-                  <i class="bi bi-play-circle me-2" />{{ t('start') }}
-                </button>
-                <button
-                  v-if="can('wait-for-parts')"
-                  type="button"
-                  class="btn btn-outline-warning"
-                  @click="openExecModal('wait-for-parts')"
-                >
-                  <i class="bi bi-box-seam me-2" />{{ t('waitForParts') }}
-                </button>
-                <button
-                  v-if="can('resume')"
-                  type="button"
-                  class="btn btn-primary"
-                  @click="openExecModal('resume')"
-                >
-                  <i class="bi bi-play-circle me-2" />{{ t('resume') }}
-                </button>
-                <button
-                  v-if="can('complete')"
-                  type="button"
-                  class="btn btn-success"
-                  @click="openExecModal('complete')"
-                >
-                  <i class="bi bi-check2-circle me-2" />{{ t('complete') }}
-                </button>
-                <button
-                  v-if="can('cancel')"
-                  type="button"
-                  class="btn btn-outline-danger"
-                  @click="openExecModal('cancel')"
-                >
-                  <i class="bi bi-x-circle me-2" />{{ t('cancelRequest') }}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1083,3 +1127,13 @@ function can(action: string) {
     </template>
   </AppContent>
 </template>
+
+<style scoped>
+[data-bs-theme="dark"] .nav-tabs .nav-link {
+  color: #adb5bd;
+}
+[data-bs-theme="dark"] .nav-tabs .nav-link:hover,
+[data-bs-theme="dark"] .nav-tabs .nav-link.active {
+  color: #ffffff !important;
+}
+</style>
