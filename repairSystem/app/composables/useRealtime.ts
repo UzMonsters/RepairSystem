@@ -68,7 +68,15 @@ export function useRealtime() {
 
   async function connect(token?: string) {
     if (!import.meta.client || client?.active) return
-    const accessToken = token || useCookie<string | null>('access_token').value
+    let accessToken = token
+    if (!accessToken && import.meta.client) {
+      try {
+        const res = await $fetch<{ token: string }>('/api/auth/ws-token')
+        accessToken = res.token
+      } catch {
+        return
+      }
+    }
     const url = websocketUrl()
     if (!accessToken || !url) return
 
