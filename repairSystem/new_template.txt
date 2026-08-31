@@ -1,0 +1,541 @@
+
+        <div class="row">
+          <div class="col-lg-8">
+            <ul class="nav nav-tabs mb-4">
+              <li class="nav-item">
+                <button type="button" class="nav-link" :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'">
+                  {{ t('general') || 'Основное' }}
+                </button>
+              </li>
+              <li class="nav-item">
+                <button type="button" class="nav-link" :class="{ active: activeTab === 'execution' }" @click="activeTab = 'execution'">
+                  {{ t('executionDetails') }}
+                </button>
+              </li>
+              <li class="nav-item">
+                <button type="button" class="nav-link" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">
+                  {{ t('history') || 'История' }}
+                </button>
+              </li>
+            </ul>
+
+            <div v-show="activeTab === 'general'">
+            <div class="card mb-4">
+              <div class="card-header">
+                <div class="d-flex align-items-center justify-content-between">
+                  <h3 class="card-title mb-0">
+                    {{ t('description') }}
+                  </h3>
+                  <StatusBadge :status="request.status" />
+                </div>
+              </div>
+              <div class="card-body">
+                <p class="mb-0">
+                  {{ request.description || '-' }}
+                </p>
+              </div>
+            </div>
+            <div class="card mb-4">
+              <div class="card-header">
+                <h3 class="card-title">
+                  {{ t('client') }}
+                </h3>
+              </div>
+              <div class="card-body">
+                <dl class="row mb-0">
+                  <dt class="col-sm-4">
+                    {{ t('fullName') }}
+                  </dt>
+                  <dd class="col-sm-8">
+                    <NuxtLink
+                      v-if="request.customer?.id"
+                      :to="`/admin/customers/${request.customer.id}`"
+                      class="text-body text-decoration-underline"
+                    >{{ customerName }}</NuxtLink>
+                    <template v-else>
+                      {{ customerName }}
+                    </template>
+                  </dd>
+                  <dt class="col-sm-4">
+                    {{ t('phone') }}
+                  </dt>
+                  <dd class="col-sm-8">
+                    {{ customerPhone }}
+                  </dd>
+                  <dt class="col-sm-4">
+                    {{ t('address') }}
+                  </dt>
+                  <dd class="col-sm-8">
+                    {{ locationAddress }}
+                    <a
+                      v-if="locationMapUrl"
+                      :href="locationMapUrl"
+                      class="map-location-link d-inline-flex align-items-center gap-1 mt-2"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <i class="bi bi-geo-alt-fill" />
+                      {{ t('openOnMap') }}
+                      <i class="bi bi-box-arrow-up-right" />
+                    </a>
+                  </dd>
+                  <dt class="col-sm-4">
+                    {{ t('customerPreferredVisitAt') }}
+                  </dt>
+                  <dd class="col-sm-8">
+                    {{ formatDate(request.customerPreferredVisitAt) }}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+          <div class="card-header">
+            <h3 class="card-title mb-0">
+              {{ t('attachments') }}
+            </h3>
+          </div>
+          <div class="card-body">
+            <div class="attachment-upload-grid mb-3">
+              <div class="col-md-5">
+                <select
+                  v-model="attachmentType"
+                  class="form-select"
+                >
+                  <option value="GENERAL_DOCUMENT">
+                    {{ t('generalDocument') }}
+                  </option>
+                  <option value="CUSTOMER_PROBLEM_PHOTO">
+                    {{ t('customerProblemPhoto') }}
+                  </option>
+                  <option value="DIAGNOSIS_PHOTO">
+                    {{ t('diagnosisPhoto') }}
+                  </option>
+                  <option value="COMPLETION_PHOTO">
+                    {{ t('completionPhoto') }}
+                  </option>
+                </select>
+              </div>
+              <div class="col-md-7 attachment-file-column">
+                <div class="file-input-control">
+                  <input
+                    id="request-attachment-file"
+                    type="file"
+                    class="visually-hidden"
+                    @change="selectAttachment"
+                  >
+                  <label
+                    for="request-attachment-file"
+                    class="file-input-button"
+                  >
+                    <i class="bi bi-folder2-open me-1" />{{ t('chooseFile') }}
+                  </label>
+                  <span
+                    class="file-input-name"
+                    :class="{ 'is-empty': !attachmentFile }"
+                  >
+                    {{ attachmentFile?.name || t('noFileChosen') }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm attachment-upload-button mb-3"
+              :disabled="uploadingAttachment || !attachmentFile"
+              @click="uploadAttachment"
+            >
+              <i class="bi bi-upload me-1" />{{ uploadingAttachment ? t('saving') : t('upload') }}
+            </button>
+            <div
+              v-if="!attachments?.length"
+              class="text-muted"
+            >
+              {{ t('noAttachments') }}
+            </div>
+            <div
+              v-for="attachment in attachments"
+              :key="attachment.id"
+              class="attachment-list-item"
+            >
+              <div class="attachment-info">
+                <div class="fw-semibold attachment-file-name">
+                  {{ attachment.originalFileName }}
+                </div>
+                <div class="small text-muted attachment-meta">
+                  {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
+                </div>
+              </div>
+              <div class="btn-group btn-group-sm attachment-actions">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary"
+                  :title="t('download')"
+                  @click="downloadAttachment(attachment)"
+                >
+                  <i class="bi bi-download" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  :title="t('delete')"
+                  @click="deleteAttachment(attachment)"
+                >
+                  <i class="bi bi-trash" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+            </div>
+
+            <div v-show="activeTab === 'execution'">
+          <div class="card-header">
+            <h3 class="card-title mb-0">
+              {{ t('executionDetails') }}
+            </h3>
+          </div>
+          <div class="card-body">
+            <dl
+              v-if="execution"
+              class="row mb-0"
+            >
+              <dt class="col-sm-5">
+                {{ t('diagnosis') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ execution.diagnosis || '-' }}
+              </dd>
+              <dt class="col-sm-5">
+                {{ t('waitingReason') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ execution.waitingReason || '-' }}
+              </dd>
+              <dt class="col-sm-5">
+                {{ t('workPerformed') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ execution.workPerformed || '-' }}
+              </dd>
+              <dt class="col-sm-5">
+                {{ t('completionNote') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ execution.completionNote || '-' }}
+              </dd>
+              <dt class="col-sm-5">
+                {{ t('completed') }}
+              </dt>
+              <dd class="col-sm-7">
+                {{ formatDate(execution.completedAt) }}
+              </dd>
+            </dl>
+            <div
+              v-else
+              class="text-muted"
+            >
+              {{ t('noExecutionDetails') }}
+            </div>
+          </div>
+        </div>
+      </div>
+            </div>
+
+            <div v-show="activeTab === 'history'">
+              <div class="row g-4">
+                <div class="col-12">
+          <div class="card-header">
+            <h3 class="card-title mb-0">
+              {{ t('assignmentHistory') }}
+            </h3>
+          </div>
+          <div class="card-body p-0">
+            <div
+              v-if="!assignments?.length"
+              class="text-muted p-3"
+            >
+              {{ t('noAssignmentHistory') }}
+            </div>
+            <div
+              v-for="assignment in assignments"
+              :key="assignment.id"
+              class="border-bottom p-3"
+            >
+              <div class="d-flex justify-content-between gap-2">
+                <strong>{{ assignment.technician.fullName }}</strong>
+                <span
+                  class="badge"
+                  :class="assignmentStatusClass(assignment.status)"
+                >{{ assignmentStatusLabel(assignment.status) }}</span>
+              </div>
+              <div class="small text-muted">
+                {{ formatDate(assignment.assignedAt) }} · {{ historyReason(assignment.rejectionReason || assignment.closureReason) }}
+              </div>
+              <div
+                v-if="assignment.scheduledVisitAt"
+                class="small"
+              >
+                {{ t('scheduledVisitAt') }}: {{ formatDate(assignment.scheduledVisitAt) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+                </div>
+                <div class="col-12">
+          <div class="card-header">
+            <h3 class="card-title mb-0">
+              {{ t('statusHistory') }}
+            </h3>
+          </div>
+          <div class="card-body p-0">
+            <div
+              v-if="!statusHistory?.length"
+              class="text-muted p-3"
+            >
+              {{ t('noStatusHistory') }}
+            </div>
+            <div
+              v-for="item in statusHistory"
+              :key="item.id"
+              class="border-bottom p-3"
+            >
+              <div class="d-flex align-items-center gap-2">
+                <StatusBadge :status="item.toStatus" />
+                <span class="small text-muted">{{ formatDate(item.changedAt) }}</span>
+              </div>
+              <div
+                v-if="item.reason"
+                class="small mt-1"
+              >
+                {{ historyReason(item.reason) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="card mb-4">
+              <div class="card-header">
+                <h3 class="card-title">
+                  {{ t('details') }}
+                </h3>
+              </div>
+              <div class="card-body">
+                <dl class="row mb-0">
+                  <dt class="col-5">
+                    {{ t('status') }}
+                  </dt>
+                  <dd class="col-7">
+                    <StatusBadge :status="request.status" />
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('priority') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ t(`priority.${request.priority}`) }}
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('categories') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ categoryName }}
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('source') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ request.source }}
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('created') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ formatDate(request.createdAt) }}
+                  </dd>
+                  <dt class="col-5">
+                    {{ t('lastUpdated') }}
+                  </dt>
+                  <dd class="col-7">
+                    {{ formatDate(request.updatedAt) }}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+
+            <div class="card mb-4">
+              <div class="card-header">
+                <h3 class="card-title">
+                  {{ t('assignedTechnician') }}
+                </h3>
+              </div>
+              <div class="card-body">
+                <div
+                  v-if="assignedTechnician"
+                  class="d-flex align-items-center mb-3"
+                >
+                  <i class="bi bi-person-wrench fs-3 me-2 text-primary" />
+                  <div>
+                    <div class="fw-semibold">
+                      {{ assignedTechnician.fullName }}
+                    </div>
+                    <div class="text-muted small">
+                      {{ assignedTechnician.phone || '' }}
+                    </div>
+                  </div>
+
+                <div
+                  v-else
+                  class="text-muted mb-3"
+                >
+                  {{ t('notAssigned') }}
+                </div>
+                <div
+                  v-if="request.status === 'NEW' || request.status === 'ASSIGNED'"
+                  class="input-group"
+                >
+                  <select
+                    v-model="assignForm"
+                    class="form-select"
+                  >
+                    <option
+                      :value="''"
+                      disabled
+                    >
+                      {{ t('selectTechnician') }}
+                    </option>
+                    <option
+                      v-for="tech in technicianOptions"
+                      :key="tech.id"
+                      :value="tech.id"
+                    >
+                      {{ tech.fullName }}
+                    </option>
+                  </select>
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    :disabled="savingAssign || assignForm === ''"
+                    @click="saveAssign"
+                  >
+                    {{ savingAssign ? t('saving') : t('assignTechnician') }}
+                  </button>
+                </div>
+                <div
+                  v-if="request.currentAssignment"
+                  class="d-flex flex-wrap gap-2 mt-3"
+                >
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary btn-sm"
+                    @click="openAssignmentAction('reassign')"
+                  >
+                    <i class="bi bi-arrow-repeat me-1" />{{ t('reassignTechnician') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm"
+                    @click="openAssignmentAction('unassign')"
+                  >
+                    <i class="bi bi-person-dash me-1" />{{ t('unassignTechnician') }}
+                  </button>
+                </div>
+
+                <div
+                  v-if="isAssignmentPending"
+                  class="alert alert-warning mb-0"
+                >
+                  <div class="mb-2">
+                    {{ t('assignmentPending') }}
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-warning btn-sm"
+                    :disabled="savingAccept"
+                    @click="acceptAssignment"
+                  >
+                    <i class="bi bi-check2-circle me-1" />{{ savingAccept ? t('saving') : t('acceptAssignment') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <ManagerChatBox
+              v-if="request"
+              :request-id="id"
+              :request-status="request.status"
+              class="mb-4"
+            />
+
+            <div class="card mb-4">
+              <div class="card-header">
+                <h3 class="card-title">
+                  {{ t('actions') }}
+                </h3>
+              </div>
+              <div class="card-body d-flex flex-column gap-2">
+                <button
+                  type="button"
+                  class="btn btn-outline-danger"
+                  :disabled="deletingRequest"
+                  @click="showModal('request-delete-modal')"
+                >
+                  <i class="bi bi-trash me-2" />{{ t('deleteRequest') }}
+                </button>
+                <button
+                  v-if="can('diagnosis')"
+                  type="button"
+                  class="btn btn-outline-info"
+                  @click="openExecModal('diagnosis')"
+                >
+                  <i class="bi bi-clipboard2-pulse me-2" />{{ t('diagnosis') }}
+                </button>
+                <button
+                  v-if="can('start')"
+                  type="button"
+                  class="btn btn-primary"
+                  @click="openExecModal('start')"
+                >
+                  <i class="bi bi-play-circle me-2" />{{ t('start') }}
+                </button>
+                <button
+                  v-if="can('wait-for-parts')"
+                  type="button"
+                  class="btn btn-outline-warning"
+                  @click="openExecModal('wait-for-parts')"
+                >
+                  <i class="bi bi-box-seam me-2" />{{ t('waitForParts') }}
+                </button>
+                <button
+                  v-if="can('resume')"
+                  type="button"
+                  class="btn btn-primary"
+                  @click="openExecModal('resume')"
+                >
+                  <i class="bi bi-play-circle me-2" />{{ t('resume') }}
+                </button>
+                <button
+                  v-if="can('complete')"
+                  type="button"
+                  class="btn btn-success"
+                  @click="openExecModal('complete')"
+                >
+                  <i class="bi bi-check2-circle me-2" />{{ t('complete') }}
+                </button>
+                <button
+                  v-if="can('cancel')"
+                  type="button"
+                  class="btn btn-outline-danger"
+                  @click="openExecModal('cancel')"
+                >
+                  <i class="bi bi-x-circle me-2" />{{ t('cancelRequest') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>

@@ -15,9 +15,6 @@ export function useRealtime() {
   function websocketUrl() {
     if (config.public.realtimeUrl) return config.public.realtimeUrl
     if (!import.meta.client) return ''
-    // The Nuxt app and Spring backend are deployed as separate Render services.
-    // Falling back to window.location.host connects to the frontend service,
-    // where /ws is not exposed, so realtime silently never connects.
     return 'wss://repair-auto.onrender.com/ws'
   }
 
@@ -38,8 +35,16 @@ export function useRealtime() {
         'REQUEST_CREATED',
         'REQUEST_UPDATED',
         'REQUEST_ASSIGNED',
+        'REQUEST_ASSIGNMENT_CREATED',
+        'REQUEST_ASSIGNMENT_ACCEPTED',
+        'REQUEST_ASSIGNMENT_REJECTED',
+        'REQUEST_REASSIGNED',
         'REQUEST_UNASSIGNED',
-        'REQUEST_STATUS_CHANGED'
+        'REQUEST_SCHEDULE_CHANGED',
+        'REQUEST_DIAGNOSIS_UPDATED',
+        'REQUEST_ATTACHMENTS_CHANGED',
+        'REQUEST_STATUS_CHANGED',
+        'REQUEST_DELETED'
       ]
       if (requestEvents.includes(event.type)) {
         void refreshNuxtData(['requests-list', 'dashboard-recent'])
@@ -62,22 +67,33 @@ export function useRealtime() {
   }
 
   async function connect(token?: string) {
-    if (!import.meta.client || client?.active) return
-    const accessToken = token || useCookie<string | null>('access_token').value
+    if (!import.meta.client || client != null) return
     const url = websocketUrl()
-    if (!accessToken || !url) return
+    if (!url) return
 
     client = new Client({
       brokerURL: url,
-      connectHeaders: { Authorization: `Bearer ${accessToken}` },
       reconnectDelay: 5000,
       heartbeatIncoming: 10000,
       heartbeatOutgoing: 10000,
       debug: () => undefined,
+      beforeConnect: async () => {
+        let currentToken = token
+        if (!currentToken) {
+          try {
+            const res = await $fetch<{ token: string }>('/api/auth/ws-token')
+            currentToken = res.token
+          } catch {
+            // failed to fetch token, will likely fail connect
+          }
+        }
+        if (currentToken && client) {
+          client.connectHeaders = { Authorization: `Bearer ${currentToken}` }
+        }
+      },
       onConnect: () => {
         connected.value = true
         lastError.value = null
-        client?.subscribe('/topic/staff.events', handleMessage)
         client?.subscribe('/user/queue/events', handleMessage)
         client?.subscribe('/user/queue/chat', handleMessage)
         void refreshNuxtData(['requests-list', 'dashboard', 'dashboard-recent', 'dashboard-status-counts'])
@@ -106,5 +122,10 @@ export function useRealtime() {
     return () => listeners.delete(listener)
   }
 
-  return { connected, lastError, connect, disconnect, reconnect, subscribe }
+  function publish(destination: string, body: Record<string, unknown>) {
+    if (!client?.active) return
+    client.publish({ destination, body: JSON.stringify(body) })
+  }
+
+  return { connected, lastError, connect, disconnect, reconnect, subscribe, publish }
 }

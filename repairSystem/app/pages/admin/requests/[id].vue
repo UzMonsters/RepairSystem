@@ -55,15 +55,12 @@ const { data: statusHistory, refresh: refreshStatusHistory } = await useAsyncDat
 
 const technicianOptions = computed(() => technicians.value?.content ?? [])
 
+const activeTab = ref('general')
 const assignForm = ref<number | ''>('')
 const savingAssign = ref(false)
 const message = ref('')
 const actionError = ref('')
 const deletingRequest = ref(false)
-
-const scheduleForm = ref('')
-const savingSchedule = ref(false)
-const scheduleInput = ref<HTMLInputElement | null>(null)
 
 async function refreshRequestData() {
   await Promise.all([refresh(), refreshAssignments(), refreshAttachments(), refreshStatusHistory()])
@@ -100,7 +97,21 @@ let stopRealtime: (() => boolean) | undefined
 onMounted(() => {
   stopRealtime = realtime.subscribe((event: RealtimeEvent) => {
     const payload = event.payload as { requestId?: number }
-    const requestEvents = ['REQUEST_UPDATED', 'REQUEST_ASSIGNED', 'REQUEST_UNASSIGNED', 'REQUEST_STATUS_CHANGED']
+    const requestEvents = [
+      'REQUEST_CREATED',
+      'REQUEST_UPDATED',
+      'REQUEST_ASSIGNED',
+      'REQUEST_ASSIGNMENT_CREATED',
+      'REQUEST_ASSIGNMENT_ACCEPTED',
+      'REQUEST_ASSIGNMENT_REJECTED',
+      'REQUEST_REASSIGNED',
+      'REQUEST_UNASSIGNED',
+      'REQUEST_SCHEDULE_CHANGED',
+      'REQUEST_DIAGNOSIS_UPDATED',
+      'REQUEST_ATTACHMENTS_CHANGED',
+      'REQUEST_STATUS_CHANGED',
+      'REQUEST_DELETED'
+    ]
     if (payload.requestId === id && requestEvents.includes(event.type)) {
       void refreshRequestData()
     }
@@ -112,12 +123,12 @@ onBeforeUnmount(() => stopRealtime?.())
 const categoryName = computed(() => {
   const c = request.value?.category
   if (!c) return '-'
-  return c.name || '-'
+  return c.name || t('notSpecified')
 })
 
-const customerName = computed(() => request.value?.customer?.fullName || '-')
-const customerPhone = computed(() => request.value?.customer?.phone || '-')
-const locationAddress = computed(() => request.value?.location?.address || request.value?.address || '-')
+const customerName = computed(() => request.value?.customer?.fullName || t('notSpecified'))
+const customerPhone = computed(() => request.value?.customer?.phone || t('notSpecified'))
+const locationAddress = computed(() => request.value?.location?.address || request.value?.address || t('notSpecified'))
 const locationCoordinates = computed(() => {
   const latitude = request.value?.location?.latitude ?? request.value?.latitude
   const longitude = request.value?.location?.longitude ?? request.value?.longitude
@@ -215,27 +226,6 @@ async function runAssignmentAction() {
     actionError.value = getApiErrorMessage(e, 'Failed to update assignment.')
   } finally {
     savingAssignmentAction.value = false
-  }
-}
-
-async function saveSchedule(clearSchedule = false) {
-  if (!clearSchedule && !scheduleForm.value) return
-  savingSchedule.value = true
-  actionError.value = ''
-  try {
-    await apiFetch(`/requests/${id}/schedule`, {
-      method: 'PATCH',
-      body: clearSchedule
-        ? { clearSchedule: true }
-        : { scheduledVisitAt: new Date(scheduleForm.value).toISOString() }
-    })
-    message.value = t('scheduleUpdated')
-    scheduleForm.value = ''
-    await refreshRequestData()
-  } catch (e) {
-    actionError.value = getApiErrorMessage(e, 'Failed to update schedule.')
-  } finally {
-    savingSchedule.value = false
   }
 }
 
@@ -400,73 +390,460 @@ function can(action: string) {
 
         <div class="row">
           <div class="col-lg-8">
-            <div class="card mb-4">
-              <div class="card-header">
-                <div class="d-flex align-items-center justify-content-between">
-                  <h3 class="card-title mb-0">
-                    {{ t('description') }}
-                  </h3>
-                  <StatusBadge :status="request.status" />
+            <ul class="nav nav-tabs mb-4">
+              <li class="nav-item">
+                <button
+                  type="button"
+                  class="nav-link"
+                  :class="{ active: activeTab === 'general' }"
+                  @click="activeTab = 'general'"
+                >
+                  {{ t('general') || 'Основное' }}
+                </button>
+              </li>
+              <li class="nav-item">
+                <button
+                  type="button"
+                  class="nav-link"
+                  :class="{ active: activeTab === 'execution' }"
+                  @click="activeTab = 'execution'"
+                >
+                  {{ t('executionDetails') }}
+                </button>
+              </li>
+              <li class="nav-item">
+                <button
+                  type="button"
+                  class="nav-link"
+                  :class="{ active: activeTab === 'history' }"
+                  @click="activeTab = 'history'"
+                >
+                  {{ t('history') || 'История' }}
+                </button>
+              </li>
+              <li class="nav-item">
+                <button
+                  type="button"
+                  class="nav-link"
+                  :class="{ active: activeTab === 'actions' }"
+                  @click="activeTab = 'actions'"
+                >
+                  {{ t('actions') || 'Действия' }}
+                </button>
+              </li>
+            </ul>
+
+            <div v-show="activeTab === 'general'">
+              <div class="card mb-4">
+                <div class="card-header">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h3 class="card-title mb-0">
+                      {{ t('description') }}
+                    </h3>
+                    <StatusBadge :status="request.status" />
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="mb-0">
+                    {{ request.description || t('notSpecified') }}
+                  </p>
                 </div>
               </div>
-              <div class="card-body">
-                <p class="mb-0">
-                  {{ request.description || '-' }}
-                </p>
+              <div class="card mb-4">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    {{ t('client') }}
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <dl class="row mb-0">
+                    <dt class="col-sm-4">
+                      {{ t('fullName') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      <NuxtLink
+                        v-if="request.customer?.id"
+                        :to="`/admin/customers/${request.customer.id}`"
+                        class="text-body text-decoration-underline"
+                      >{{ customerName }}</NuxtLink>
+                      <template v-else>
+                        {{ customerName }}
+                      </template>
+                    </dd>
+                    <dt class="col-sm-4">
+                      {{ t('phone') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      {{ customerPhone }}
+                    </dd>
+                    <dt class="col-sm-4">
+                      {{ t('address') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      <span>{{ locationAddress }}</span>
+                      <span
+                        v-if="locationCoordinates !== '-'"
+                        class="d-block small text-muted mt-1"
+                      >
+                        {{ t('coordinates') || 'Координаты' }}: {{ locationCoordinates }}
+                      </span>
+                      <a
+                        v-if="locationMapUrl"
+                        :href="locationMapUrl"
+                        class="map-location-link d-inline-flex align-items-center gap-1 mt-2"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <i class="bi bi-geo-alt-fill" />
+                        {{ t('openOnMap') }}
+                        <i class="bi bi-box-arrow-up-right" />
+                      </a>
+                    </dd>
+                    <dt class="col-sm-4">
+                      {{ t('customerPreferredVisitAt') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      {{ formatDate(request.customerPreferredVisitAt) }}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+              <div class="card h-100">
+                <div class="card-header">
+                  <h3 class="card-title mb-0">
+                    {{ t('attachments') }}
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <div class="attachment-upload-grid mb-3">
+                    <div class="col-md-5">
+                      <select
+                        v-model="attachmentType"
+                        class="form-select"
+                      >
+                        <option value="GENERAL_DOCUMENT">
+                          {{ t('generalDocument') }}
+                        </option>
+                        <option value="CUSTOMER_PROBLEM_PHOTO">
+                          {{ t('customerProblemPhoto') }}
+                        </option>
+                        <option value="DIAGNOSIS_PHOTO">
+                          {{ t('diagnosisPhoto') }}
+                        </option>
+                        <option value="COMPLETION_PHOTO">
+                          {{ t('completionPhoto') }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="col-md-7 attachment-file-column">
+                      <div class="file-input-control">
+                        <input
+                          id="request-attachment-file"
+                          type="file"
+                          class="visually-hidden"
+                          @change="selectAttachment"
+                        >
+                        <label
+                          for="request-attachment-file"
+                          class="file-input-button"
+                        >
+                          <i class="bi bi-folder2-open me-1" />{{ t('chooseFile') }}
+                        </label>
+                        <span
+                          class="file-input-name"
+                          :class="{ 'is-empty': !attachmentFile }"
+                        >
+                          {{ attachmentFile?.name || t('noFileChosen') }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm attachment-upload-button mb-3"
+                    :disabled="uploadingAttachment || !attachmentFile"
+                    @click="uploadAttachment"
+                  >
+                    <i class="bi bi-upload me-1" />{{ uploadingAttachment ? t('saving') : t('upload') }}
+                  </button>
+                  <div
+                    v-if="!attachments?.length"
+                    class="text-muted"
+                  >
+                    {{ t('noAttachments') }}
+                  </div>
+                  <div
+                    v-for="attachment in attachments"
+                    :key="attachment.id"
+                    class="attachment-list-item"
+                  >
+                    <div class="attachment-info">
+                      <div class="fw-semibold attachment-file-name">
+                        {{ attachment.originalFileName }}
+                      </div>
+                      <div class="small text-muted attachment-meta">
+                        {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
+                      </div>
+                    </div>
+                    <div class="btn-group btn-group-sm attachment-actions">
+                      <button
+                        type="button"
+                        class="btn btn-outline-primary"
+                        :title="t('download')"
+                        @click="downloadAttachment(attachment)"
+                      >
+                        <i class="bi bi-download" />
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger"
+                        :title="t('delete')"
+                        @click="deleteAttachment(attachment)"
+                      >
+                        <i class="bi bi-trash" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="card mb-4">
-              <div class="card-header">
-                <h3 class="card-title">
-                  {{ t('client') }}
-                </h3>
+            <div v-show="activeTab === 'execution'">
+              <div class="card h-100">
+                <div class="card-header">
+                  <h3 class="card-title mb-0">
+                    {{ t('executionDetails') }}
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <dl
+                    v-if="execution"
+                    class="row mb-0"
+                  >
+                    <dt class="col-sm-5">
+                      {{ t('diagnosis') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ execution.diagnosis || t('notSpecified') }}
+                    </dd>
+                    <dt class="col-sm-5">
+                      {{ t('waitingReason') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ execution.waitingReason || t('notSpecified') }}
+                    </dd>
+                    <dt class="col-sm-5">
+                      {{ t('workPerformed') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ execution.workPerformed || t('notSpecified') }}
+                    </dd>
+                    <dt class="col-sm-5">
+                      {{ t('completionNote') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ execution.completionNote || t('notSpecified') }}
+                    </dd>
+                    <dt class="col-sm-5">
+                      {{ t('completed') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ formatDate(execution.completedAt) }}
+                    </dd>
+                  </dl>
+                  <div
+                    v-else
+                    class="text-muted"
+                  >
+                    {{ t('noExecutionDetails') }}
+                  </div>
+                </div>
               </div>
-              <div class="card-body">
-                <dl class="row mb-0">
-                  <dt class="col-sm-4">
-                    {{ t('fullName') }}
-                  </dt>
-                  <dd class="col-sm-8">
-                    <NuxtLink
-                      v-if="request.customer?.id"
-                      :to="`/admin/customers/${request.customer.id}`"
-                      class="text-body text-decoration-underline"
-                    >{{ customerName }}</NuxtLink>
-                    <template v-else>
-                      {{ customerName }}
-                    </template>
-                  </dd>
-                  <dt class="col-sm-4">
-                    {{ t('phone') }}
-                  </dt>
-                  <dd class="col-sm-8">
-                    {{ customerPhone }}
-                  </dd>
-                  <dt class="col-sm-4">
-                    {{ t('address') }}
-                  </dt>
-                  <dd class="col-sm-8">
-                    {{ locationAddress }}
-                    <a
-                      v-if="locationMapUrl"
-                      :href="locationMapUrl"
-                      class="map-location-link d-inline-flex align-items-center gap-1 mt-2"
-                      target="_blank"
-                      rel="noopener noreferrer"
+            </div>
+
+            <div v-show="activeTab === 'history'">
+              <div class="row g-4">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title mb-0">
+                        {{ t('assignmentHistory') }}
+                      </h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <div
+                        v-if="!assignments?.length"
+                        class="text-muted p-3"
+                      >
+                        {{ t('noAssignmentHistory') }}
+                      </div>
+                      <div
+                        v-for="assignment in assignments"
+                        :key="assignment.id"
+                        class="border-bottom p-3"
+                      >
+                        <div class="d-flex justify-content-between gap-2">
+                          <strong>{{ assignment.technician.fullName }}</strong>
+                          <span
+                            class="badge"
+                            :class="assignmentStatusClass(assignment.status)"
+                          >{{ assignmentStatusLabel(assignment.status) }}</span>
+                        </div>
+                        <div class="small text-muted">
+                          {{ formatDate(assignment.assignedAt) }} · {{ historyReason(assignment.rejectionReason || assignment.closureReason) }}
+                        </div>
+                        <div
+                          v-if="assignment.scheduledVisitAt"
+                          class="small"
+                        >
+                          {{ t('scheduledVisitAt') }}: {{ formatDate(assignment.scheduledVisitAt) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title mb-0">
+                        {{ t('statusHistory') }}
+                      </h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <div
+                        v-if="!statusHistory?.length"
+                        class="text-muted p-3"
+                      >
+                        {{ t('noStatusHistory') }}
+                      </div>
+                      <div
+                        v-for="item in statusHistory"
+                        :key="item.id"
+                        class="border-bottom p-3"
+                      >
+                        <div class="d-flex align-items-center gap-2">
+                          <StatusBadge :status="item.toStatus" />
+                          <span class="small text-muted">{{ formatDate(item.changedAt) }}</span>
+                        </div>
+                        <div
+                          v-if="item.reason"
+                          class="small mt-1"
+                        >
+                          {{ historyReason(item.reason) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-show="activeTab === 'actions'">
+              <div class="card mb-4">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    <i class="bi bi-grid me-2" />{{ t('actions') }}
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3">
+                    <div class="col-md-6 col-lg-4">
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        :disabled="deletingRequest"
+                        @click="showModal('request-delete-modal')"
+                      >
+                        <i class="bi bi-trash fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('deleteRequest') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('diagnosis')"
+                      class="col-md-6 col-lg-4"
                     >
-                      <i class="bi bi-geo-alt-fill" />
-                      {{ t('openOnMap') }}
-                      <i class="bi bi-box-arrow-up-right" />
-                    </a>
-                  </dd>
-                  <dt class="col-sm-4">
-                    {{ t('customerPreferredVisitAt') }}
-                  </dt>
-                  <dd class="col-sm-8">
-                    {{ formatDate(request.customerPreferredVisitAt) }}
-                  </dd>
-                </dl>
+                      <button
+                        type="button"
+                        class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('diagnosis')"
+                      >
+                        <i class="bi bi-search fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('diagnosis') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('start')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('start')"
+                      >
+                        <i class="bi bi-play-circle fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('start') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('wait-for-parts')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('wait-for-parts')"
+                      >
+                        <i class="bi bi-box-seam fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('waitForParts') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('resume')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('resume')"
+                      >
+                        <i class="bi bi-play-circle fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('resume') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('complete')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-success w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('complete')"
+                      >
+                        <i class="bi bi-check2-circle fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('complete') }}</span>
+                      </button>
+                    </div>
+
+                    <div
+                      v-if="can('cancel')"
+                      class="col-md-6 col-lg-4"
+                    >
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger w-100 h-100 d-flex flex-column align-items-center justify-content-center p-4 shadow-sm"
+                        @click="openExecModal('cancel')"
+                      >
+                        <i class="bi bi-x-circle fs-2 mb-2" />
+                        <span class="fw-semibold">{{ t('cancelRequest') }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -519,7 +896,6 @@ function can(action: string) {
                 </dl>
               </div>
             </div>
-
             <div class="card mb-4">
               <div class="card-header">
                 <h3 class="card-title">
@@ -616,451 +992,154 @@ function can(action: string) {
                 </div>
               </div>
             </div>
-
             <ManagerChatBox
               v-if="request"
               :request-id="id"
               :request-status="request.status"
               class="mb-4"
             />
-
-            <div class="card mb-4">
-              <div class="card-header">
-                <h3 class="card-title">
-                  {{ t('actions') }}
-                </h3>
-              </div>
-              <div class="card-body d-flex flex-column gap-2">
-                <button
-                  type="button"
-                  class="btn btn-outline-danger"
-                  :disabled="deletingRequest"
-                  @click="showModal('request-delete-modal')"
-                >
-                  <i class="bi bi-trash me-2" />{{ t('deleteRequest') }}
-                </button>
-                <button
-                  v-if="can('diagnosis')"
-                  type="button"
-                  class="btn btn-outline-info"
-                  @click="openExecModal('diagnosis')"
-                >
-                  <i class="bi bi-clipboard2-pulse me-2" />{{ t('diagnosis') }}
-                </button>
-                <button
-                  v-if="can('start')"
-                  type="button"
-                  class="btn btn-primary"
-                  @click="openExecModal('start')"
-                >
-                  <i class="bi bi-play-circle me-2" />{{ t('start') }}
-                </button>
-                <button
-                  v-if="can('wait-for-parts')"
-                  type="button"
-                  class="btn btn-outline-warning"
-                  @click="openExecModal('wait-for-parts')"
-                >
-                  <i class="bi bi-box-seam me-2" />{{ t('waitForParts') }}
-                </button>
-                <button
-                  v-if="can('resume')"
-                  type="button"
-                  class="btn btn-primary"
-                  @click="openExecModal('resume')"
-                >
-                  <i class="bi bi-play-circle me-2" />{{ t('resume') }}
-                </button>
-                <button
-                  v-if="can('complete')"
-                  type="button"
-                  class="btn btn-success"
-                  @click="openExecModal('complete')"
-                >
-                  <i class="bi bi-check2-circle me-2" />{{ t('complete') }}
-                </button>
-                <button
-                  v-if="can('cancel')"
-                  type="button"
-                  class="btn btn-outline-danger"
-                  @click="openExecModal('cancel')"
-                >
-                  <i class="bi bi-x-circle me-2" />{{ t('cancelRequest') }}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
-      </template>
-    </template>
 
-    <div class="row g-4 mt-1">
-      <div class="col-lg-6">
-        <div class="card h-100">
-          <div class="card-header">
-            <h3 class="card-title mb-0">
-              {{ t('attachments') }}
-            </h3>
-          </div>
-          <div class="card-body">
-            <div class="attachment-upload-grid mb-3">
-              <div class="col-md-5">
-                <select
-                  v-model="attachmentType"
-                  class="form-select"
+        <AppModal
+          id="assignment-action-modal"
+          :title="assignmentAction === 'reassign' ? t('reassignTechnician') : t('unassignTechnician')"
+        >
+          <form @submit.prevent="runAssignmentAction">
+            <div
+              v-if="assignmentAction === 'reassign'"
+              class="mb-3"
+            >
+              <label class="form-label">{{ t('technician') }}</label>
+              <select
+                v-model="assignForm"
+                class="form-select"
+              >
+                <option
+                  value=""
+                  disabled
                 >
-                  <option value="GENERAL_DOCUMENT">
-                    {{ t('generalDocument') }}
-                  </option>
-                  <option value="CUSTOMER_PROBLEM_PHOTO">
-                    {{ t('customerProblemPhoto') }}
-                  </option>
-                  <option value="DIAGNOSIS_PHOTO">
-                    {{ t('diagnosisPhoto') }}
-                  </option>
-                  <option value="COMPLETION_PHOTO">
-                    {{ t('completionPhoto') }}
-                  </option>
-                </select>
-              </div>
-              <div class="col-md-7 attachment-file-column">
-                <div class="file-input-control">
-                  <input
-                    id="request-attachment-file"
-                    type="file"
-                    class="visually-hidden"
-                    @change="selectAttachment"
-                  >
-                  <label
-                    for="request-attachment-file"
-                    class="file-input-button"
-                  >
-                    <i class="bi bi-folder2-open me-1" />{{ t('chooseFile') }}
-                  </label>
-                  <span
-                    class="file-input-name"
-                    :class="{ 'is-empty': !attachmentFile }"
-                  >
-                    {{ attachmentFile?.name || t('noFileChosen') }}
-                  </span>
-                </div>
-              </div>
+                  {{ t('selectTechnician') }}
+                </option>
+                <option
+                  v-for="tech in technicianOptions"
+                  :key="tech.id"
+                  :value="tech.id"
+                >
+                  {{ tech.fullName }}
+                </option>
+              </select>
             </div>
+            <label class="form-label">{{ t('reason') }}</label>
+            <textarea
+              v-model="assignmentReason"
+              class="form-control"
+              rows="3"
+              required
+            />
+            <div
+              v-if="actionError"
+              class="alert alert-danger py-2 mt-3"
+            >
+              {{ actionError }}
+            </div>
+          </form>
+          <template #footer>
             <button
               type="button"
-              class="btn btn-primary btn-sm attachment-upload-button mb-3"
-              :disabled="uploadingAttachment || !attachmentFile"
-              @click="uploadAttachment"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
             >
-              <i class="bi bi-upload me-1" />{{ uploadingAttachment ? t('saving') : t('upload') }}
+              {{ t('cancel') }}
             </button>
-            <div
-              v-if="!attachments?.length"
-              class="text-muted"
+            <button
+              type="button"
+              class="btn btn-primary"
+              :disabled="savingAssignmentAction || !assignmentReason.trim() || (assignmentAction === 'reassign' && assignForm === '')"
+              @click="runAssignmentAction"
             >
-              {{ t('noAttachments') }}
-            </div>
-            <div
-              v-for="attachment in attachments"
-              :key="attachment.id"
-              class="attachment-list-item"
-            >
-              <div class="attachment-info">
-                <div class="fw-semibold attachment-file-name">
-                  {{ attachment.originalFileName }}
-                </div>
-                <div class="small text-muted attachment-meta">
-                  {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
-                </div>
-              </div>
-              <div class="btn-group btn-group-sm attachment-actions">
-                <button
-                  type="button"
-                  class="btn btn-outline-primary"
-                  :title="t('download')"
-                  @click="downloadAttachment(attachment)"
-                >
-                  <i class="bi bi-download" />
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-outline-danger"
-                  :title="t('delete')"
-                  @click="deleteAttachment(attachment)"
-                >
-                  <i class="bi bi-trash" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+              {{ savingAssignmentAction ? t('saving') : t('save') }}
+            </button>
+          </template>
+        </AppModal>
 
-      <div class="col-lg-6">
-        <div class="card h-100">
-          <div class="card-header">
-            <h3 class="card-title mb-0">
-              {{ t('executionDetails') }}
-            </h3>
-          </div>
-          <div class="card-body">
-            <dl
-              v-if="execution"
-              class="row mb-0"
-            >
-              <dt class="col-sm-5">
-                {{ t('diagnosis') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ execution.diagnosis || '-' }}
-              </dd>
-              <dt class="col-sm-5">
-                {{ t('waitingReason') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ execution.waitingReason || '-' }}
-              </dd>
-              <dt class="col-sm-5">
-                {{ t('workPerformed') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ execution.workPerformed || '-' }}
-              </dd>
-              <dt class="col-sm-5">
-                {{ t('completionNote') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ execution.completionNote || '-' }}
-              </dd>
-              <dt class="col-sm-5">
-                {{ t('completed') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ formatDate(execution.completedAt) }}
-              </dd>
-            </dl>
-            <div
-              v-else
-              class="text-muted"
-            >
-              {{ t('noExecutionDetails') }}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title mb-0">
-              {{ t('assignmentHistory') }}
-            </h3>
-          </div>
-          <div class="card-body p-0">
-            <div
-              v-if="!assignments?.length"
-              class="text-muted p-3"
-            >
-              {{ t('noAssignmentHistory') }}
-            </div>
-            <div
-              v-for="assignment in assignments"
-              :key="assignment.id"
-              class="border-bottom p-3"
-            >
-              <div class="d-flex justify-content-between gap-2">
-                <strong>{{ assignment.technician.fullName }}</strong>
-                <span
-                  class="badge"
-                  :class="assignmentStatusClass(assignment.status)"
-                >{{ assignmentStatusLabel(assignment.status) }}</span>
-              </div>
-              <div class="small text-muted">
-                {{ formatDate(assignment.assignedAt) }} · {{ historyReason(assignment.rejectionReason || assignment.closureReason) }}
-              </div>
-              <div
-                v-if="assignment.scheduledVisitAt"
-                class="small"
+        <AppModal
+          id="exec-modal"
+          :title="execAction === 'diagnosis' ? t('diagnosis') : execAction === 'complete' ? t('complete') : execAction === 'cancel' ? t('cancelRequest') : execAction === 'wait-for-parts' ? t('waitForParts') : t('resume')"
+        >
+          <form @submit.prevent="runExec">
+            <div class="mb-3">
+              <label
+                :for="`exec-${execAction}`"
+                class="form-label"
               >
-                {{ t('scheduledVisitAt') }}: {{ formatDate(assignment.scheduledVisitAt) }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title mb-0">
-              {{ t('statusHistory') }}
-            </h3>
-          </div>
-          <div class="card-body p-0">
-            <div
-              v-if="!statusHistory?.length"
-              class="text-muted p-3"
-            >
-              {{ t('noStatusHistory') }}
+                {{ execAction === 'complete' ? t('workPerformed') : execAction === 'diagnosis' ? t('diagnosis') : t('reason') }}
+              </label>
+              <textarea
+                :id="`exec-${execAction}`"
+                v-model="execForm"
+                class="form-control"
+                rows="3"
+                :required="execAction !== 'resume'"
+              />
             </div>
             <div
-              v-for="item in statusHistory"
-              :key="item.id"
-              class="border-bottom p-3"
+              v-if="execError"
+              class="alert alert-danger py-2"
             >
-              <div class="d-flex align-items-center gap-2">
-                <StatusBadge :status="item.toStatus" />
-                <span class="small text-muted">{{ formatDate(item.changedAt) }}</span>
-              </div>
-              <div
-                v-if="item.reason"
-                class="small mt-1"
-              >
-                {{ historyReason(item.reason) }}
-              </div>
+              {{ execError }}
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <AppModal
-      id="assignment-action-modal"
-      :title="assignmentAction === 'reassign' ? t('reassignTechnician') : t('unassignTechnician')"
-    >
-      <form @submit.prevent="runAssignmentAction">
-        <div
-          v-if="assignmentAction === 'reassign'"
-          class="mb-3"
-        >
-          <label class="form-label">{{ t('technician') }}</label>
-          <select
-            v-model="assignForm"
-            class="form-select"
-          >
-            <option
-              value=""
-              disabled
+          </form>
+          <template #footer>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
             >
-              {{ t('selectTechnician') }}
-            </option>
-            <option
-              v-for="tech in technicianOptions"
-              :key="tech.id"
-              :value="tech.id"
+              {{ t('cancel') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              :disabled="savingExec"
+              @click="runExec"
             >
-              {{ tech.fullName }}
-            </option>
-          </select>
-        </div>
-        <label class="form-label">{{ t('reason') }}</label>
-        <textarea
-          v-model="assignmentReason"
-          class="form-control"
-          rows="3"
-          required
-        />
-        <div
-          v-if="actionError"
-          class="alert alert-danger py-2 mt-3"
-        >
-          {{ actionError }}
-        </div>
-      </form>
-      <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="savingAssignmentAction || !assignmentReason.trim() || (assignmentAction === 'reassign' && assignForm === '')"
-          @click="runAssignmentAction"
-        >
-          {{ savingAssignmentAction ? t('saving') : t('save') }}
-        </button>
-      </template>
-    </AppModal>
+              {{ savingExec ? t('saving') : t('save') }}
+            </button>
+          </template>
+        </AppModal>
 
-    <AppModal
-      id="exec-modal"
-      :title="execAction === 'diagnosis' ? t('diagnosis') : execAction === 'complete' ? t('complete') : execAction === 'cancel' ? t('cancelRequest') : execAction === 'wait-for-parts' ? t('waitForParts') : t('resume')"
-    >
-      <form @submit.prevent="runExec">
-        <div class="mb-3">
-          <label
-            :for="`exec-${execAction}`"
-            class="form-label"
-          >
-            {{ execAction === 'complete' ? t('workPerformed') : execAction === 'diagnosis' ? t('diagnosis') : t('reason') }}
-          </label>
-          <textarea
-            :id="`exec-${execAction}`"
-            v-model="execForm"
-            class="form-control"
-            rows="3"
-            :required="execAction !== 'resume'"
-          />
-        </div>
-        <div
-          v-if="execError"
-          class="alert alert-danger py-2"
+        <AppModal
+          id="request-delete-modal"
+          :title="t('deleteRequest')"
+          size="sm"
         >
-          {{ execError }}
-        </div>
-      </form>
-      <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="savingExec"
-          @click="runExec"
-        >
-          {{ savingExec ? t('saving') : t('save') }}
-        </button>
+          <p class="mb-0">
+            {{ t('confirmDeleteRequest') }}
+          </p>
+          <template #footer>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              {{ t('cancel') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              :disabled="deletingRequest"
+              @click="deleteRequest"
+            >
+              <span
+                v-if="deletingRequest"
+                class="spinner-border spinner-border-sm me-2"
+              />
+              {{ t('delete') }}
+            </button>
+          </template>
+        </AppModal>
       </template>
-    </AppModal>
-
-    <AppModal
-      id="request-delete-modal"
-      :title="t('deleteRequest')"
-      size="sm"
-    >
-      <p class="mb-0">
-        {{ t('confirmDeleteRequest') }}
-      </p>
-      <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-danger"
-          :disabled="deletingRequest"
-          @click="deleteRequest"
-        >
-          <span
-            v-if="deletingRequest"
-            class="spinner-border spinner-border-sm me-2"
-          />
-          {{ t('delete') }}
-        </button>
-      </template>
-    </AppModal>
+    </template>
   </AppContent>
 </template>

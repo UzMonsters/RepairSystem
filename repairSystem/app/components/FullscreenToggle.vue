@@ -12,7 +12,7 @@ function toggleFullscreen() {
 function onFullscreenChange() {
   isFullscreen.value = !!document.fullscreenElement
 }
-
+// sobaka
 onMounted(() => {
   document.addEventListener('fullscreenchange', onFullscreenChange)
 })

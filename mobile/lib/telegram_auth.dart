@@ -1,7 +1,5 @@
 import 'package:flutter/services.dart';
 
-import 'mobile_logger.dart';
-
 const telegramCustomerClientId = String.fromEnvironment(
   'TELEGRAM_CUSTOMER_CLIENT_ID',
   defaultValue: String.fromEnvironment(
@@ -36,6 +34,8 @@ const telegramTechnicianRedirectUri = String.fromEnvironment(
 class TelegramAuthService {
   static const _channel = MethodChannel('repair_auto/telegram_auth');
 
+  Future<String?> pendingRole() => _channel.invokeMethod<String>('pendingRole');
+
   Future<String> login(String role) async {
     final clientId = role == 'TECHNICIAN'
         ? telegramTechnicianClientId
@@ -51,6 +51,18 @@ class TelegramAuthService {
         ? telegramTechnicianRedirectUri
         : telegramCustomerRedirectUri;
     final redirectUri = configuredRedirectUri.isNotEmpty
+<<<<<<< HEAD
+        ? configuredRedirectUri
+        : 'https://app${clientId}-login.tg.dev/tglogin';
+    final idToken = await _channel.invokeMethod<String>('login', {
+      'clientId': clientId,
+      'redirectUri': redirectUri,
+      'scopes': const ['profile'],
+    });
+    if (idToken == null || idToken.isEmpty) {
+      throw StateError('Telegram did not return an ID token.');
+    }
+=======
         ? _normalizeTelegramRedirectUri(configuredRedirectUri)
         : (role == 'TECHNICIAN'
             ? 'https://app1074067825-login.tg.dev/tglogin'
@@ -85,14 +97,19 @@ class TelegramAuthService {
     MobileLog.info(
       '[TELEGRAM_LOGIN_SUCCESS] role=$role tokenPresent=true tokenLength=${MobileLog.safeLength(idToken)}',
     );
+>>>>>>> 34738de22e72e7c92683512af93719228b8641e6
     return idToken;
   }
 
   Future<bool> cancel() async {
+<<<<<<< HEAD
+    return await _channel.invokeMethod<bool>('cancel') ?? false;
+=======
     MobileLog.info('[TELEGRAM_LOGIN_CANCEL] cancel requested');
     final cancelled = await _channel.invokeMethod<bool>('cancel') ?? false;
     MobileLog.info('[TELEGRAM_LOGIN_CANCEL] cancel response=$cancelled');
     return cancelled;
+>>>>>>> 34738de22e72e7c92683512af93719228b8641e6
   }
 
   String _normalizeTelegramRedirectUri(String value) {

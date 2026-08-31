@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'api_client.dart';
-import 'mobile_logger.dart';
 import 'models.dart';
 
 class CategoryRepository {
@@ -33,117 +32,71 @@ class AuthRepository {
     String role,
     String idToken, {
     Map<String, dynamic>? device,
-  }) {
-    MobileLog.info(
-      'Auth repository Telegram login requested role=$role '
-      'tokenPresent=${MobileLog.present(idToken)} tokenLength=${MobileLog.safeLength(idToken)}',
-    );
-    return _login(
+  }) => _login(
         role == 'CUSTOMER'
             ? '/auth/telegram/customer'
             : '/auth/telegram/technician',
         {'idToken': idToken, if (device != null) 'device': device},
       );
-  }
 
   Future<Actor> loginGoogle(
     String clientType,
     String idToken, {
     Map<String, dynamic>? device,
-  }) {
-    MobileLog.info(
-      'Auth repository Google login requested clientType=$clientType '
-      'tokenPresent=${MobileLog.present(idToken)} tokenLength=${MobileLog.safeLength(idToken)}',
-    );
-    return _login('/auth/google', {
+  }) => _login('/auth/google', {
         'clientType': clientType,
         'idToken': idToken,
         if (device != null) 'device': device,
       });
-  }
 
   Future<Map<String, dynamic>> requestPhoneOtp({
     required String clientType,
     required String phone,
-  }) async {
-    MobileLog.info(
-      'Auth repository phone OTP requested clientType=$clientType '
-      'phonePresent=${MobileLog.present(phone)} phoneLength=${MobileLog.safeLength(phone)}',
-    );
-    return (await api.post(
+  }) async => (await api.post(
         '/auth/phone/request-otp',
         body: {
           'clientType': clientType,
           'phone': phone,
         },
-        authenticated: false,
-        retryOn401: false,
       ) as Map).cast<String, dynamic>();
-  }
 
   Future<Actor> verifyPhoneOtp(
     String challengeId,
     String code, {
     Map<String, dynamic>? device,
-  }) {
-    MobileLog.info(
-      'Auth repository phone OTP verify requested challengeId=$challengeId '
-      'codePresent=${MobileLog.present(code)} codeLength=${MobileLog.safeLength(code)}',
-    );
-    return _login('/auth/phone/verify-otp', {
+  }) => _login('/auth/phone/verify-otp', {
         'challengeId': challengeId,
         'code': code,
         if (device != null) 'device': device,
       });
-  }
 
   Future<Actor> _login(String path, Map<String, dynamic> body) async {
-    MobileLog.info('Auth repository backend login started path=$path');
     final data = await api.post(
       path,
       body: body,
-      authenticated: false,
-      retryOn401: false,
     ) as Map<String, dynamic>;
-    MobileLog.info(
-      'Auth repository backend login succeeded path=$path '
-      'accessTokenPresent=${data['accessToken'] is String} '
-      'refreshTokenPresent=${data['refreshToken'] is String}',
-    );
     await api.authStore.save(
       access: data['accessToken'] as String,
       refresh: data['refreshToken'] as String,
     );
-    actor = Actor.fromJson(data['actor'] as Map<String, dynamic>);
-    MobileLog.info('Auth repository actor loaded type=${actor?.type} id=${actor?.id}');
-    return actor!;
+    return actor = Actor.fromJson(data['actor'] as Map<String, dynamic>);
   }
 
   Future<void> logout() async {
     final refresh = await api.authStore.refreshToken;
     if (refresh != null) {
       try {
-        MobileLog.info('Auth repository logout started refreshPresent=true');
         await api.post('/auth/logout', body: {'refreshToken': refresh});
-      } catch (error, stackTrace) {
-        MobileLog.warning(
-          'Auth repository logout request failed error=${error.runtimeType}',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      }
+      } catch (_) {}
     }
     await api.authStore.clear();
     actor = null;
-    MobileLog.info('Auth repository local auth state cleared');
   }
 
   Future<void> logoutAll() async {
-    MobileLog.info('Auth repository logout-all started');
     await api.post('/auth/logout-all');
     await api.authStore.clear();
     actor = null;
-    MobileLog.info('Auth repository logout-all completed and local auth state cleared');
   }
 }
 

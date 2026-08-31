@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type { Category, Page } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 
@@ -197,7 +197,7 @@ async function toggleActive(c: Category) {
               <th
                 v-for="column in [
                   { label: '#', field: 'id' },
-                  { label: t('name'), field: 'nameEn' },
+                  { label: t('title'), field: 'nameEn' },
                   { label: t('description'), field: 'nameEn' },
                   { label: t('active'), field: 'active' }
                 ]"
@@ -343,7 +343,7 @@ async function toggleActive(c: Category) {
           <label
             for="category-en"
             class="form-label"
-          >{{ t('name') }}</label>
+          >{{ t('title') }}</label>
           <input
             id="category-en"
             v-model="form.nameEn"
@@ -370,7 +370,7 @@ async function toggleActive(c: Category) {
           <label
             for="category-ru"
             class="form-label"
-          >{{ t('name') }}</label>
+          >{{ t('title') }}</label>
           <input
             id="category-ru"
             v-model="form.nameRu"
@@ -397,7 +397,7 @@ async function toggleActive(c: Category) {
           <label
             for="category-uz"
             class="form-label"
-          >{{ t('name') }}</label>
+          >{{ t('title') }}</label>
           <input
             id="category-uz"
             v-model="form.nameUz"

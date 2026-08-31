@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatMessage, ConversationSummary, RealtimeEvent } from '~/types/realtime'
+import type { ChatMessage, ChatMessagePayload, ChatReadPayload, ChatTypingPayload, ConversationSummary, RealtimeEvent } from '~/types/realtime'
 import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 
 const props = defineProps<{
@@ -17,10 +17,25 @@ const sending = ref(false)
 const error = ref('')
 const typing = ref(false)
 let stopRealtime: (() => boolean) | undefined
+let typingTimeout: ReturnType<typeof setTimeout> | undefined
 
 const readOnly = computed(() => props.requestStatus === 'COMPLETED'
   || props.requestStatus === 'CANCELLED'
   || conversation.value?.status === 'CLOSED')
+
+function sendTyping(typingState: boolean) {
+  if (!conversation.value) return
+  realtime.publish('/app/chat.typing', {
+    conversationId: conversation.value.id,
+    typing: typingState
+  })
+}
+
+function handleTyping() {
+  sendTyping(true)
+  if (typingTimeout) clearTimeout(typingTimeout)
+  typingTimeout = setTimeout(() => sendTyping(false), 3000)
+}
 
 function messageTime(value?: string) {
   if (!value) return ''
@@ -92,14 +107,46 @@ async function sendMessage() {
 }
 
 function handleRealtime(event: RealtimeEvent) {
-  const payload = event.payload as Partial<ChatMessage> & { conversationId?: number, typing?: boolean }
-  if (payload.conversationId !== conversation.value?.id) return
-  if (event.type === 'CHAT_MESSAGE_CREATED' && payload.id && !messages.value.some(message => message.id === payload.id)) {
-    messages.value.push(payload as ChatMessage)
-    void markRead()
+  if (event.type === 'CHAT_MESSAGE_CREATED') {
+    const payload = event.payload as ChatMessagePayload
+    if (payload.conversationId !== conversation.value?.id) return
+
+    const normalizedMessage: ChatMessage = {
+      id: payload.messageId,
+      conversationId: payload.conversationId,
+      senderType: payload.senderType,
+      senderId: payload.senderId,
+      clientMessageId: payload.clientMessageId || '',
+      messageType: payload.messageType,
+      text: payload.text || '',
+      attachmentId: payload.attachmentId,
+      replyToMessageId: payload.replyToMessageId,
+      createdAt: payload.createdAt || new Date().toISOString()
+    }
+
+    if (!messages.value.some(m => m.id === normalizedMessage.id || (m.clientMessageId && m.clientMessageId === normalizedMessage.clientMessageId))) {
+      messages.value.push(normalizedMessage)
+      void markRead()
+    }
+    typing.value = false
   }
-  if (event.type === 'CHAT_TYPING_STARTED') typing.value = true
-  if (event.type === 'CHAT_TYPING_STOPPED' || event.type === 'CHAT_MESSAGE_CREATED') typing.value = false
+
+  if (event.type === 'CHAT_MESSAGE_READ') {
+    const payload = event.payload as ChatReadPayload
+    if (payload.conversationId === conversation.value?.id) {
+      void payload
+    }
+  }
+
+  if (event.type === 'CHAT_TYPING_STARTED') {
+    const payload = event.payload as ChatTypingPayload
+    if (payload.conversationId === conversation.value?.id) typing.value = true
+  }
+
+  if (event.type === 'CHAT_TYPING_STOPPED') {
+    const payload = event.payload as ChatTypingPayload
+    if (payload.conversationId === conversation.value?.id) typing.value = false
+  }
 }
 
 onMounted(async () => {
@@ -109,6 +156,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stopRealtime?.()
+  if (typingTimeout) clearTimeout(typingTimeout)
 })
 </script>
 
@@ -170,7 +218,7 @@ onBeforeUnmount(() => {
             :disabled="readOnly || sending"
             :placeholder="readOnly ? t('chatReadOnly') : t('writeMessage')"
             maxlength="4000"
-            @input="typing = false"
+            @input="handleTyping"
           >
           <button
             type="submit"

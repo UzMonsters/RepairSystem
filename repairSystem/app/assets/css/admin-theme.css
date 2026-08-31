@@ -1752,3 +1752,85 @@ select option {
 .card-body.d-flex::after {
   display: none;
 }
+
+
+/* Tabs: the app uses data-theme="light" for light mode and no attribute for
+   dark mode. Keep inactive tabs readable and prevent Bootstrap's blue hover. */
+.nav-tabs .nav-link {
+  color: var(--rs-text-2) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+.nav-tabs .nav-link:hover,
+.nav-tabs .nav-link:focus-visible {
+  color: var(--rs-text) !important;
+  background: transparent !important;
+  border-color: var(--rs-border) !important;
+}
+.nav-tabs .nav-link.active {
+  color: var(--rs-text) !important;
+  background: var(--rs-panel) !important;
+  border-color: var(--rs-border) var(--rs-border) transparent !important;
+}
+
+html[data-theme="light"] .nav-tabs .nav-link {
+  color: var(--rs-text-2) !important;
+}
+html[data-theme="light"] .nav-tabs .nav-link:hover,
+html[data-theme="light"] .nav-tabs .nav-link:focus-visible,
+html[data-theme="light"] .nav-tabs .nav-link.active {
+  color: var(--rs-text) !important;
+}
+
+/* Breadcrumbs White Text in Dark Mode */
+[data-bs-theme="dark"] .breadcrumb-item a,
+[data-bs-theme="dark"] .breadcrumb-item.active,
+[data-bs-theme="dark"] .breadcrumb-item {
+  color: #ffffff !important;
+  text-decoration: none;
+}
+[data-bs-theme="dark"] .breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+/* For Light Mode, let's just make it dark grey so it's readable */
+[data-bs-theme="light"] .breadcrumb-item a {
+  color: #212529 !important;
+  text-decoration: none;
+}
+
+/* Forced Breadcrumb Fix */
+html[data-bs-theme="dark"] .breadcrumb-item,
+html[data-bs-theme="dark"] .breadcrumb-item a,
+html[data-bs-theme="dark"] .breadcrumb-item.active,
+html[data-bs-theme="dark"] .breadcrumb-item::before,
+.breadcrumb-item, .breadcrumb-item a {
+    color: #ffffff !important;
+}
+html[data-bs-theme="light"] .breadcrumb-item,
+html[data-bs-theme="light"] .breadcrumb-item a,
+html[data-bs-theme="light"] .breadcrumb-item.active {
+    color: #000000 !important;
+}
+
+/* Forced Breadcrumb Fix v2 */
+body .breadcrumb-item,
+body .breadcrumb-item a,
+body .breadcrumb-item.active,
+body .breadcrumb-item::before {
+    color: var(--rs-text, #ffffff) !important;
+}
+
+html[data-bs-theme="dark"] body .breadcrumb-item,
+html[data-bs-theme="dark"] body .breadcrumb-item a,
+html[data-bs-theme="dark"] body .breadcrumb-item.active,
+html[data-bs-theme="dark"] body .breadcrumb-item::before {
+    color: #ffffff !important;
+}
+
+html[data-bs-theme="light"] body .breadcrumb-item,
+html[data-bs-theme="light"] body .breadcrumb-item a,
+html[data-bs-theme="light"] body .breadcrumb-item.active,
+html[data-bs-theme="light"] body .breadcrumb-item::before {
+    color: #333333 !important;
+}
