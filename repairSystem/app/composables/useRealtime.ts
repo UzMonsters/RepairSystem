@@ -67,7 +67,7 @@ export function useRealtime() {
   }
 
   async function connect(token?: string) {
-    if (!import.meta.client || client?.active) return
+    if (!import.meta.client || client != null) return
     let accessToken = token
     if (!accessToken && import.meta.client) {
       try {
@@ -77,6 +77,7 @@ export function useRealtime() {
         return
       }
     }
+    if (client != null) return // Prevent race condition after await
     const url = websocketUrl()
     if (!accessToken || !url) return
 

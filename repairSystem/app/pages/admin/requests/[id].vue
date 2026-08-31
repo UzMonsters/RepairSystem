@@ -55,14 +55,12 @@ const { data: statusHistory, refresh: refreshStatusHistory } = await useAsyncDat
 
 const technicianOptions = computed(() => technicians.value?.content ?? [])
 
+const activeTab = ref('general')
 const assignForm = ref<number | ''>('')
 const savingAssign = ref(false)
 const message = ref('')
 const actionError = ref('')
 const deletingRequest = ref(false)
-
-const scheduleForm = ref('')
-const savingSchedule = ref(false)
 
 async function refreshRequestData() {
   await Promise.all([refresh(), refreshAssignments(), refreshAttachments(), refreshStatusHistory()])
@@ -392,73 +390,335 @@ function can(action: string) {
 
         <div class="row">
           <div class="col-lg-8">
-            <div class="card mb-4">
-              <div class="card-header">
-                <div class="d-flex align-items-center justify-content-between">
-                  <h3 class="card-title mb-0">
-                    {{ t('description') }}
-                  </h3>
-                  <StatusBadge :status="request.status" />
+            <ul class="nav nav-tabs mb-4">
+              <li class="nav-item">
+                <button
+                  type="button"
+                  class="nav-link"
+                  :class="{ active: activeTab === 'general' }"
+                  @click="activeTab = 'general'"
+                >
+                  {{ t('general') || 'Основное' }}
+                </button>
+              </li>
+              <li class="nav-item">
+                <button
+                  type="button"
+                  class="nav-link"
+                  :class="{ active: activeTab === 'execution' }"
+                  @click="activeTab = 'execution'"
+                >
+                  {{ t('executionDetails') }}
+                </button>
+              </li>
+              <li class="nav-item">
+                <button
+                  type="button"
+                  class="nav-link"
+                  :class="{ active: activeTab === 'history' }"
+                  @click="activeTab = 'history'"
+                >
+                  {{ t('history') || 'История' }}
+                </button>
+              </li>
+            </ul>
+
+            <div v-show="activeTab === 'general'">
+              <div class="card mb-4">
+                <div class="card-header">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <h3 class="card-title mb-0">
+                      {{ t('description') }}
+                    </h3>
+                    <StatusBadge :status="request.status" />
+                  </div>
+                </div>
+                <div class="card-body">
+                  <p class="mb-0">
+                    {{ request.description || '-' }}
+                  </p>
                 </div>
               </div>
-              <div class="card-body">
-                <p class="mb-0">
-                  {{ request.description || '-' }}
-                </p>
+              <div class="card mb-4">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    {{ t('client') }}
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <dl class="row mb-0">
+                    <dt class="col-sm-4">
+                      {{ t('fullName') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      <NuxtLink
+                        v-if="request.customer?.id"
+                        :to="`/admin/customers/${request.customer.id}`"
+                        class="text-body text-decoration-underline"
+                      >{{ customerName }}</NuxtLink>
+                      <template v-else>
+                        {{ customerName }}
+                      </template>
+                    </dd>
+                    <dt class="col-sm-4">
+                      {{ t('phone') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      {{ customerPhone }}
+                    </dd>
+                    <dt class="col-sm-4">
+                      {{ t('address') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      {{ locationAddress }}
+                      <a
+                        v-if="locationMapUrl"
+                        :href="locationMapUrl"
+                        class="map-location-link d-inline-flex align-items-center gap-1 mt-2"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <i class="bi bi-geo-alt-fill" />
+                        {{ t('openOnMap') }}
+                        <i class="bi bi-box-arrow-up-right" />
+                      </a>
+                    </dd>
+                    <dt class="col-sm-4">
+                      {{ t('customerPreferredVisitAt') }}
+                    </dt>
+                    <dd class="col-sm-8">
+                      {{ formatDate(request.customerPreferredVisitAt) }}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+              <div class="card h-100">
+                <div class="card-header">
+                  <h3 class="card-title mb-0">
+                    {{ t('attachments') }}
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <div class="attachment-upload-grid mb-3">
+                    <div class="col-md-5">
+                      <select
+                        v-model="attachmentType"
+                        class="form-select"
+                      >
+                        <option value="GENERAL_DOCUMENT">
+                          {{ t('generalDocument') }}
+                        </option>
+                        <option value="CUSTOMER_PROBLEM_PHOTO">
+                          {{ t('customerProblemPhoto') }}
+                        </option>
+                        <option value="DIAGNOSIS_PHOTO">
+                          {{ t('diagnosisPhoto') }}
+                        </option>
+                        <option value="COMPLETION_PHOTO">
+                          {{ t('completionPhoto') }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="col-md-7 attachment-file-column">
+                      <div class="file-input-control">
+                        <input
+                          id="request-attachment-file"
+                          type="file"
+                          class="visually-hidden"
+                          @change="selectAttachment"
+                        >
+                        <label
+                          for="request-attachment-file"
+                          class="file-input-button"
+                        >
+                          <i class="bi bi-folder2-open me-1" />{{ t('chooseFile') }}
+                        </label>
+                        <span
+                          class="file-input-name"
+                          :class="{ 'is-empty': !attachmentFile }"
+                        >
+                          {{ attachmentFile?.name || t('noFileChosen') }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm attachment-upload-button mb-3"
+                    :disabled="uploadingAttachment || !attachmentFile"
+                    @click="uploadAttachment"
+                  >
+                    <i class="bi bi-upload me-1" />{{ uploadingAttachment ? t('saving') : t('upload') }}
+                  </button>
+                  <div
+                    v-if="!attachments?.length"
+                    class="text-muted"
+                  >
+                    {{ t('noAttachments') }}
+                  </div>
+                  <div
+                    v-for="attachment in attachments"
+                    :key="attachment.id"
+                    class="attachment-list-item"
+                  >
+                    <div class="attachment-info">
+                      <div class="fw-semibold attachment-file-name">
+                        {{ attachment.originalFileName }}
+                      </div>
+                      <div class="small text-muted attachment-meta">
+                        {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
+                      </div>
+                    </div>
+                    <div class="btn-group btn-group-sm attachment-actions">
+                      <button
+                        type="button"
+                        class="btn btn-outline-primary"
+                        :title="t('download')"
+                        @click="downloadAttachment(attachment)"
+                      >
+                        <i class="bi bi-download" />
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger"
+                        :title="t('delete')"
+                        @click="deleteAttachment(attachment)"
+                      >
+                        <i class="bi bi-trash" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div class="card mb-4">
-              <div class="card-header">
-                <h3 class="card-title">
-                  {{ t('client') }}
-                </h3>
+            <div v-show="activeTab === 'execution'">
+              <div class="card h-100">
+                <div class="card-header">
+                  <h3 class="card-title mb-0">
+                    {{ t('executionDetails') }}
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <dl
+                    v-if="execution"
+                    class="row mb-0"
+                  >
+                    <dt class="col-sm-5">
+                      {{ t('diagnosis') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ execution.diagnosis || '-' }}
+                    </dd>
+                    <dt class="col-sm-5">
+                      {{ t('waitingReason') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ execution.waitingReason || '-' }}
+                    </dd>
+                    <dt class="col-sm-5">
+                      {{ t('workPerformed') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ execution.workPerformed || '-' }}
+                    </dd>
+                    <dt class="col-sm-5">
+                      {{ t('completionNote') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ execution.completionNote || '-' }}
+                    </dd>
+                    <dt class="col-sm-5">
+                      {{ t('completed') }}
+                    </dt>
+                    <dd class="col-sm-7">
+                      {{ formatDate(execution.completedAt) }}
+                    </dd>
+                  </dl>
+                  <div
+                    v-else
+                    class="text-muted"
+                  >
+                    {{ t('noExecutionDetails') }}
+                  </div>
+                </div>
               </div>
-              <div class="card-body">
-                <dl class="row mb-0">
-                  <dt class="col-sm-4">
-                    {{ t('fullName') }}
-                  </dt>
-                  <dd class="col-sm-8">
-                    <NuxtLink
-                      v-if="request.customer?.id"
-                      :to="`/admin/customers/${request.customer.id}`"
-                      class="text-body text-decoration-underline"
-                    >{{ customerName }}</NuxtLink>
-                    <template v-else>
-                      {{ customerName }}
-                    </template>
-                  </dd>
-                  <dt class="col-sm-4">
-                    {{ t('phone') }}
-                  </dt>
-                  <dd class="col-sm-8">
-                    {{ customerPhone }}
-                  </dd>
-                  <dt class="col-sm-4">
-                    {{ t('address') }}
-                  </dt>
-                  <dd class="col-sm-8">
-                    {{ locationAddress }}
-                    <a
-                      v-if="locationMapUrl"
-                      :href="locationMapUrl"
-                      class="map-location-link d-inline-flex align-items-center gap-1 mt-2"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <i class="bi bi-geo-alt-fill" />
-                      {{ t('openOnMap') }}
-                      <i class="bi bi-box-arrow-up-right" />
-                    </a>
-                  </dd>
-                  <dt class="col-sm-4">
-                    {{ t('customerPreferredVisitAt') }}
-                  </dt>
-                  <dd class="col-sm-8">
-                    {{ formatDate(request.customerPreferredVisitAt) }}
-                  </dd>
-                </dl>
+            </div>
+
+            <div v-show="activeTab === 'history'">
+              <div class="row g-4">
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title mb-0">
+                        {{ t('assignmentHistory') }}
+                      </h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <div
+                        v-if="!assignments?.length"
+                        class="text-muted p-3"
+                      >
+                        {{ t('noAssignmentHistory') }}
+                      </div>
+                      <div
+                        v-for="assignment in assignments"
+                        :key="assignment.id"
+                        class="border-bottom p-3"
+                      >
+                        <div class="d-flex justify-content-between gap-2">
+                          <strong>{{ assignment.technician.fullName }}</strong>
+                          <span
+                            class="badge"
+                            :class="assignmentStatusClass(assignment.status)"
+                          >{{ assignmentStatusLabel(assignment.status) }}</span>
+                        </div>
+                        <div class="small text-muted">
+                          {{ formatDate(assignment.assignedAt) }} · {{ historyReason(assignment.rejectionReason || assignment.closureReason) }}
+                        </div>
+                        <div
+                          v-if="assignment.scheduledVisitAt"
+                          class="small"
+                        >
+                          {{ t('scheduledVisitAt') }}: {{ formatDate(assignment.scheduledVisitAt) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <div class="card">
+                    <div class="card-header">
+                      <h3 class="card-title mb-0">
+                        {{ t('statusHistory') }}
+                      </h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <div
+                        v-if="!statusHistory?.length"
+                        class="text-muted p-3"
+                      >
+                        {{ t('noStatusHistory') }}
+                      </div>
+                      <div
+                        v-for="item in statusHistory"
+                        :key="item.id"
+                        class="border-bottom p-3"
+                      >
+                        <div class="d-flex align-items-center gap-2">
+                          <StatusBadge :status="item.toStatus" />
+                          <span class="small text-muted">{{ formatDate(item.changedAt) }}</span>
+                        </div>
+                        <div
+                          v-if="item.reason"
+                          class="small mt-1"
+                        >
+                          {{ historyReason(item.reason) }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -511,7 +771,6 @@ function can(action: string) {
                 </dl>
               </div>
             </div>
-
             <div class="card mb-4">
               <div class="card-header">
                 <h3 class="card-title">
@@ -530,105 +789,6 @@ function can(action: string) {
                     </div>
                     <div class="text-muted small">
                       {{ assignedTechnician.phone || '' }}
-                    </div>
-                  </div>
-
-                  <div class="card mb-4">
-                    <div class="card-header">
-                      <h3 class="card-title mb-0">
-                        {{ t('attachments') }}
-                      </h3>
-                    </div>
-                    <div class="card-body">
-                      <div class="attachment-upload-grid mb-3">
-                        <div class="col-md-5">
-                          <select
-                            v-model="attachmentType"
-                            class="form-select"
-                          >
-                            <option value="GENERAL_DOCUMENT">
-                              {{ t('generalDocument') }}
-                            </option>
-                            <option value="CUSTOMER_PROBLEM_PHOTO">
-                              {{ t('customerProblemPhoto') }}
-                            </option>
-                            <option value="DIAGNOSIS_PHOTO">
-                              {{ t('diagnosisPhoto') }}
-                            </option>
-                            <option value="COMPLETION_PHOTO">
-                              {{ t('completionPhoto') }}
-                            </option>
-                          </select>
-                        </div>
-                        <div class="col-md-7 attachment-file-column">
-                          <div class="file-input-control">
-                            <input
-                              id="request-attachment-file"
-                              type="file"
-                              class="visually-hidden"
-                              @change="selectAttachment"
-                            >
-                            <label
-                              for="request-attachment-file"
-                              class="file-input-button"
-                            >
-                              <i class="bi bi-folder2-open me-1" />{{ t('chooseFile') }}
-                            </label>
-                            <span
-                              class="file-input-name"
-                              :class="{ 'is-empty': !attachmentFile }"
-                            >
-                              {{ attachmentFile?.name || t('noFileChosen') }}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        class="btn btn-primary btn-sm attachment-upload-button mb-3"
-                        :disabled="uploadingAttachment || !attachmentFile"
-                        @click="uploadAttachment"
-                      >
-                        <i class="bi bi-upload me-1" />{{ uploadingAttachment ? t('saving') : t('upload') }}
-                      </button>
-                      <div
-                        v-if="!attachments?.length"
-                        class="text-muted"
-                      >
-                        {{ t('noAttachments') }}
-                      </div>
-                      <div
-                        v-for="attachment in attachments"
-                        :key="attachment.id"
-                        class="attachment-list-item"
-                      >
-                        <div class="attachment-info">
-                          <div class="fw-semibold attachment-file-name">
-                            {{ attachment.originalFileName }}
-                          </div>
-                          <div class="small text-muted attachment-meta">
-                            {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
-                          </div>
-                        </div>
-                        <div class="btn-group btn-group-sm attachment-actions">
-                          <button
-                            type="button"
-                            class="btn btn-outline-primary"
-                            :title="t('download')"
-                            @click="downloadAttachment(attachment)"
-                          >
-                            <i class="bi bi-download" />
-                          </button>
-                          <button
-                            type="button"
-                            class="btn btn-outline-danger"
-                            :title="t('delete')"
-                            @click="deleteAttachment(attachment)"
-                          >
-                            <i class="bi bi-trash" />
-                          </button>
-                        </div>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -707,14 +867,12 @@ function can(action: string) {
                 </div>
               </div>
             </div>
-
             <ManagerChatBox
               v-if="request"
               :request-id="id"
               :request-status="request.status"
               class="mb-4"
             />
-
             <div class="card mb-4">
               <div class="card-header">
                 <h3 class="card-title">
@@ -782,376 +940,146 @@ function can(action: string) {
             </div>
           </div>
         </div>
-      </template>
-    </template>
 
-    <div class="row g-4 mt-1">
-      <div class="col-lg-6">
-        <div class="card h-100">
-          <div class="card-header">
-            <h3 class="card-title mb-0">
-              {{ t('attachments') }}
-            </h3>
-          </div>
-          <div class="card-body">
-            <div class="attachment-upload-grid mb-3">
-              <div class="col-md-5">
-                <select
-                  v-model="attachmentType"
-                  class="form-select"
+        <AppModal
+          id="assignment-action-modal"
+          :title="assignmentAction === 'reassign' ? t('reassignTechnician') : t('unassignTechnician')"
+        >
+          <form @submit.prevent="runAssignmentAction">
+            <div
+              v-if="assignmentAction === 'reassign'"
+              class="mb-3"
+            >
+              <label class="form-label">{{ t('technician') }}</label>
+              <select
+                v-model="assignForm"
+                class="form-select"
+              >
+                <option
+                  value=""
+                  disabled
                 >
-                  <option value="GENERAL_DOCUMENT">
-                    {{ t('generalDocument') }}
-                  </option>
-                  <option value="CUSTOMER_PROBLEM_PHOTO">
-                    {{ t('customerProblemPhoto') }}
-                  </option>
-                  <option value="DIAGNOSIS_PHOTO">
-                    {{ t('diagnosisPhoto') }}
-                  </option>
-                  <option value="COMPLETION_PHOTO">
-                    {{ t('completionPhoto') }}
-                  </option>
-                </select>
-              </div>
-              <div class="col-md-7 attachment-file-column">
-                <div class="file-input-control">
-                  <input
-                    id="request-attachment-file"
-                    type="file"
-                    class="visually-hidden"
-                    @change="selectAttachment"
-                  >
-                  <label
-                    for="request-attachment-file"
-                    class="file-input-button"
-                  >
-                    <i class="bi bi-folder2-open me-1" />{{ t('chooseFile') }}
-                  </label>
-                  <span
-                    class="file-input-name"
-                    :class="{ 'is-empty': !attachmentFile }"
-                  >
-                    {{ attachmentFile?.name || t('noFileChosen') }}
-                  </span>
-                </div>
-              </div>
+                  {{ t('selectTechnician') }}
+                </option>
+                <option
+                  v-for="tech in technicianOptions"
+                  :key="tech.id"
+                  :value="tech.id"
+                >
+                  {{ tech.fullName }}
+                </option>
+              </select>
             </div>
+            <label class="form-label">{{ t('reason') }}</label>
+            <textarea
+              v-model="assignmentReason"
+              class="form-control"
+              rows="3"
+              required
+            />
+            <div
+              v-if="actionError"
+              class="alert alert-danger py-2 mt-3"
+            >
+              {{ actionError }}
+            </div>
+          </form>
+          <template #footer>
             <button
               type="button"
-              class="btn btn-primary btn-sm attachment-upload-button mb-3"
-              :disabled="uploadingAttachment || !attachmentFile"
-              @click="uploadAttachment"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
             >
-              <i class="bi bi-upload me-1" />{{ uploadingAttachment ? t('saving') : t('upload') }}
+              {{ t('cancel') }}
             </button>
-            <div
-              v-if="!attachments?.length"
-              class="text-muted"
+            <button
+              type="button"
+              class="btn btn-primary"
+              :disabled="savingAssignmentAction || !assignmentReason.trim() || (assignmentAction === 'reassign' && assignForm === '')"
+              @click="runAssignmentAction"
             >
-              {{ t('noAttachments') }}
-            </div>
-            <div
-              v-for="attachment in attachments"
-              :key="attachment.id"
-              class="attachment-list-item"
-            >
-              <div class="attachment-info">
-                <div class="fw-semibold attachment-file-name">
-                  {{ attachment.originalFileName }}
-                </div>
-                <div class="small text-muted attachment-meta">
-                  {{ t(`attachmentType.${attachment.type}`) }} · {{ formatDate(attachment.uploadedAt) }}
-                </div>
-              </div>
-              <div class="btn-group btn-group-sm attachment-actions">
-                <button
-                  type="button"
-                  class="btn btn-outline-primary"
-                  :title="t('download')"
-                  @click="downloadAttachment(attachment)"
-                >
-                  <i class="bi bi-download" />
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-outline-danger"
-                  :title="t('delete')"
-                  @click="deleteAttachment(attachment)"
-                >
-                  <i class="bi bi-trash" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+              {{ savingAssignmentAction ? t('saving') : t('save') }}
+            </button>
+          </template>
+        </AppModal>
 
-      <div class="col-lg-6">
-        <div class="card h-100">
-          <div class="card-header">
-            <h3 class="card-title mb-0">
-              {{ t('executionDetails') }}
-            </h3>
-          </div>
-          <div class="card-body">
-            <dl
-              v-if="execution"
-              class="row mb-0"
-            >
-              <dt class="col-sm-5">
-                {{ t('diagnosis') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ execution.diagnosis || '-' }}
-              </dd>
-              <dt class="col-sm-5">
-                {{ t('waitingReason') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ execution.waitingReason || '-' }}
-              </dd>
-              <dt class="col-sm-5">
-                {{ t('workPerformed') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ execution.workPerformed || '-' }}
-              </dd>
-              <dt class="col-sm-5">
-                {{ t('completionNote') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ execution.completionNote || '-' }}
-              </dd>
-              <dt class="col-sm-5">
-                {{ t('completed') }}
-              </dt>
-              <dd class="col-sm-7">
-                {{ formatDate(execution.completedAt) }}
-              </dd>
-            </dl>
-            <div
-              v-else
-              class="text-muted"
-            >
-              {{ t('noExecutionDetails') }}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title mb-0">
-              {{ t('assignmentHistory') }}
-            </h3>
-          </div>
-          <div class="card-body p-0">
-            <div
-              v-if="!assignments?.length"
-              class="text-muted p-3"
-            >
-              {{ t('noAssignmentHistory') }}
-            </div>
-            <div
-              v-for="assignment in assignments"
-              :key="assignment.id"
-              class="border-bottom p-3"
-            >
-              <div class="d-flex justify-content-between gap-2">
-                <strong>{{ assignment.technician.fullName }}</strong>
-                <span
-                  class="badge"
-                  :class="assignmentStatusClass(assignment.status)"
-                >{{ assignmentStatusLabel(assignment.status) }}</span>
-              </div>
-              <div class="small text-muted">
-                {{ formatDate(assignment.assignedAt) }} · {{ historyReason(assignment.rejectionReason || assignment.closureReason) }}
-              </div>
-              <div
-                v-if="assignment.scheduledVisitAt"
-                class="small"
+        <AppModal
+          id="exec-modal"
+          :title="execAction === 'diagnosis' ? t('diagnosis') : execAction === 'complete' ? t('complete') : execAction === 'cancel' ? t('cancelRequest') : execAction === 'wait-for-parts' ? t('waitForParts') : t('resume')"
+        >
+          <form @submit.prevent="runExec">
+            <div class="mb-3">
+              <label
+                :for="`exec-${execAction}`"
+                class="form-label"
               >
-                {{ t('scheduledVisitAt') }}: {{ formatDate(assignment.scheduledVisitAt) }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-lg-6">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title mb-0">
-              {{ t('statusHistory') }}
-            </h3>
-          </div>
-          <div class="card-body p-0">
-            <div
-              v-if="!statusHistory?.length"
-              class="text-muted p-3"
-            >
-              {{ t('noStatusHistory') }}
+                {{ execAction === 'complete' ? t('workPerformed') : execAction === 'diagnosis' ? t('diagnosis') : t('reason') }}
+              </label>
+              <textarea
+                :id="`exec-${execAction}`"
+                v-model="execForm"
+                class="form-control"
+                rows="3"
+                :required="execAction !== 'resume'"
+              />
             </div>
             <div
-              v-for="item in statusHistory"
-              :key="item.id"
-              class="border-bottom p-3"
+              v-if="execError"
+              class="alert alert-danger py-2"
             >
-              <div class="d-flex align-items-center gap-2">
-                <StatusBadge :status="item.toStatus" />
-                <span class="small text-muted">{{ formatDate(item.changedAt) }}</span>
-              </div>
-              <div
-                v-if="item.reason"
-                class="small mt-1"
-              >
-                {{ historyReason(item.reason) }}
-              </div>
+              {{ execError }}
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <AppModal
-      id="assignment-action-modal"
-      :title="assignmentAction === 'reassign' ? t('reassignTechnician') : t('unassignTechnician')"
-    >
-      <form @submit.prevent="runAssignmentAction">
-        <div
-          v-if="assignmentAction === 'reassign'"
-          class="mb-3"
-        >
-          <label class="form-label">{{ t('technician') }}</label>
-          <select
-            v-model="assignForm"
-            class="form-select"
-          >
-            <option
-              value=""
-              disabled
+          </form>
+          <template #footer>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
             >
-              {{ t('selectTechnician') }}
-            </option>
-            <option
-              v-for="tech in technicianOptions"
-              :key="tech.id"
-              :value="tech.id"
+              {{ t('cancel') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              :disabled="savingExec"
+              @click="runExec"
             >
-              {{ tech.fullName }}
-            </option>
-          </select>
-        </div>
-        <label class="form-label">{{ t('reason') }}</label>
-        <textarea
-          v-model="assignmentReason"
-          class="form-control"
-          rows="3"
-          required
-        />
-        <div
-          v-if="actionError"
-          class="alert alert-danger py-2 mt-3"
-        >
-          {{ actionError }}
-        </div>
-      </form>
-      <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="savingAssignmentAction || !assignmentReason.trim() || (assignmentAction === 'reassign' && assignForm === '')"
-          @click="runAssignmentAction"
-        >
-          {{ savingAssignmentAction ? t('saving') : t('save') }}
-        </button>
-      </template>
-    </AppModal>
+              {{ savingExec ? t('saving') : t('save') }}
+            </button>
+          </template>
+        </AppModal>
 
-    <AppModal
-      id="exec-modal"
-      :title="execAction === 'diagnosis' ? t('diagnosis') : execAction === 'complete' ? t('complete') : execAction === 'cancel' ? t('cancelRequest') : execAction === 'wait-for-parts' ? t('waitForParts') : t('resume')"
-    >
-      <form @submit.prevent="runExec">
-        <div class="mb-3">
-          <label
-            :for="`exec-${execAction}`"
-            class="form-label"
-          >
-            {{ execAction === 'complete' ? t('workPerformed') : execAction === 'diagnosis' ? t('diagnosis') : t('reason') }}
-          </label>
-          <textarea
-            :id="`exec-${execAction}`"
-            v-model="execForm"
-            class="form-control"
-            rows="3"
-            :required="execAction !== 'resume'"
-          />
-        </div>
-        <div
-          v-if="execError"
-          class="alert alert-danger py-2"
+        <AppModal
+          id="request-delete-modal"
+          :title="t('deleteRequest')"
+          size="sm"
         >
-          {{ execError }}
-        </div>
-      </form>
-      <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          :disabled="savingExec"
-          @click="runExec"
-        >
-          {{ savingExec ? t('saving') : t('save') }}
-        </button>
+          <p class="mb-0">
+            {{ t('confirmDeleteRequest') }}
+          </p>
+          <template #footer>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              {{ t('cancel') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              :disabled="deletingRequest"
+              @click="deleteRequest"
+            >
+              <span
+                v-if="deletingRequest"
+                class="spinner-border spinner-border-sm me-2"
+              />
+              {{ t('delete') }}
+            </button>
+          </template>
+        </AppModal>
       </template>
-    </AppModal>
-
-    <AppModal
-      id="request-delete-modal"
-      :title="t('deleteRequest')"
-      size="sm"
-    >
-      <p class="mb-0">
-        {{ t('confirmDeleteRequest') }}
-      </p>
-      <template #footer>
-        <button
-          type="button"
-          class="btn btn-secondary"
-          data-bs-dismiss="modal"
-        >
-          {{ t('cancel') }}
-        </button>
-        <button
-          type="button"
-          class="btn btn-danger"
-          :disabled="deletingRequest"
-          @click="deleteRequest"
-        >
-          <span
-            v-if="deletingRequest"
-            class="spinner-border spinner-border-sm me-2"
-          />
-          {{ t('delete') }}
-        </button>
-      </template>
-    </AppModal>
+    </template>
   </AppContent>
 </template>

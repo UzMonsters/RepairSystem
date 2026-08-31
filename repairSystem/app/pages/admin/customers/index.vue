@@ -182,9 +182,21 @@ function openCustomer(id: number) {
               <td>{{ c.phone }}</td>
               <td>{{ c.preferredLanguage ? t(`language.${c.preferredLanguage}`) : '-' }}</td>
               <td>
-                <i v-if="c.registrationSource === 'TELEGRAM' || c.telegramLinked" class="bi bi-telegram text-primary fs-5" :title="t('telegramLinked')"></i>
-                <i v-else-if="c.registrationSource === 'GOOGLE'" class="bi bi-google text-danger fs-5" title="Google"></i>
-                <i v-else-if="c.registrationSource === 'PHONE'" class="bi bi-telephone text-success fs-5" :title="t('phone')"></i>
+                <i
+                  v-if="c.registrationSource === 'TELEGRAM' || c.telegramLinked"
+                  class="bi bi-telegram text-primary fs-5"
+                  :title="t('telegramLinked')"
+                />
+                <i
+                  v-else-if="c.registrationSource === 'GOOGLE'"
+                  class="bi bi-google text-danger fs-5"
+                  title="Google"
+                />
+                <i
+                  v-else-if="c.registrationSource === 'PHONE'"
+                  class="bi bi-telephone text-success fs-5"
+                  :title="t('phone')"
+                />
                 <span v-else>-</span>
               </td>
               <td>
