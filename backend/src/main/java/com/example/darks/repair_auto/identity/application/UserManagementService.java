@@ -9,8 +9,14 @@ import com.example.darks.repair_auto.identity.api.dto.UserUpdateRequest;
 import com.example.darks.repair_auto.identity.domain.User;
 import com.example.darks.repair_auto.identity.domain.UserRole;
 import com.example.darks.repair_auto.identity.infrastructure.persistence.UserRepository;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentValidator;
+import com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.ObjectStorageService;
+import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.StoredObjectDownload;
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.error.ErrorCode;
+import com.example.darks.repair_auto.shared.error.ResourceNotFoundException;
 import com.example.darks.repair_auto.shared.pagination.PageResponse;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -34,6 +40,8 @@ public class UserManagementService {
     private final PasswordService passwordService;
     private final RefreshSessionService refreshSessionService;
     private final ActorAccessLifecycleService actorAccessLifecycleService;
+    private final ObjectStorageService objectStorageService;
+    private final AttachmentValidator validator;
 
     @Autowired
     public UserManagementService(
@@ -42,13 +50,27 @@ public class UserManagementService {
             PasswordPolicy passwordPolicy,
             PasswordService passwordService,
             RefreshSessionService refreshSessionService,
-            ActorAccessLifecycleService actorAccessLifecycleService) {
+            ActorAccessLifecycleService actorAccessLifecycleService,
+            ObjectStorageService objectStorageService,
+            AttachmentValidator validator) {
         this.userRepository = userRepository;
         this.emailNormalizer = emailNormalizer;
         this.passwordPolicy = passwordPolicy;
         this.passwordService = passwordService;
         this.refreshSessionService = refreshSessionService;
         this.actorAccessLifecycleService = actorAccessLifecycleService;
+        this.objectStorageService = objectStorageService;
+        this.validator = validator != null ? validator : new AttachmentValidator();
+    }
+
+    public UserManagementService(
+            UserRepository userRepository,
+            EmailNormalizer emailNormalizer,
+            PasswordPolicy passwordPolicy,
+            PasswordService passwordService,
+            RefreshSessionService refreshSessionService,
+            ActorAccessLifecycleService actorAccessLifecycleService) {
+        this(userRepository, emailNormalizer, passwordPolicy, passwordService, refreshSessionService, actorAccessLifecycleService, null, new AttachmentValidator());
     }
 
     public UserManagementService(
@@ -57,7 +79,7 @@ public class UserManagementService {
             PasswordPolicy passwordPolicy,
             PasswordService passwordService,
             RefreshSessionService refreshSessionService) {
-        this(userRepository, emailNormalizer, passwordPolicy, passwordService, refreshSessionService, null);
+        this(userRepository, emailNormalizer, passwordPolicy, passwordService, refreshSessionService, null, null, new AttachmentValidator());
     }
 
     @Transactional(readOnly = true)
@@ -184,6 +206,37 @@ public class UserManagementService {
             userRepository.incrementAuthVersion(targetUserId, now());
         }
         LOGGER.info("User management event operation=admin_password_reset result=success actorUserId={} targetUserId={}", actorUserId, targetUserId);
+    }
+
+    @Transactional(readOnly = true)
+    public AttachmentDownload downloadAvatar(Long id) {
+        User user = find(id);
+        RepairAttachment avatar = user.getAvatarAttachment();
+        if (avatar == null || !avatar.isAvailable()) {
+            throw new ResourceNotFoundException("Avatar was not found.");
+        }
+        if (objectStorageService == null) {
+            throw new ResourceNotFoundException("Avatar was not found.");
+        }
+        StoredObjectDownload object = objectStorageService.download(avatar.getStorageKey());
+        String contentType = object.contentType() == null || object.contentType().isBlank()
+                ? "application/octet-stream"
+                : object.contentType();
+        return new AttachmentDownload(
+                safeDownloadFileName(avatar),
+                contentType,
+                object.sizeBytes(),
+                object.inputStream());
+    }
+
+    private String safeDownloadFileName(RepairAttachment attachment) {
+        String extension = validator.extensionFor(attachment.getContentType());
+        String fallback = "avatar-" + attachment.getId() + (extension == null ? "" : extension);
+        String original = attachment.getOriginalFileName();
+        if (original == null || original.isBlank() || original.indexOf('"') >= 0 || original.indexOf('\\') >= 0) {
+            return fallback;
+        }
+        return original;
     }
 
     private User find(Long id) {

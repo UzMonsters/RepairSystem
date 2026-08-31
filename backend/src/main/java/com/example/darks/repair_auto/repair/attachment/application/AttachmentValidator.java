@@ -5,9 +5,11 @@ import com.example.darks.repair_auto.repair.attachment.infrastructure.storage.St
 import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Component;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 
 @Component
@@ -25,8 +27,38 @@ public class AttachmentValidator {
 
     private final StorageProperties properties;
 
+    public AttachmentValidator() {
+        this(new StorageProperties(
+                false,
+                null,
+                "us-east-1",
+                "default",
+                null,
+                null,
+                false,
+                false,
+                Duration.ofMinutes(15),
+                DataSize.ofMegabytes(10),
+                10,
+                5
+        ));
+    }
+
     public AttachmentValidator(StorageProperties properties) {
-        this.properties = properties;
+        this.properties = properties != null ? properties : new StorageProperties(
+                false,
+                null,
+                "us-east-1",
+                "default",
+                null,
+                null,
+                false,
+                false,
+                Duration.ofMinutes(15),
+                DataSize.ofMegabytes(10),
+                10,
+                5
+        );
     }
 
     public String validateOriginalFileName(MultipartFile file) {

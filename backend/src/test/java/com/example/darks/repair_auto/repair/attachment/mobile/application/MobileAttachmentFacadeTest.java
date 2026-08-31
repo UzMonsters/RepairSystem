@@ -17,6 +17,7 @@ import com.example.darks.repair_auto.identity.infrastructure.security.Authentica
 import com.example.darks.repair_auto.repair.access.application.RepairResourceAccessPolicy;
 import com.example.darks.repair_auto.repair.attachment.api.dto.AttachmentResponse;
 import com.example.darks.repair_auto.repair.attachment.api.dto.DownloadUrlResponse;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
 import com.example.darks.repair_auto.repair.attachment.application.AttachmentService;
 import com.example.darks.repair_auto.repair.attachment.domain.AttachmentStatus;
 import com.example.darks.repair_auto.repair.attachment.domain.AttachmentType;
@@ -31,6 +32,7 @@ import com.example.darks.repair_auto.shared.error.BusinessRuleException;
 import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.i18n.LanguageCode;
 import com.example.darks.repair_auto.technician.domain.Technician;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -264,6 +266,39 @@ class MobileAttachmentFacadeTest {
         when(accessPolicy.requireCurrentCustomerCanAccessAttachment(actor, 509L)).thenReturn(attachment);
 
         assertThatThrownBy(() -> facade.getDownloadUrl(actor, 509L))
+                .isInstanceOf(BusinessException.class)
+                .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.ATTACHMENT_NOT_FOUND);
+    }
+
+    @Test
+    void givenCustomerActor_whenDownloadAttachmentForVisibleAttachment_thenReturnsStream() {
+        AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.CUSTOMER, 101L, "+998901234567", true);
+        RepairAttachment attachment = RepairAttachment.customerUpload(
+                request, AttachmentType.CUSTOMER_PROBLEM_PHOTO, "key1", "problem.jpg", customer, NOW);
+        ReflectionTestUtils.setField(attachment, "id", 501L);
+
+        when(accessPolicy.requireCurrentCustomerCanAccessAttachment(actor, 501L)).thenReturn(attachment);
+        AttachmentDownload expectedDownload = new AttachmentDownload("problem.jpg", "image/jpeg", 3L, new ByteArrayInputStream(new byte[]{1, 2, 3}));
+        when(attachmentService.download(501L)).thenReturn(expectedDownload);
+
+        AttachmentDownload download = facade.downloadAttachment(actor, 501L);
+
+        assertThat(download).isNotNull();
+        assertThat(download.fileName()).isEqualTo("problem.jpg");
+        assertThat(download.contentType()).isEqualTo("image/jpeg");
+        assertThat(download.sizeBytes()).isEqualTo(3L);
+    }
+
+    @Test
+    void givenCustomerActor_whenDownloadInternalAttachment_thenThrowsAttachmentNotFound() {
+        AuthenticatedMobileActor actor = new AuthenticatedMobileActor(ActorType.CUSTOMER, 101L, "+998901234567", true);
+        RepairAttachment attachment = new RepairAttachment(
+                request, AttachmentType.GENERAL_DOCUMENT, "key1", "internal.pdf", admin, NOW);
+        ReflectionTestUtils.setField(attachment, "id", 509L);
+
+        when(accessPolicy.requireCurrentCustomerCanAccessAttachment(actor, 509L)).thenReturn(attachment);
+
+        assertThatThrownBy(() -> facade.downloadAttachment(actor, 509L))
                 .isInstanceOf(BusinessException.class)
                 .matches(e -> ((BusinessException) e).getErrorCode() == ErrorCode.ATTACHMENT_NOT_FOUND);
     }

@@ -16,6 +16,22 @@ public record AttachmentResponse(
         AttachmentStatus status,
         RepairRequestUserSummary uploadedBy,
         AssignmentTechnicianSummary uploadedByTechnician,
+        String downloadUrl,
+        Boolean imagePreview,
         OffsetDateTime uploadedAt
 ) {
+    public AttachmentResponse(
+            Long id,
+            Long repairRequestId,
+            AttachmentType type,
+            String originalFileName,
+            String contentType,
+            Long sizeBytes,
+            AttachmentStatus status,
+            RepairRequestUserSummary uploadedBy,
+            AssignmentTechnicianSummary uploadedByTechnician,
+            OffsetDateTime uploadedAt
+    ) {
+        this(id, repairRequestId, type, originalFileName, contentType, sizeBytes, status, uploadedBy, uploadedByTechnician, null, null, uploadedAt);
+    }
 }

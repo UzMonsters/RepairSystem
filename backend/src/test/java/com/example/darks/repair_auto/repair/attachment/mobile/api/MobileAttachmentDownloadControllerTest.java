@@ -4,11 +4,13 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.darks.repair_auto.identity.domain.ActorType;
 import com.example.darks.repair_auto.identity.infrastructure.security.AuthenticatedMobileActor;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
 import com.example.darks.repair_auto.repair.attachment.mobile.api.dto.MobileAttachmentDownloadUrlResponse;
 import com.example.darks.repair_auto.repair.attachment.mobile.application.MobileAttachmentFacade;
 import com.example.darks.repair_auto.shared.error.ApiErrorResponseFactory;
@@ -17,6 +19,7 @@ import com.example.darks.repair_auto.shared.error.ErrorCode;
 import com.example.darks.repair_auto.shared.error.GlobalExceptionHandler;
 import com.example.darks.repair_auto.shared.i18n.LocalizationService;
 import com.example.darks.repair_auto.shared.observability.TraceIdService;
+import java.io.ByteArrayInputStream;
 import java.time.OffsetDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -96,5 +99,17 @@ class MobileAttachmentDownloadControllerTest {
 
         mockMvc.perform(get("/api/v1/mobile/me/attachments/999/download-url"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void givenAuthorizedActor_whenDownload_thenReturns200WithStream() throws Exception {
+        AttachmentDownload download = new AttachmentDownload("photo.jpg", "image/jpeg", 5L, new ByteArrayInputStream(new byte[]{1, 2, 3, 4, 5}));
+        when(facade.downloadAttachment(eq(currentActor), eq(501L))).thenReturn(download);
+
+        mockMvc.perform(get("/api/v1/mobile/me/attachments/501/download"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/jpeg"))
+                .andExpect(header().string("Content-Disposition", "inline; filename=\"photo.jpg\""))
+                .andExpect(header().string("Cache-Control", "private, no-store"));
     }
 }

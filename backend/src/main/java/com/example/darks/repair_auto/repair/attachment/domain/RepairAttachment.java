@@ -265,4 +265,8 @@ public class RepairAttachment {
         this.deletionReason = reason;
         this.updatedAt = now;
     }
+
+    public void markDeleted(String reason, OffsetDateTime now) {
+        markDeleted(null, reason, now);
+    }
 }

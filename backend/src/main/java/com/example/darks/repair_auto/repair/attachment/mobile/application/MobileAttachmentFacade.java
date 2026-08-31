@@ -4,7 +4,9 @@ import com.example.darks.repair_auto.identity.infrastructure.security.Authentica
 import com.example.darks.repair_auto.repair.access.application.RepairResourceAccessPolicy;
 import com.example.darks.repair_auto.repair.attachment.api.dto.AttachmentResponse;
 import com.example.darks.repair_auto.repair.attachment.api.dto.DownloadUrlResponse;
+import com.example.darks.repair_auto.repair.attachment.application.AttachmentDownload;
 import com.example.darks.repair_auto.repair.attachment.application.AttachmentService;
+import com.example.darks.repair_auto.repair.attachment.application.ImageAttachmentUtils;
 import com.example.darks.repair_auto.repair.attachment.domain.AttachmentStatus;
 import com.example.darks.repair_auto.repair.attachment.domain.AttachmentType;
 import com.example.darks.repair_auto.repair.attachment.domain.RepairAttachment;
@@ -170,6 +172,28 @@ public class MobileAttachmentFacade {
                 downloadUrl.expiresAt());
     }
 
+    @Transactional(readOnly = true)
+    public AttachmentDownload downloadAttachment(AuthenticatedMobileActor actor, Long attachmentId) {
+        if (actor == null) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
+        if (actor.isCustomer()) {
+            RepairAttachment attachment = accessPolicy.requireCurrentCustomerCanAccessAttachment(actor, attachmentId);
+            if (!CUSTOMER_VISIBLE_TYPES.contains(attachment.getAttachmentType())) {
+                throw new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND);
+            }
+        } else if (actor.isTechnician()) {
+            RepairAttachment attachment = accessPolicy.requireCurrentTechnicianCanAccessAttachment(actor, attachmentId);
+            if (!TECHNICIAN_VISIBLE_TYPES.contains(attachment.getAttachmentType())) {
+                throw new BusinessException(ErrorCode.ATTACHMENT_NOT_FOUND);
+            }
+        } else {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED);
+        }
+
+        return attachmentService.download(attachmentId);
+    }
+
     private MobileAttachmentResponse toMobileResponse(AttachmentResponse response) {
         return new MobileAttachmentResponse(
                 response.id(),
@@ -179,18 +203,23 @@ public class MobileAttachmentFacade {
                 response.contentType(),
                 response.sizeBytes(),
                 response.status(),
+                ImageAttachmentUtils.mobileAttachmentDownloadUrl(response.id()),
+                ImageAttachmentUtils.isImagePreviewable(response.contentType()),
                 response.uploadedAt());
     }
 
     private MobileAttachmentResponse toMobileResponse(RepairAttachment attachment) {
+        Long repairRequestId = attachment.getRepairRequest() != null ? attachment.getRepairRequest().getId() : null;
         return new MobileAttachmentResponse(
                 attachment.getId(),
-                attachment.getRepairRequest().getId(),
+                repairRequestId,
                 attachment.getAttachmentType(),
                 attachment.getOriginalFileName(),
                 attachment.getContentType(),
                 attachment.getSizeBytes(),
                 attachment.getStatus(),
+                ImageAttachmentUtils.mobileAttachmentDownloadUrl(attachment.getId()),
+                ImageAttachmentUtils.isImagePreviewable(attachment.getContentType()),
                 attachment.getUploadedAt());
     }
 }

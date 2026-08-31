@@ -62,6 +62,9 @@ public abstract class PostgreSqlIntegrationTest {
         jdbcTemplate.update("delete from chat_messages");
         jdbcTemplate.update("delete from conversation_participants");
         jdbcTemplate.update("delete from conversations");
+        jdbcTemplate.update("update users set avatar_attachment_id = null");
+        jdbcTemplate.update("update customers set avatar_attachment_id = null");
+        jdbcTemplate.update("update technicians set avatar_attachment_id = null");
         jdbcTemplate.update("delete from repair_attachments");
         jdbcTemplate.update("delete from repair_request_status_history");
         jdbcTemplate.update("delete from repair_executions");
