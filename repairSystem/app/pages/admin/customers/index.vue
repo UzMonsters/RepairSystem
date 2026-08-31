@@ -179,7 +179,13 @@ function openCustomer(id: number) {
                   {{ c.fullName }}
                 </span>
               </td>
-              <td>{{ c.phone }}</td>
+              <td>
+                <span v-if="c.phone">{{ c.phone }}</span>
+                <span
+                  v-else
+                  class="text-muted small"
+                ><i class="bi bi-telephone-x me-1" />{{ t('phoneNotLinked') }}</span>
+              </td>
               <td>{{ c.preferredLanguage ? t(`language.${c.preferredLanguage}`) : '-' }}</td>
               <td>
                 <i

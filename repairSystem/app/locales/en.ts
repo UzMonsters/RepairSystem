@@ -1,4 +1,6 @@
 const en = {
+  phoneNotLinked: 'Phone not linked',
+  notSpecified: 'Not specified',
   'main': 'Main',
   'system': 'System',
   'home': 'Home',

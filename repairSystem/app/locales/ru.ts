@@ -1,4 +1,6 @@
 const ru = {
+  phoneNotLinked: 'Телефон не привязан',
+  notSpecified: 'Не указано',
   'main': 'Главная',
   'system': 'Система',
   'home': 'Главная',

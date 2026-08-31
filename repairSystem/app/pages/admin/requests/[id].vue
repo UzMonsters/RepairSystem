@@ -1127,13 +1127,3 @@ function can(action: string) {
     </template>
   </AppContent>
 </template>
-
-<style scoped>
-[data-bs-theme="dark"] .nav-tabs .nav-link {
-  color: #adb5bd;
-}
-[data-bs-theme="dark"] .nav-tabs .nav-link:hover,
-[data-bs-theme="dark"] .nav-tabs .nav-link.active {
-  color: #ffffff !important;
-}
-</style>

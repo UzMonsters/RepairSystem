@@ -1752,3 +1752,30 @@ select option {
 .card-body.d-flex::after {
   display: none;
 }
+
+
+/* Tabs Hover Fix */
+[data-bs-theme="dark"] .nav-tabs .nav-link {
+  color: #adb5bd !important;
+}
+[data-bs-theme="dark"] .nav-tabs .nav-link:hover,
+[data-bs-theme="dark"] .nav-tabs .nav-link.active {
+  color: #ffffff !important;
+}
+
+/* Breadcrumbs White Text in Dark Mode */
+[data-bs-theme="dark"] .breadcrumb-item a,
+[data-bs-theme="dark"] .breadcrumb-item.active,
+[data-bs-theme="dark"] .breadcrumb-item {
+  color: #ffffff !important;
+  text-decoration: none;
+}
+[data-bs-theme="dark"] .breadcrumb-item a:hover {
+  text-decoration: underline;
+}
+
+/* For Light Mode, let's just make it dark grey so it's readable */
+[data-bs-theme="light"] .breadcrumb-item a {
+  color: #212529 !important;
+  text-decoration: none;
+}
