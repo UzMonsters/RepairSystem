@@ -133,6 +133,7 @@ const ru = {
   'preferredLanguage': 'Предпочитаемый язык',
   'registrationSource': 'Источник регистрации',
   'telegramLinked': 'Telegram привязан',
+  'binding': 'Привязка',
   'totalRequests': 'Всего заявок',
   'profileDetails': 'Данные профиля',
   'profile': 'Профиль',

@@ -122,7 +122,7 @@ function openCustomer(id: number) {
                   { label: t('name'), field: 'fullName' },
                   { label: t('phone'), field: 'phone' },
                   { label: t('language'), field: 'preferredLanguage' },
-                  { label: t('telegramLinked'), field: 'registrationSource' },
+                  { label: t('binding'), field: 'registrationSource' },
                   { label: t('active'), field: 'active' },
                   { label: t('created'), field: 'createdAt' }
                 ]"
@@ -182,12 +182,9 @@ function openCustomer(id: number) {
               <td>{{ c.phone }}</td>
               <td>{{ c.preferredLanguage ? t(`language.${c.preferredLanguage}`) : '-' }}</td>
               <td>
-                <span
-                  v-if="c.telegramLinked"
-                  class="status-chip status-completed"
-                >
-                  <span class="status-dot" />TG
-                </span>
+                <i v-if="c.registrationSource === 'TELEGRAM' || c.telegramLinked" class="bi bi-telegram text-primary fs-5" :title="t('telegramLinked')"></i>
+                <i v-else-if="c.registrationSource === 'GOOGLE'" class="bi bi-google text-danger fs-5" title="Google"></i>
+                <i v-else-if="c.registrationSource === 'PHONE'" class="bi bi-telephone text-success fs-5" :title="t('phone')"></i>
                 <span v-else>-</span>
               </td>
               <td>
