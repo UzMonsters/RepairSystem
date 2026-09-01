@@ -65,7 +65,10 @@ export function useAuth() {
   }
 
   async function fetchProfile() {
-    if (user.value) return
+    if (user.value) {
+      if (import.meta.client) await loadAvatar()
+      return
+    }
     try {
       const profile = await apiFetch<AuthUser>('/me')
       user.value = profile
@@ -85,7 +88,10 @@ export function useAuth() {
   }
 
   async function init() {
-    if (user.value) return
+    if (user.value) {
+      if (import.meta.client) await loadAvatar()
+      return
+    }
     try {
       await fetchProfile()
     } catch {
