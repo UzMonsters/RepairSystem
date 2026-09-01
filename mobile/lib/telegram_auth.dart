@@ -18,14 +18,14 @@ const telegramCustomerRedirectUri = String.fromEnvironment(
   'TELEGRAM_CUSTOMER_REDIRECT_URI',
   defaultValue: String.fromEnvironment(
     'APP_TELEGRAM_CUSTOMER_LOGIN_APP_URL',
-    defaultValue: '',
+    defaultValue: 'https://app1859875063-login.tg.dev/tglogin',
   ),
 );
 const telegramTechnicianRedirectUri = String.fromEnvironment(
   'TELEGRAM_TECHNICIAN_REDIRECT_URI',
   defaultValue: String.fromEnvironment(
     'APP_TELEGRAM_TECHNICIAN_LOGIN_APP_URL',
-    defaultValue: '',
+    defaultValue: 'https://app1074067825-login.tg.dev/tglogin',
   ),
 );
 
@@ -51,21 +51,72 @@ class TelegramAuthService {
         ? telegramTechnicianRedirectUri
         : telegramCustomerRedirectUri;
     final redirectUri = configuredRedirectUri.isNotEmpty
+<<<<<<< HEAD
         ? configuredRedirectUri
         : 'https://app${clientId}-login.tg.dev/tglogin';
     final idToken = await _channel.invokeMethod<String>('login', {
-      'role': role,
       'clientId': clientId,
       'redirectUri': redirectUri,
-      'scopes': const ['profile', 'phone'],
+      'scopes': const ['profile'],
     });
     if (idToken == null || idToken.isEmpty) {
       throw StateError('Telegram did not return an ID token.');
     }
+=======
+        ? _normalizeTelegramRedirectUri(configuredRedirectUri)
+        : (role == 'TECHNICIAN'
+            ? 'https://app1074067825-login.tg.dev/tglogin'
+            : 'https://app1859875063-login.tg.dev/tglogin');
+
+    MobileLog.info(
+      '[TELEGRAM_LOGIN_START] role=$role clientId=$clientId redirectHost=${Uri.tryParse(redirectUri)?.host ?? 'unknown'}',
+    );
+
+    late final String? idToken;
+    try {
+      idToken = await _channel.invokeMethod<String>('login', {
+        'role': role,
+        'clientId': clientId,
+        'redirectUri': redirectUri,
+        'scopes': const ['profile', 'phone'],
+      });
+    } catch (error, stackTrace) {
+      MobileLog.severe(
+        '[TELEGRAM_LOGIN_ERROR] role=$role error=${error.runtimeType}',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+
+    if (idToken == null || idToken.isEmpty) {
+      MobileLog.warning('[TELEGRAM_LOGIN_ERROR] role=$role reason=empty_token_returned');
+      throw StateError('Telegram did not return an ID token.');
+    }
+
+    MobileLog.info(
+      '[TELEGRAM_LOGIN_SUCCESS] role=$role tokenPresent=true tokenLength=${MobileLog.safeLength(idToken)}',
+    );
+>>>>>>> 34738de22e72e7c92683512af93719228b8641e6
     return idToken;
   }
 
   Future<bool> cancel() async {
+<<<<<<< HEAD
     return await _channel.invokeMethod<bool>('cancel') ?? false;
+=======
+    MobileLog.info('[TELEGRAM_LOGIN_CANCEL] cancel requested');
+    final cancelled = await _channel.invokeMethod<bool>('cancel') ?? false;
+    MobileLog.info('[TELEGRAM_LOGIN_CANCEL] cancel response=$cancelled');
+    return cancelled;
+>>>>>>> 34738de22e72e7c92683512af93719228b8641e6
+  }
+
+  String _normalizeTelegramRedirectUri(String value) {
+    final uri = Uri.tryParse(value.trim());
+    if (uri == null || uri.path.isNotEmpty) {
+      return value.trim();
+    }
+    return uri.replace(path: '/tglogin').toString();
   }
 }

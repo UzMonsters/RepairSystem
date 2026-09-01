@@ -58,6 +58,7 @@ class MainActivity : FlutterActivity() {
 
         pendingLogin = result
         TelegramLogin.init(clientId, redirectUri, scopes)
+<<<<<<< HEAD
 
         // Android can deliver the Telegram App Link while recreating the
         // activity, before Flutter has created the pending method call.
@@ -67,6 +68,9 @@ class MainActivity : FlutterActivity() {
             handleTelegramCallback(callbackUri)
             if (pendingLogin == null) return
         }
+=======
+        handledCallback = null
+>>>>>>> 34738de22e72e7c92683512af93719228b8641e6
         TelegramLogin.startLogin(this)
     }
 

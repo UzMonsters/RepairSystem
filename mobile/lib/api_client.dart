@@ -72,6 +72,7 @@ class ApiClient {
   final AuthStore authStore;
   Future<bool>? _refreshing;
   String language = 'uz';
+  void Function(String newAccessToken)? onTokenRefreshed;
 
   void setLanguage(String value) {
     final normalized = value.toLowerCase().split('-').first;
@@ -204,10 +205,13 @@ class ApiClient {
       return false;
     }
     final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final newAccess = data['accessToken'] as String;
+    final newRefresh = data['refreshToken'] as String;
     await authStore.save(
-      access: data['accessToken'] as String,
-      refresh: data['refreshToken'] as String,
+      access: newAccess,
+      refresh: newRefresh,
     );
+    onTokenRefreshed?.call(newAccess);
     return true;
   }
 
@@ -244,7 +248,7 @@ class ApiClient {
     final request = http.MultipartRequest('POST', _uri(path));
     final token = await authStore.accessToken;
     request.headers.addAll({
-        HttpHeaders.acceptLanguageHeader: language,
+      HttpHeaders.acceptLanguageHeader: language,
       if (token != null) HttpHeaders.authorizationHeader: 'Bearer $token',
       ...headers,
     });

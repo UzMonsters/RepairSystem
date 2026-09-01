@@ -1,10 +1,18 @@
 part of 'main.dart';
 
 class JobActions extends StatelessWidget {
-  const JobActions({super.key, required this.repo, required this.chat, required this.job});
+  const JobActions({
+    super.key,
+    required this.repo,
+    required this.chat,
+    required this.job,
+    this.realtime,
+  });
   final TechnicianRepository repo;
   final MobileChatRepository chat;
   final Job job;
+  final MobileRealtimeClient? realtime;
+
   Future<void> uploadEvidence(
     BuildContext context,
     String attachmentType,
@@ -15,7 +23,11 @@ class JobActions extends StatelessWidget {
     if (context.mounted) Navigator.pop(context);
   }
 
-  Future<String?> askText(BuildContext context, String title, String label) async {
+  Future<String?> askText(
+    BuildContext context,
+    String title,
+    String label,
+  ) async {
     final controller = TextEditingController();
     final value = await showDialog<String>(
       context: context,
@@ -32,7 +44,8 @@ class JobActions extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
             child: const Text('Save'),
           ),
         ],
@@ -54,55 +67,75 @@ class JobActions extends StatelessWidget {
             await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => MobileChatScreen(repo: chat, requestId: job.id, language: chat.api.language),
+                builder: (_) => MobileChatScreen(
+                  repo: chat,
+                  requestId: job.id,
+                  language: chat.api.language,
+                  realtime: realtime,
+                ),
               ),
             );
           },
         ),
         ...job.availableActions.map((action) {
-        if (action == 'UPLOAD_DIAGNOSIS_PHOTO') {
+          if (action == 'UPLOAD_DIAGNOSIS_PHOTO') {
+            return ListTile(
+              title: Text(action),
+              leading: const Icon(Icons.photo_camera),
+              onTap: () => uploadEvidence(context, 'DIAGNOSIS_PHOTO'),
+            );
+          }
+          if (action == 'UPLOAD_COMPLETION_PHOTO') {
+            return ListTile(
+              title: Text(action),
+              leading: const Icon(Icons.photo_camera),
+              onTap: () => uploadEvidence(context, 'COMPLETION_PHOTO'),
+            );
+          }
           return ListTile(
             title: Text(action),
-            leading: const Icon(Icons.photo_camera),
-            onTap: () => uploadEvidence(context, 'DIAGNOSIS_PHOTO'),
+            leading: const Icon(Icons.play_arrow),
+            onTap: () async {
+              if (action == 'ACCEPT_ASSIGNMENT') {
+                await repo.accept(job.id);
+              } else if (action == 'START_REPAIR') {
+                await repo.start(job.id);
+              } else if (action == 'RESUME_REPAIR') {
+                await repo.resume(job.id);
+              } else if (action == 'REJECT_ASSIGNMENT') {
+                final reason = await askText(
+                  context,
+                  'Reject assignment',
+                  'Reason',
+                );
+                if (reason != null) await repo.reject(job.id, reason);
+              } else if (action == 'UPDATE_DIAGNOSIS') {
+                final diagnosis = await askText(
+                  context,
+                  'Diagnosis',
+                  'Diagnosis',
+                );
+                if (diagnosis != null) await repo.diagnosis(job.id, diagnosis);
+              } else if (action == 'WAIT_FOR_PARTS') {
+                final reason = await askText(
+                  context,
+                  'Wait for parts',
+                  'Reason',
+                );
+                if (reason != null) await repo.waitForParts(job.id, reason);
+              } else if (action == 'COMPLETE_REPAIR') {
+                final work = await askText(
+                  context,
+                  'Complete repair',
+                  'Work performed',
+                );
+                if (work != null) await repo.complete(job.id, work);
+              }
+              if (context.mounted) Navigator.pop(context);
+            },
           );
-        }
-        if (action == 'UPLOAD_COMPLETION_PHOTO') {
-          return ListTile(
-            title: Text(action),
-            leading: const Icon(Icons.photo_camera),
-            onTap: () => uploadEvidence(context, 'COMPLETION_PHOTO'),
-          );
-        }
-        return ListTile(
-          title: Text(action),
-          leading: const Icon(Icons.play_arrow),
-          onTap: () async {
-            if (action == 'ACCEPT_ASSIGNMENT') {
-              await repo.accept(job.id);
-            } else if (action == 'START_REPAIR') {
-              await repo.start(job.id);
-            } else if (action == 'RESUME_REPAIR') {
-              await repo.resume(job.id);
-            } else if (action == 'REJECT_ASSIGNMENT') {
-              final reason = await askText(context, 'Reject assignment', 'Reason');
-              if (reason != null) await repo.reject(job.id, reason);
-            } else if (action == 'UPDATE_DIAGNOSIS') {
-              final diagnosis = await askText(context, 'Diagnosis', 'Diagnosis');
-              if (diagnosis != null) await repo.diagnosis(job.id, diagnosis);
-            } else if (action == 'WAIT_FOR_PARTS') {
-              final reason = await askText(context, 'Wait for parts', 'Reason');
-              if (reason != null) await repo.waitForParts(job.id, reason);
-            } else if (action == 'COMPLETE_REPAIR') {
-              final work = await askText(context, 'Complete repair', 'Work performed');
-              if (work != null) await repo.complete(job.id, work);
-            }
-            if (context.mounted) Navigator.pop(context);
-          },
-        );
-      }).toList(),
+        }),
       ],
     ),
   );
 }
-
