@@ -8,11 +8,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'api_client.dart';
-<<<<<<< HEAD
-=======
 import 'google_auth.dart';
 import 'mobile_logger.dart';
->>>>>>> 34738de22e72e7c92683512af93719228b8641e6
 import 'models.dart';
 import 'realtime_client.dart';
 import 'repositories.dart';
@@ -53,13 +50,10 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
   };
 
   Future<void> login(String role, String idToken) async {
-<<<<<<< HEAD
-=======
     MobileLog.info(
       '[TELEGRAM_BACKEND_AUTH_START] role=$role tokenPresent=${MobileLog.present(idToken)} '
       'tokenLength=${MobileLog.safeLength(idToken)}',
     );
->>>>>>> 34738de22e72e7c92683512af93719228b8641e6
     setState(() {
       loading = true;
       error = null;
@@ -77,11 +71,6 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
           builder: (_) => HomePage(api: api, auth: auth, actor: actor),
         ),
       );
-<<<<<<< HEAD
-    } on ApiException catch (e) {
-      setState(() => error = e.message);
-    } catch (e) {
-=======
       MobileLog.info(
         '[NAVIGATE_HOME] role=$role actorType=${actor.type} actorId=${actor.id}',
       );
@@ -95,7 +84,6 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
         '[TELEGRAM_BACKEND_AUTH_ERROR] unexpected failure role=$role error=${e.runtimeType}',
         error: e,
       );
->>>>>>> 34738de22e72e7c92683512af93719228b8641e6
       setState(() => error = '$e');
     } finally {
       if (mounted) setState(() => loading = false);
@@ -146,16 +134,14 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
   }
 
   Future<String> requestPhoneOtp(String role, String phone) async {
+    MobileLog.info(
+      'Login flow phone OTP request started role=$role phonePresent=${MobileLog.present(phone)} '
+      'phoneLength=${MobileLog.safeLength(phone)}',
+    );
     final data = await auth.requestPhoneOtp(
       clientType: role == 'CUSTOMER' ? 'CUSTOMER_MOBILE' : 'TECHNICIAN_MOBILE',
       phone: phone,
     );
-<<<<<<< HEAD
-    return data['challengeId'] as String;
-  }
-
-  Future<void> verifyPhoneOtp(String role, String challengeId, String code) async {
-=======
     MobileLog.info(
       'Login flow phone OTP request completed challengeId=${data['challengeId']}',
     );
@@ -171,7 +157,6 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
       'Login flow phone OTP verify started role=$role challengeId=$challengeId '
       'codePresent=${MobileLog.present(code)} codeLength=${MobileLog.safeLength(code)}',
     );
->>>>>>> 34738de22e72e7c92683512af93719228b8641e6
     final actor = await auth.verifyPhoneOtp(challengeId, code);
     if (!mounted) return;
     navigatorKey.currentState?.pushReplacement(
@@ -196,11 +181,7 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     home: LoginPage(
       onLogin: login,
       onTelegramLogin: loginWithTelegram,
-<<<<<<< HEAD
-      onPendingTelegramRole: telegram.pendingRole,
-=======
       onGoogleLogin: loginWithGoogle,
->>>>>>> 34738de22e72e7c92683512af93719228b8641e6
       onRequestPhoneOtp: requestPhoneOtp,
       onVerifyPhoneOtp: verifyPhoneOtp,
       loading: loading,
