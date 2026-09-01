@@ -56,7 +56,7 @@ const ru = {
   'unread': 'Непрочитанные',
   'eventKey': 'Событие',
   'title': 'Заголовок',
-  'message': 'Сообщение1',
+  'message': 'Сообщение',
   'channel': 'Канал',
   'deliveryStatus': 'Статус доставки',
   'type': 'Тип',
