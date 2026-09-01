@@ -1,24 +1,38 @@
 part of 'main.dart';
 
 class TechnicianJobs extends StatefulWidget {
-  const TechnicianJobs({super.key, required this.repo, required this.chat, this.events});
+  const TechnicianJobs({
+    super.key,
+    required this.repo,
+    required this.chat,
+    this.realtime,
+    this.events,
+  });
   final TechnicianRepository repo;
   final MobileChatRepository chat;
-  final Stream<Map<String, dynamic>>? events;
+  final MobileRealtimeClient? realtime;
+  final Stream<RealtimeEnvelope<dynamic>>? events;
+
   @override
   State<TechnicianJobs> createState() => _TechnicianJobsState();
 }
 
 class _TechnicianJobsState extends State<TechnicianJobs> {
   late Future<PageResponse<Job>> future;
-  StreamSubscription<Map<String, dynamic>>? eventSubscription;
+  StreamSubscription<RealtimeEnvelope<dynamic>>? eventSubscription;
+  StreamSubscription<void>? reconnectSubscription;
   String statusFilter = 'ALL';
 
   @override
   void initState() {
     super.initState();
     future = widget.repo.jobs();
-    eventSubscription = widget.events?.listen((_) {
+    final stream = widget.events ?? widget.realtime?.events;
+    eventSubscription = stream?.listen((envelope) {
+      if (!envelope.type.isRequestDomainEvent) return;
+      if (mounted) setState(() => future = widget.repo.jobs());
+    });
+    reconnectSubscription = widget.realtime?.onReconnected.listen((_) {
       if (mounted) setState(() => future = widget.repo.jobs());
     });
   }
@@ -26,6 +40,7 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
   @override
   void dispose() {
     eventSubscription?.cancel();
+    reconnectSubscription?.cancel();
     super.dispose();
   }
 
@@ -58,7 +73,10 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
               label: Text(mobileText(language, 'schedule')),
             ),
             const SizedBox(height: 8),
-            Text(mobileText(language, 'filters'), style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              mobileText(language, 'filters'),
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 6),
             SizedBox(
               height: 42,
@@ -86,18 +104,23 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
             ),
             const SizedBox(height: 8),
             ...jobs.map(
-                (job) => Card(
-                  child: ListTile(
-                    title: Text(job.number),
-                    subtitle: Text(job.description),
-                    trailing: Text(job.status),
-                    onTap: () => showModalBottomSheet(
-                      context: context,
-                      builder: (_) => JobActions(repo: widget.repo, chat: widget.chat, job: job),
+              (job) => Card(
+                child: ListTile(
+                  title: Text(job.number),
+                  subtitle: Text(job.description),
+                  trailing: Text(job.status),
+                  onTap: () => showModalBottomSheet(
+                    context: context,
+                    builder: (_) => JobActions(
+                      repo: widget.repo,
+                      chat: widget.chat,
+                      job: job,
+                      realtime: widget.realtime,
                     ),
                   ),
                 ),
               ),
+            ),
           ],
         );
       },

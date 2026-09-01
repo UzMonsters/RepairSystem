@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -73,6 +72,7 @@ class ApiClient {
   final AuthStore authStore;
   Future<bool>? _refreshing;
   String language = 'uz';
+  void Function(String newAccessToken)? onTokenRefreshed;
 
   void setLanguage(String value) {
     final normalized = value.toLowerCase().split('-').first;
@@ -205,10 +205,13 @@ class ApiClient {
       return false;
     }
     final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final newAccess = data['accessToken'] as String;
+    final newRefresh = data['refreshToken'] as String;
     await authStore.save(
-      access: data['accessToken'] as String,
-      refresh: data['refreshToken'] as String,
+      access: newAccess,
+      refresh: newRefresh,
     );
+    onTokenRefreshed?.call(newAccess);
     return true;
   }
 
@@ -238,15 +241,14 @@ class ApiClient {
   Future<dynamic> upload(
     String path,
     File file, {
-    String method = 'POST',
     Map<String, String> fields = const {},
     String fieldName = 'file',
     Map<String, String> headers = const {},
   }) async {
-    final request = http.MultipartRequest(method, _uri(path));
+    final request = http.MultipartRequest('POST', _uri(path));
     final token = await authStore.accessToken;
     request.headers.addAll({
-        HttpHeaders.acceptLanguageHeader: language,
+      HttpHeaders.acceptLanguageHeader: language,
       if (token != null) HttpHeaders.authorizationHeader: 'Bearer $token',
       ...headers,
     });
@@ -264,16 +266,5 @@ class ApiClient {
       );
     }
     return _decode(response);
-  }
-
-  Future<Uint8List> getBytes(String path) async {
-    final headers = await _headers();
-    headers.remove(HttpHeaders.contentTypeHeader);
-    final response = await _client.get(_uri(path), headers: headers);
-    if (response.statusCode == 401 && await _refresh()) return getBytes(path);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      _decode(response);
-    }
-    return response.bodyBytes;
   }
 }

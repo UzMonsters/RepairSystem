@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'api_client.dart';
 import 'models.dart';
@@ -373,14 +372,6 @@ class MobileProfileRepository {
   }
 
   Future<void> removePhone() => api.delete('/me/phone');
-
-  Future<void> uploadAvatar(File file) async {
-    await api.upload('/me/avatar', file, method: 'PUT');
-  }
-
-  Future<void> removeAvatar() => api.delete('/me/avatar');
-
-  Future<Uint8List> avatarBytes() => api.getBytes('/me/avatar');
 
   Future<void> registerPushEndpoint({
     required String fcmRegistrationToken,
