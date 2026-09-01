@@ -36,9 +36,14 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   if (incoming['content-type']) forwardHeaders['content-type'] = incoming['content-type']
   if (incoming.cookie) forwardHeaders.cookie = incoming.cookie
 
-    if (isBinaryDownload) {
+  if (isBinaryDownload) {
     return proxyRequest(event, `${config.backendUrl}/api/v1/${path}`, {
-      headers: forwardHeaders
+      headers: forwardHeaders,
+      onResponse(event, response) {
+        // Force the browser to render the image instead of blocking it due to nosniff / octet-stream
+        response.headers.set('content-type', 'image/jpeg')
+        response.headers.delete('x-content-type-options')
+      }
     })
   }
 

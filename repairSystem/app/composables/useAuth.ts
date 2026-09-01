@@ -16,7 +16,7 @@ export function useAuth() {
   const isAuthenticated = computed(() => Boolean(user.value))
 
   function clearAvatarObjectUrl() {
-    if (import.meta.client && avatarObjectUrl.value) {
+    if (import.meta.client && avatarObjectUrl.value && avatarObjectUrl.value.startsWith('blob:')) {
       URL.revokeObjectURL(avatarObjectUrl.value)
     }
     avatarObjectUrl.value = null
@@ -27,18 +27,8 @@ export function useAuth() {
       clearAvatarObjectUrl()
       return
     }
-
-    try {
-      const blob = await apiFetch<Blob>('/me/avatar', {
-        responseType: 'blob'
-      })
-      const imageBlob = new Blob([blob], { type: user.value?.avatar?.contentType || 'image/jpeg' })
-      const nextUrl = URL.createObjectURL(imageBlob)
-      if (avatarObjectUrl.value) URL.revokeObjectURL(avatarObjectUrl.value)
-      avatarObjectUrl.value = nextUrl
-    } catch {
-      clearAvatarObjectUrl()
-    }
+    const t = new Date().getTime()
+    avatarObjectUrl.value = `/api/me/avatar?t=${t}`
   }
 
   async function refreshSession(): Promise<boolean> {
