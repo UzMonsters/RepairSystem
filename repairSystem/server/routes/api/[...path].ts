@@ -38,12 +38,9 @@ export default defineEventHandler(async (event): Promise<unknown> => {
 
   if (isBinaryDownload) {
     return proxyRequest(event, `${config.backendUrl}/api/v1/${path}`, {
-      headers: forwardHeaders,
-      onResponse(event, response) {
-        // Force the browser to render the image instead of blocking it due to nosniff / octet-stream
-        response.headers.set('content-type', 'image/jpeg')
-        response.headers.delete('x-content-type-options')
-      }
+      // Do not rewrite streaming headers: PNG, WebP and JPEG must retain the
+      // content type supplied by backend so the browser can decode the avatar.
+      headers: forwardHeaders
     })
   }
 

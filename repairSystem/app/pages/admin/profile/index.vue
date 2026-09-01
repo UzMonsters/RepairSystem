@@ -160,7 +160,7 @@ async function handlePasswordSubmit() {
             </div>
 
             <h4 class="mb-1 fw-bold">
-              {{ profileForm.fullName || displayName }}
+              {{ profileForm.fullName || user?.fullName || 'Administrator' }}
             </h4>
             <p class="text-muted small mb-4">
               {{ profileForm.phone || t('notSpecified') }}
