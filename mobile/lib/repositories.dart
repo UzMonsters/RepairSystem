@@ -37,7 +37,7 @@ class AuthRepository {
         role == 'CUSTOMER'
             ? '/auth/telegram/customer'
             : '/auth/telegram/technician',
-        {'idToken': idToken, if (device != null) 'device': device},
+        {'idToken': idToken, 'device': ?device},
       );
 
   Future<Actor> loginGoogle(
@@ -47,7 +47,7 @@ class AuthRepository {
   }) => _login('/auth/google', {
         'clientType': clientType,
         'idToken': idToken,
-        if (device != null) 'device': device,
+        'device': ?device,
       });
 
   Future<Map<String, dynamic>> requestPhoneOtp({
@@ -68,7 +68,7 @@ class AuthRepository {
   }) => _login('/auth/phone/verify-otp', {
         'challengeId': challengeId,
         'code': code,
-        if (device != null) 'device': device,
+        'device': ?device,
       });
 
   Future<Actor> _login(String path, Map<String, dynamic> body) async {
@@ -243,7 +243,7 @@ class MobileChatRepository {
         await api.get('/me/conversations/$conversationId/messages', query: {
           'page': page,
           'size': 20,
-          if (beforeId != null) 'beforeId': beforeId,
+          'beforeId': ?beforeId,
         }) as Map<String, dynamic>,
         (item) => item,
       );
@@ -396,7 +396,7 @@ class MobileProfileRepository {
         'clientType': clientType,
         'platform': platform,
         'firebaseAppKey': firebaseAppKey,
-        if (appVersion != null) 'appVersion': appVersion,
+        'appVersion': ?appVersion,
       },
     );
   }

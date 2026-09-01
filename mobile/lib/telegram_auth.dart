@@ -54,7 +54,7 @@ class TelegramAuthService {
         : telegramCustomerRedirectUri;
     final redirectUri = configuredRedirectUri.isNotEmpty
         ? configuredRedirectUri
-        : 'https://app${clientId}-login.tg.dev/tglogin';
+        : 'https://app$clientId-login.tg.dev/tglogin';
     final idToken = await _channel.invokeMethod<String>('login', {
       'clientId': clientId,
       'redirectUri': redirectUri,
