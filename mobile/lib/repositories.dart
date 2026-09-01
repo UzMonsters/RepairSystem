@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'api_client.dart';
 import 'models.dart';
@@ -37,7 +36,7 @@ class AuthRepository {
         role == 'CUSTOMER'
             ? '/auth/telegram/customer'
             : '/auth/telegram/technician',
-        {'idToken': idToken, 'device': ?device},
+        {'idToken': idToken, if (device != null) 'device': device},
       );
 
   Future<Actor> loginGoogle(
@@ -47,7 +46,7 @@ class AuthRepository {
   }) => _login('/auth/google', {
         'clientType': clientType,
         'idToken': idToken,
-        'device': ?device,
+        if (device != null) 'device': device,
       });
 
   Future<Map<String, dynamic>> requestPhoneOtp({
@@ -68,7 +67,7 @@ class AuthRepository {
   }) => _login('/auth/phone/verify-otp', {
         'challengeId': challengeId,
         'code': code,
-        'device': ?device,
+        if (device != null) 'device': device,
       });
 
   Future<Actor> _login(String path, Map<String, dynamic> body) async {
@@ -243,7 +242,7 @@ class MobileChatRepository {
         await api.get('/me/conversations/$conversationId/messages', query: {
           'page': page,
           'size': 20,
-          'beforeId': ?beforeId,
+          if (beforeId != null) 'beforeId': beforeId,
         }) as Map<String, dynamic>,
         (item) => item,
       );
@@ -374,14 +373,6 @@ class MobileProfileRepository {
 
   Future<void> removePhone() => api.delete('/me/phone');
 
-  Future<void> uploadAvatar(File file) async {
-    await api.upload('/me/avatar', file, method: 'PUT');
-  }
-
-  Future<void> removeAvatar() => api.delete('/me/avatar');
-
-  Future<Uint8List> avatarBytes() => api.getBytes('/me/avatar');
-
   Future<void> registerPushEndpoint({
     required String fcmRegistrationToken,
     required String clientType,
@@ -396,7 +387,7 @@ class MobileProfileRepository {
         'clientType': clientType,
         'platform': platform,
         'firebaseAppKey': firebaseAppKey,
-        'appVersion': ?appVersion,
+        if (appVersion != null) 'appVersion': appVersion,
       },
     );
   }

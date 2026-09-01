@@ -100,8 +100,9 @@ class JobActions extends StatelessWidget {
             if (context.mounted) Navigator.pop(context);
           },
         );
-      }),
+      }).toList(),
       ],
     ),
   );
 }
+
