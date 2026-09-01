@@ -15,7 +15,13 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   const query = getQuery(event)
   const incoming = getRequestHeaders(event)
   const isBinaryDownload = method === 'GET'
-    && (path === 'me/avatar' || /^attachments\/[^/]+\/download$/.test(path))
+    && (
+      path === 'me/avatar'
+      || path === 'mobile/me/avatar'
+      || /^(?:users|customers|technicians)\/[^/]+\/avatar$/.test(path)
+      || /^attachments\/[^/]+\/download$/.test(path)
+      || /^mobile\/me\/attachments\/[^/]+\/download$/.test(path)
+    )
 
   const isLogin = path === 'auth/login' && method === 'POST'
   const isRefresh = path === 'auth/refresh' && method === 'POST'

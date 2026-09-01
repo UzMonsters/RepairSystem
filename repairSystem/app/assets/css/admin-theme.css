@@ -921,6 +921,60 @@ body.sidebar-collapse .app-sidebar .brand-link .brand-image {
   text-decoration: underline;
 }
 
+/* API-backed avatar and repair-photo previews */
+.entity-avatar {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--rs-border);
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+}
+
+.customer-avatar-image {
+  width: 96px;
+  height: 96px;
+  border: 2px solid var(--rs-border);
+  border-radius: 50%;
+  display: block;
+  object-fit: cover;
+}
+
+.technician-avatar {
+  width: 72px;
+  height: 72px;
+  border: 2px solid var(--rs-border);
+  border-radius: 50%;
+  display: block;
+  object-fit: cover;
+}
+
+.attachment-info {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 0;
+}
+
+.attachment-preview {
+  flex: 0 0 auto;
+  display: block;
+}
+
+.attachment-preview img {
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--rs-border);
+  border-radius: 8px;
+  background: var(--rs-panel-2);
+  object-fit: cover;
+}
+
+.attachment-preview:hover img,
+.attachment-preview:focus-visible img {
+  border-color: var(--rs-text-2);
+}
+
 .status-summary-item:last-child {
   border-bottom: 0;
 }
@@ -1833,4 +1887,26 @@ html[data-bs-theme="light"] body .breadcrumb-item a,
 html[data-bs-theme="light"] body .breadcrumb-item.active,
 html[data-bs-theme="light"] body .breadcrumb-item::before {
     color: #333333 !important;
+}
+
+/* Theme state is controlled by useTheme via data-theme.  Bootstrap's
+   data-bs-theme can still be "light" while the application palette is dark,
+   so it must not make dark-mode breadcrumbs nearly black. */
+html:not([data-theme="light"]) body .app-content-header .breadcrumb-item,
+html:not([data-theme="light"]) body .app-content-header .breadcrumb-item a,
+html:not([data-theme="light"]) body .app-content-header .breadcrumb-item.active,
+html:not([data-theme="light"]) body .app-content-header .breadcrumb-item::before {
+  color: #ffffff !important;
+}
+
+html:not([data-theme="light"]) body .app-content-header .breadcrumb-item a:hover {
+  color: #ffffff !important;
+  text-decoration: underline;
+}
+
+html[data-theme="light"] body .app-content-header .breadcrumb-item,
+html[data-theme="light"] body .app-content-header .breadcrumb-item a,
+html[data-theme="light"] body .app-content-header .breadcrumb-item.active,
+html[data-theme="light"] body .app-content-header .breadcrumb-item::before {
+  color: var(--rs-text) !important;
 }

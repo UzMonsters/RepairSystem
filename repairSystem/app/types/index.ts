@@ -39,6 +39,9 @@ export interface AuthUser {
     attachmentId: number
     fileName: string
     contentType: string
+    sizeBytes?: number
+    downloadUrl?: string
+    uploadedAt?: string
   } | null
   language: LanguageCode
   dateFormat: UserDateFormat
@@ -71,6 +74,7 @@ export interface Customer {
   telegramLinked?: boolean
   createdAt?: string
   updatedAt?: string
+  avatar?: Avatar | null
 }
 
 export interface Technician {
@@ -87,6 +91,16 @@ export interface Technician {
   telegramLinked?: boolean
   createdAt?: string
   updatedAt?: string
+  avatar?: Avatar | null
+}
+
+export interface Avatar {
+  attachmentId: number
+  fileName: string
+  contentType: string
+  sizeBytes?: number
+  downloadUrl?: string
+  uploadedAt?: string
 }
 
 export interface Category {
@@ -121,6 +135,7 @@ export interface CrmUser {
   fullName: string
   email: string
   role: UserRole
+  avatar?: Avatar | null
 }
 
 export interface RepairRequestCustomerSummary {
@@ -194,6 +209,8 @@ export interface Attachment {
   originalFileName: string
   contentType?: string
   sizeBytes?: number
+  downloadUrl?: string
+  imagePreview?: boolean
   status: string
   uploadedBy?: RepairRequestUserSummary
   uploadedByTechnician?: AssignmentTechnicianSummary
