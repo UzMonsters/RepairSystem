@@ -15,7 +15,13 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   const query = getQuery(event)
   const incoming = getRequestHeaders(event)
   const isBinaryDownload = method === 'GET'
-    && (path === 'me/avatar' || /^attachments\/[^/]+\/download$/.test(path))
+    && (
+      path === 'me/avatar'
+      || path === 'mobile/me/avatar'
+      || /^(?:users|customers|technicians)\/[^/]+\/avatar$/.test(path)
+      || /^attachments\/[^/]+\/download$/.test(path)
+      || /^mobile\/me\/attachments\/[^/]+\/download$/.test(path)
+    )
 
   const isLogin = path === 'auth/login' && method === 'POST'
   const isRefresh = path === 'auth/refresh' && method === 'POST'
@@ -29,6 +35,14 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   }
   if (incoming['content-type']) forwardHeaders['content-type'] = incoming['content-type']
   if (incoming.cookie) forwardHeaders.cookie = incoming.cookie
+
+  if (isBinaryDownload) {
+    return proxyRequest(event, `${config.backendUrl}/api/v1/${path}`, {
+      // Do not rewrite streaming headers: PNG, WebP and JPEG must retain the
+      // content type supplied by backend so the browser can decode the avatar.
+      headers: forwardHeaders
+    })
+  }
 
   let body: BodyInit | Record<string, unknown> | undefined = ['GET', 'HEAD'].includes(method)
     ? undefined
@@ -47,7 +61,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       timeout: 20000,
       // Image/file downloads are raw bytes, not JSON. Keep them binary while
       // all other API calls retain normal JSON parsing.
-      responseType: isBinaryDownload ? 'arrayBuffer' : 'json'
+      responseType: 'json'
     })
 
     setResponseStatus(event, res.status)
@@ -73,7 +87,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       return res._data
     }
     if (isBinaryDownload) {
-      return new Uint8Array(res._data as ArrayBuffer)
+      return res._data
     }
 
     return res._data

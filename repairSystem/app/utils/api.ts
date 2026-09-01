@@ -15,6 +15,12 @@ type ErrorPayload = {
   fieldErrors?: Array<{ field?: unknown, message?: unknown }>
 }
 
+/** Converts an API-relative backend asset URL to the authenticated Nuxt proxy. */
+export function apiAssetUrl(downloadUrl?: string | null): string | undefined {
+  if (!downloadUrl) return undefined
+  return downloadUrl.replace(/^\/api\/v1\//, '/api/')
+}
+
 function findApiPayload(error: unknown): ErrorPayload | undefined {
   const visited = new Set<object>()
 

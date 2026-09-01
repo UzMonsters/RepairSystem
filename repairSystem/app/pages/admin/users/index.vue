@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import type { CrmUser, Page, UserRole } from '~/types'
-import { getApiErrorMessage } from '~/utils/api'
+import { apiAssetUrl, getApiErrorMessage } from '~/utils/api'
 
 const { t } = useLocale()
 const { user: currentUser } = useAuth()
@@ -329,6 +329,12 @@ async function toggleActive(u: CrmUser) {
               :key="u.id"
             >
               <td class="fw-semibold">
+                <img
+                  v-if="apiAssetUrl(u.avatar?.downloadUrl)"
+                  :src="apiAssetUrl(u.avatar?.downloadUrl)"
+                  :alt="u.fullName"
+                  class="entity-avatar me-2"
+                >
                 {{ u.fullName }}
               </td>
               <td>{{ u.email }}</td>

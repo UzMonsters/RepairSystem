@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
+import { apiAssetUrl, getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
 import { hideModal } from '~/utils/modal'
 import type { AssignmentDetail, Attachment, RepairExecution, RepairRequest, StatusHistoryItem, Technician } from '~/types'
@@ -578,6 +578,19 @@ function can(action: string) {
                     class="attachment-list-item"
                   >
                     <div class="attachment-info">
+                      <a
+                        v-if="attachment.imagePreview && apiAssetUrl(attachment.downloadUrl)"
+                        :href="apiAssetUrl(attachment.downloadUrl)"
+                        class="attachment-preview"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        :aria-label="attachment.originalFileName"
+                      >
+                        <img
+                          :src="apiAssetUrl(attachment.downloadUrl)"
+                          :alt="attachment.originalFileName"
+                        >
+                      </a>
                       <div class="fw-semibold attachment-file-name">
                         {{ attachment.originalFileName }}
                       </div>

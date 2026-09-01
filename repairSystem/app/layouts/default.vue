@@ -8,7 +8,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="app-wrapper">
+  <div
+    key="default-layout"
+    class="app-wrapper"
+  >
     <AppTopbar />
     <AppSidebar />
     <AppToastContainer />

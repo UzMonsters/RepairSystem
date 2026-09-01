@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Technician } from '~/types'
-import { getApiErrorMessage } from '~/utils/api'
+import { apiAssetUrl, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
 
 const { t } = useLocale()
@@ -67,6 +67,12 @@ function formatDate(value?: string) {
             </span>
           </div>
           <div class="card-body">
+            <img
+              v-if="apiAssetUrl(technician.avatar?.downloadUrl)"
+              :src="apiAssetUrl(technician.avatar?.downloadUrl)"
+              :alt="technician.fullName"
+              class="technician-avatar mb-3"
+            >
             <dl class="row mb-0">
               <dt class="col-sm-6">
                 {{ t('fullName') }}

@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import type { Customer, Page } from '~/types'
-import { getApiErrorMessage } from '~/utils/api'
+import { apiAssetUrl, getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
 
 const { t } = useLocale()
@@ -175,6 +175,12 @@ function openCustomer(id: number) {
               @keydown.enter="openCustomer(c.id)"
             >
               <td>
+                <img
+                  v-if="apiAssetUrl(c.avatar?.downloadUrl)"
+                  :src="apiAssetUrl(c.avatar?.downloadUrl)"
+                  :alt="c.fullName"
+                  class="entity-avatar me-2"
+                >
                 <span class="fw-semibold">
                   {{ c.fullName }}
                 </span>

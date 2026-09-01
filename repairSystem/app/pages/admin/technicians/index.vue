@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import type { LanguageCode, Page, Technician } from '~/types'
-import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
+import { apiAssetUrl, getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
 
 const { t } = useLocale()
@@ -350,6 +350,12 @@ function openTechnician(id: number) {
               @keydown.enter="openTechnician(tech.id)"
             >
               <td class="fw-semibold">
+                <img
+                  v-if="apiAssetUrl(tech.avatar?.downloadUrl)"
+                  :src="apiAssetUrl(tech.avatar?.downloadUrl)"
+                  :alt="tech.fullName"
+                  class="entity-avatar me-2"
+                >
                 <span>
                   {{ tech.fullName }}
                 </span>

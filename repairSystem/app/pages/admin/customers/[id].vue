@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Customer, Page, RepairRequest } from '~/types'
-import { getApiErrorMessage } from '~/utils/api'
+import { apiAssetUrl, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
 
 const { t } = useLocale()
@@ -68,7 +68,14 @@ function formatDate(value?: string) {
         <div class="col-lg-4">
           <div class="card customer-summary mb-4">
             <div class="card-body text-center">
+              <img
+                v-if="apiAssetUrl(customer.avatar?.downloadUrl)"
+                :src="apiAssetUrl(customer.avatar?.downloadUrl)"
+                :alt="customer.fullName"
+                class="customer-avatar customer-avatar-image shadow mx-auto mb-3"
+              >
               <span
+                v-else
                 class="customer-avatar d-flex align-items-center justify-content-center rounded-circle bg-primary text-white shadow mx-auto mb-3"
                 style="width: 96px; height: 96px; font-size: 36px; font-weight: 600;"
               >
