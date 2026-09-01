@@ -36,6 +36,12 @@ export default defineEventHandler(async (event): Promise<unknown> => {
   if (incoming['content-type']) forwardHeaders['content-type'] = incoming['content-type']
   if (incoming.cookie) forwardHeaders.cookie = incoming.cookie
 
+    if (isBinaryDownload) {
+    return proxyRequest(event, `${config.backendUrl}/api/v1/${path}`, {
+      headers: forwardHeaders
+    })
+  }
+
   let body: BodyInit | Record<string, unknown> | undefined = ['GET', 'HEAD'].includes(method)
     ? undefined
     : await readRawBody(event, false) as unknown as BodyInit
@@ -53,7 +59,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       timeout: 20000,
       // Image/file downloads are raw bytes, not JSON. Keep them binary while
       // all other API calls retain normal JSON parsing.
-      responseType: isBinaryDownload ? 'stream' : 'json'
+      responseType: 'json'
     })
 
     setResponseStatus(event, res.status)
@@ -79,7 +85,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       return res._data
     }
     if (isBinaryDownload) {
-      return sendStream(event, res._data as any)
+      return res._data
     }
 
     return res._data
