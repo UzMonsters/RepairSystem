@@ -115,8 +115,8 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun roleForCallback(uri: Uri): String? = when (uri.host) {
-        "app2962537527-login.tg.dev" -> "CUSTOMER"
-        "app2657113889-login.tg.dev" -> "TECHNICIAN"
+        "app8957154846-login.tg.dev" -> "CUSTOMER"
+        "app8854105729-login.tg.dev" -> "TECHNICIAN"
         else -> null
     }
 }

@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'api_client.dart';
+import 'google_auth.dart';
 import 'models.dart';
 import 'realtime_client.dart';
 import 'repositories.dart';
@@ -24,7 +26,6 @@ part 'job_actions.dart';
 part 'notifications.dart';
 part 'profile.dart';
 
-
 void main() => runApp(const RepairAutoApp());
 
 class RepairAutoApp extends StatefulWidget {
@@ -38,6 +39,7 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
   final navigatorKey = GlobalKey<NavigatorState>();
   late final auth = AuthRepository(api);
   final telegram = TelegramAuthService();
+  final google = GoogleAuthService();
   String? error;
   bool loading = false;
 
@@ -72,6 +74,33 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
 
   Future<String> loginWithTelegram(String role) => telegram.login(role);
 
+  Future<void> loginWithGoogle(String role) async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
+    try {
+      final idToken = await google.login(role);
+      final actor = await auth.loginGoogle(
+        role == 'CUSTOMER' ? 'CUSTOMER_MOBILE' : 'TECHNICIAN_MOBILE',
+        idToken,
+        device: _deviceContext(),
+      );
+      if (!mounted) return;
+      navigatorKey.currentState?.pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => HomePage(api: api, auth: auth, actor: actor),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (mounted) setState(() => error = e.message);
+    } catch (_) {
+      rethrow;
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
   Future<String> requestPhoneOtp(String role, String phone) async {
     final data = await auth.requestPhoneOtp(
       clientType: role == 'CUSTOMER' ? 'CUSTOMER_MOBILE' : 'TECHNICIAN_MOBILE',
@@ -80,11 +109,17 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     return data['challengeId'] as String;
   }
 
-  Future<void> verifyPhoneOtp(String role, String challengeId, String code) async {
+  Future<void> verifyPhoneOtp(
+    String role,
+    String challengeId,
+    String code,
+  ) async {
     final actor = await auth.verifyPhoneOtp(challengeId, code);
     if (!mounted) return;
     navigatorKey.currentState?.pushReplacement(
-      MaterialPageRoute(builder: (_) => HomePage(api: api, auth: auth, actor: actor)),
+      MaterialPageRoute(
+        builder: (_) => HomePage(api: api, auth: auth, actor: actor),
+      ),
     );
   }
 
@@ -100,6 +135,7 @@ class _RepairAutoAppState extends State<RepairAutoApp> {
     home: LoginPage(
       onLogin: login,
       onTelegramLogin: loginWithTelegram,
+      onGoogleLogin: loginWithGoogle,
       onPendingTelegramRole: telegram.pendingRole,
       onRequestPhoneOtp: requestPhoneOtp,
       onVerifyPhoneOtp: verifyPhoneOtp,

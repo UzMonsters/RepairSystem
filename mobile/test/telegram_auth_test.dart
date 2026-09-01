@@ -60,7 +60,7 @@ void main() {
         expect(call.arguments['clientId'], '8957154846');
         expect(
           call.arguments['redirectUri'],
-          'https://app1859875063-login.tg.dev/tglogin',
+          'https://app8957154846-login.tg.dev/tglogin',
         );
         expect(call.arguments['scopes'], ['profile', 'phone']);
       },
@@ -80,7 +80,7 @@ void main() {
         expect(call.arguments['clientId'], '8854105729');
         expect(
           call.arguments['redirectUri'],
-          'https://app1074067825-login.tg.dev/tglogin',
+          'https://app8854105729-login.tg.dev/tglogin',
         );
         expect(call.arguments['scopes'], ['profile', 'phone']);
       },
@@ -137,6 +137,7 @@ void main() {
                 return completer.future;
               },
               onGoogleLogin: (_) async {},
+              onPendingTelegramRole: () async => null,
               onRequestPhoneOtp: (_, _) async => 'challenge-1',
               onVerifyPhoneOtp: (_, _, _) async {},
               loading: false,
@@ -181,6 +182,7 @@ void main() {
                 );
               },
               onGoogleLogin: (_) async {},
+              onPendingTelegramRole: () async => null,
               onRequestPhoneOtp: (_, _) async => 'challenge-1',
               onVerifyPhoneOtp: (_, _, _) async {},
               loading: false,
@@ -217,6 +219,7 @@ void main() {
               );
             },
             onGoogleLogin: (_) async {},
+            onPendingTelegramRole: () async => null,
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -248,6 +251,7 @@ void main() {
             },
             onTelegramLogin: (role) async => 'valid-oidc-id-token',
             onGoogleLogin: (_) async {},
+            onPendingTelegramRole: () async => null,
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -279,6 +283,7 @@ void main() {
               throw PlatformException(code: 'TELEGRAM_LOGIN_FAILED');
             },
             onGoogleLogin: (_) async {},
+            onPendingTelegramRole: () async => null,
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -306,6 +311,7 @@ void main() {
               throw PlatformException(code: 'TELEGRAM_LOGIN_FAILED');
             },
             onGoogleLogin: (_) async {},
+            onPendingTelegramRole: () async => null,
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -355,6 +361,7 @@ void main() {
               googleLoginCalls++;
               receivedRole = role;
             },
+            onPendingTelegramRole: () async => null,
             onRequestPhoneOtp: (_, _) async => 'challenge-1',
             onVerifyPhoneOtp: (_, _, _) async {},
             loading: false,
@@ -377,8 +384,9 @@ void main() {
       'Technician Google option invokes Google login callback with technician role',
       (tester) async {
         int googleLoginCalls = 0;
-        String? receivedRole;
+        String? googleRole;
         int telegramLoginCalls = 0;
+        String? telegramRole;
 
         await tester.pumpWidget(
           MaterialApp(
@@ -386,12 +394,14 @@ void main() {
               onLogin: (_, _) async {},
               onTelegramLogin: (role) async {
                 telegramLoginCalls++;
+                telegramRole = role;
                 return 'telegram-token';
               },
               onGoogleLogin: (role) async {
                 googleLoginCalls++;
-                receivedRole = role;
+                googleRole = role;
               },
+              onPendingTelegramRole: () async => null,
               onRequestPhoneOtp: (_, _) async => 'challenge-1',
               onVerifyPhoneOtp: (_, _, _) async {},
               loading: false,
@@ -407,8 +417,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(googleLoginCalls, 1);
-        expect(receivedRole, 'TECHNICIAN');
+        expect(googleRole, 'TECHNICIAN');
         expect(telegramLoginCalls, 0);
+        expect(telegramRole, isNull);
       },
     );
   });

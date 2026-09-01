@@ -18,14 +18,14 @@ const telegramCustomerRedirectUri = String.fromEnvironment(
   'TELEGRAM_CUSTOMER_REDIRECT_URI',
   defaultValue: String.fromEnvironment(
     'APP_TELEGRAM_CUSTOMER_LOGIN_APP_URL',
-    defaultValue: 'https://app2962537527-login.tg.dev/tglogin',
+    defaultValue: '',
   ),
 );
 const telegramTechnicianRedirectUri = String.fromEnvironment(
   'TELEGRAM_TECHNICIAN_REDIRECT_URI',
   defaultValue: String.fromEnvironment(
     'APP_TELEGRAM_TECHNICIAN_LOGIN_APP_URL',
-    defaultValue: 'https://app2657113889-login.tg.dev/tglogin',
+    defaultValue: '',
   ),
 );
 
@@ -47,8 +47,6 @@ class TelegramAuthService {
       );
     }
 
-    // BotFather provisions this native-app URL for the client ID. The plugin
-    // The official Android SDK expects Telegram's native App Link callback path.
     final configuredRedirectUri = role == 'TECHNICIAN'
         ? telegramTechnicianRedirectUri
         : telegramCustomerRedirectUri;
@@ -56,9 +54,10 @@ class TelegramAuthService {
         ? configuredRedirectUri
         : 'https://app${clientId}-login.tg.dev/tglogin';
     final idToken = await _channel.invokeMethod<String>('login', {
+      'role': role,
       'clientId': clientId,
       'redirectUri': redirectUri,
-      'scopes': const ['profile'],
+      'scopes': const ['profile', 'phone'],
     });
     if (idToken == null || idToken.isEmpty) {
       throw StateError('Telegram did not return an ID token.');
