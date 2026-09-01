@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -237,11 +238,12 @@ class ApiClient {
   Future<dynamic> upload(
     String path,
     File file, {
+    String method = 'POST',
     Map<String, String> fields = const {},
     String fieldName = 'file',
     Map<String, String> headers = const {},
   }) async {
-    final request = http.MultipartRequest('POST', _uri(path));
+    final request = http.MultipartRequest(method, _uri(path));
     final token = await authStore.accessToken;
     request.headers.addAll({
         HttpHeaders.acceptLanguageHeader: language,
@@ -262,5 +264,16 @@ class ApiClient {
       );
     }
     return _decode(response);
+  }
+
+  Future<Uint8List> getBytes(String path) async {
+    final headers = await _headers();
+    headers.remove(HttpHeaders.contentTypeHeader);
+    final response = await _client.get(_uri(path), headers: headers);
+    if (response.statusCode == 401 && await _refresh()) return getBytes(path);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decode(response);
+    }
+    return response.bodyBytes;
   }
 }
