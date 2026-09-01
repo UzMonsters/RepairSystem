@@ -117,7 +117,7 @@ async function handlePasswordSubmit() {
                   v-if="avatarPreviewUrl || avatarObjectUrl"
                   :src="avatarSrc"
                   alt="Avatar"
-                  class="rounded-circle shadow object-fit-cover"
+                  class="rounded-circle shadow object-fit-cover w-100 h-100"
                 >
                 <div
                   v-else

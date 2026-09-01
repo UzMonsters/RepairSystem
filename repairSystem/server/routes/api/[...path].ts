@@ -53,7 +53,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       timeout: 20000,
       // Image/file downloads are raw bytes, not JSON. Keep them binary while
       // all other API calls retain normal JSON parsing.
-      responseType: isBinaryDownload ? 'arrayBuffer' : 'json'
+      responseType: isBinaryDownload ? 'stream' : 'json'
     })
 
     setResponseStatus(event, res.status)
@@ -79,7 +79,7 @@ export default defineEventHandler(async (event): Promise<unknown> => {
       return res._data
     }
     if (isBinaryDownload) {
-      return new Uint8Array(res._data as ArrayBuffer)
+      return sendStream(event, res._data as any)
     }
 
     return res._data

@@ -8,7 +8,7 @@ const { isDark, toggleTheme } = useTheme()
 
 const displayName = computed(() => user.value?.fullName || 'Administrator')
 const initials = computed(() => displayName.value.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase())
-const avatarUrl = avatarObjectUrl
+
 const localeLabel = computed(() => locale.value === 'ru' ? 'RU' : locale.value === 'en' ? 'EN' : 'UZ')
 const notifications = ref<NotificationSummary[]>([])
 const globalSearch = ref('')
@@ -192,8 +192,8 @@ onMounted(async () => {
             @click.prevent
           >
             <img
-              v-if="avatarUrl"
-              :src="avatarUrl"
+              v-if="avatarObjectUrl"
+              :src="avatarObjectUrl"
               alt=""
               class="user-image rounded-circle shadow object-fit-cover"
               style="width: 32px; height: 32px;"
