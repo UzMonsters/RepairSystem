@@ -212,21 +212,28 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   String _googleErrorMessage(Object error) {
-    if (error is GoogleSignInException) {
+    if (error is GoogleSignInCancelledException) {
+      return tr('googleCancelled');
+    }
+    if (error is PlatformException) {
       MobileLog.warning(
-        '[GOOGLE_LOGIN_EXCEPTION_DETAIL] code=${error.code} description=${error.description}',
+        '[GOOGLE_LOGIN_EXCEPTION_DETAIL] code=${error.code} message=${error.message}',
       );
-      if (error.code == GoogleSignInExceptionCode.canceled ||
-          error.code == GoogleSignInExceptionCode.interrupted) {
+      if (error.code == 'sign_in_canceled' ||
+          error.code == 'canceled' ||
+          error.code == 'CANCELED') {
+        final description = error.message;
+        if (description != null && description.isNotEmpty) {
+          return '${tr('googleFailed')} ($description)';
+        }
         return tr('googleCancelled');
       }
-      if (error.code == GoogleSignInExceptionCode.uiUnavailable) {
-        return tr('googleUnavailable');
-      }
-      if (error.code == GoogleSignInExceptionCode.clientConfigurationError) {
+      if (error.code == 'sign_in_failed' ||
+          error.code == 'network_error' ||
+          error.code == 'ApiException') {
         return tr('googleConfiguration');
       }
-      final description = error.description;
+      final description = error.message;
       if (description != null && description.isNotEmpty) {
         return '${tr('googleFailed')} ($description)';
       }
@@ -235,6 +242,11 @@ class _LoginPageState extends State<LoginPage> {
       return tr('googleUnavailable');
     }
     if (error is StateError) {
+      return tr('googleConfiguration');
+    }
+    if (error is ApiException &&
+        (error.code == 'GOOGLE_AUTH_AUDIENCE_INVALID' ||
+            error.code == 'GOOGLE_AUTH_INVALID')) {
       return tr('googleConfiguration');
     }
     return tr('googleFailed');

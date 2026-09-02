@@ -8,7 +8,10 @@ class CategoryRepository {
   final ApiClient api;
 
   Future<List<Category>> list() async {
-    final data = await api.get('/root/categories', query: {'active': true, 'size': 100});
+    final data = await api.get(
+      '/root/categories',
+      query: {'active': true, 'size': 100},
+    );
     final content = data is Map ? data['content'] : data;
     return (content as List? ?? [])
         .whereType<Map<String, dynamic>>()
@@ -25,56 +28,53 @@ class AuthRepository {
   Future<Actor> loginCustomer(String idToken, {Map<String, dynamic>? device}) =>
       loginTelegram('CUSTOMER', idToken, device: device);
 
-  Future<Actor> loginTechnician(String idToken, {Map<String, dynamic>? device}) =>
-      loginTelegram('TECHNICIAN', idToken, device: device);
+  Future<Actor> loginTechnician(
+    String idToken, {
+    Map<String, dynamic>? device,
+  }) => loginTelegram('TECHNICIAN', idToken, device: device);
 
   Future<Actor> loginTelegram(
     String role,
     String idToken, {
     Map<String, dynamic>? device,
   }) => _login(
-        role == 'CUSTOMER'
-            ? '/auth/telegram/customer'
-            : '/auth/telegram/technician',
-        {'idToken': idToken, if (device != null) 'device': device},
-      );
+    role == 'CUSTOMER'
+        ? '/auth/telegram/customer'
+        : '/auth/telegram/technician',
+    {'idToken': idToken, if (device != null) 'device': device},
+  );
 
   Future<Actor> loginGoogle(
     String clientType,
     String idToken, {
     Map<String, dynamic>? device,
-  }) => _login('/auth/google', {
-        'clientType': clientType,
-        'idToken': idToken,
-        if (device != null) 'device': device,
-      });
+  }) => _login(
+    clientType == 'TECHNICIAN_MOBILE'
+        ? '/auth/google/technician'
+        : '/auth/google/customer',
+    {'idToken': idToken, if (device != null) 'device': device},
+  );
 
   Future<Map<String, dynamic>> requestPhoneOtp({
     required String clientType,
     required String phone,
   }) async => (await api.post(
-        '/auth/phone/request-otp',
-        body: {
-          'clientType': clientType,
-          'phone': phone,
-        },
-      ) as Map).cast<String, dynamic>();
+    '/auth/phone/request-otp',
+    body: {'clientType': clientType, 'phone': phone},
+  ) as Map).cast<String, dynamic>();
 
   Future<Actor> verifyPhoneOtp(
     String challengeId,
     String code, {
     Map<String, dynamic>? device,
   }) => _login('/auth/phone/verify-otp', {
-        'challengeId': challengeId,
-        'code': code,
-        if (device != null) 'device': device,
-      });
+    'challengeId': challengeId,
+    'code': code,
+    if (device != null) 'device': device,
+  });
 
   Future<Actor> _login(String path, Map<String, dynamic> body) async {
-    final data = await api.post(
-      path,
-      body: body,
-    ) as Map<String, dynamic>;
+    final data = await api.post(path, body: body) as Map<String, dynamic>;
     await api.authStore.save(
       access: data['accessToken'] as String,
       refresh: data['refreshToken'] as String,
@@ -141,6 +141,7 @@ class CustomerRepository {
       },
     );
   }
+
   Future<dynamic> uploadPhoto(int id, File file) => api.upload(
     '/me/repair-requests/$id/attachments',
     file,
@@ -183,16 +184,23 @@ class TechnicianRepository {
   Future<void> reject(int id, String reason) async {
     await api.post('/me/jobs/$id/reject', body: {'reason': reason});
   }
+
   Future<dynamic> start(int id) => api.post('/me/jobs/$id/start');
   Future<dynamic> waitForParts(int id, String reason) =>
       api.post('/me/jobs/$id/wait-for-parts', body: {'reason': reason});
   Future<dynamic> resume(int id) => api.post('/me/jobs/$id/resume');
-  Future<dynamic> complete(int id, String workPerformed, {String? completionNote}) =>
-      api.post('/me/jobs/$id/complete', body: {
-        'workPerformed': workPerformed,
-        if (completionNote != null && completionNote.trim().isNotEmpty)
-          'completionNote': completionNote,
-      });
+  Future<dynamic> complete(
+    int id,
+    String workPerformed, {
+    String? completionNote,
+  }) => api.post(
+    '/me/jobs/$id/complete',
+    body: {
+      'workPerformed': workPerformed,
+      if (completionNote != null && completionNote.trim().isNotEmpty)
+        'completionNote': completionNote,
+    },
+  );
   Future<dynamic> diagnosis(int id, String text) =>
       api.patch('/me/jobs/$id/diagnosis', body: {'diagnosis': text});
   Future<dynamic> uploadPhoto(int id, File file, String attachmentType) =>
@@ -224,28 +232,32 @@ class MobileChatRepository {
   MobileChatRepository(this.api);
   final ApiClient api;
 
-  Future<PageResponse<Map<String, dynamic>>> conversations({int page = 0}) async =>
-      PageResponse.fromJson(
-        await api.get('/me/conversations', query: {'page': page, 'size': 20})
-            as Map<String, dynamic>,
-        (item) => item,
-      );
+  Future<PageResponse<Map<String, dynamic>>> conversations({
+    int page = 0,
+  }) async => PageResponse.fromJson(
+    await api.get('/me/conversations', query: {'page': page, 'size': 20})
+        as Map<String, dynamic>,
+    (item) => item,
+  );
 
   Future<Map<String, dynamic>> conversation(int id) async =>
-    (await api.get('/me/conversations/$id') as Map).cast<String, dynamic>();
+      (await api.get('/me/conversations/$id') as Map).cast<String, dynamic>();
 
   Future<PageResponse<Map<String, dynamic>>> messages(
     int conversationId, {
     int page = 0,
     int? beforeId,
   }) async => PageResponse.fromJson(
-        await api.get('/me/conversations/$conversationId/messages', query: {
-          'page': page,
-          'size': 20,
-          if (beforeId != null) 'beforeId': beforeId,
-        }) as Map<String, dynamic>,
-        (item) => item,
-      );
+    await api.get(
+      '/me/conversations/$conversationId/messages',
+      query: {
+        'page': page,
+        'size': 20,
+        if (beforeId != null) 'beforeId': beforeId,
+      },
+    ) as Map<String, dynamic>,
+    (item) => item,
+  );
 
   Future<Map<String, dynamic>> getOrCreateForRequest(int requestId) async =>
       (await api.post('/me/conversations/requests/$requestId') as Map)
@@ -258,19 +270,23 @@ class MobileChatRepository {
     int? attachmentId,
     String? clientMessageId,
     int? replyToMessageId,
-  }) async => (await api.post('/me/conversations/$conversationId/messages', body: {
-        'conversationId': conversationId,
-        'clientMessageId': clientMessageId,
-        'type': type,
-        'text': text,
-        'attachmentId': attachmentId,
-        'replyToMessageId': replyToMessageId,
-      }) as Map).cast<String, dynamic>();
+  }) async => (await api.post(
+    '/me/conversations/$conversationId/messages',
+    body: {
+      'conversationId': conversationId,
+      'clientMessageId': clientMessageId,
+      'type': type,
+      'text': text,
+      'attachmentId': attachmentId,
+      'replyToMessageId': replyToMessageId,
+    },
+  ) as Map).cast<String, dynamic>();
 
   Future<void> markRead(int conversationId, int messageId) async {
-    await api.post('/me/conversations/$conversationId/read', body: {
-      'messageId': messageId,
-    });
+    await api.post(
+      '/me/conversations/$conversationId/read',
+      body: {'messageId': messageId},
+    );
   }
 }
 
@@ -344,9 +360,9 @@ class MobileProfileRepository {
   Future<Map<String, dynamic>> requestEmailVerification({
     required String email,
   }) async => (await api.post(
-        '/me/email/request-verification',
-        body: {'email': email},
-      ) as Map).cast<String, dynamic>();
+    '/me/email/request-verification',
+    body: {'email': email},
+  ) as Map).cast<String, dynamic>();
 
   Future<void> verifyEmail(String challengeId, String code) async {
     await api.post(
@@ -360,9 +376,9 @@ class MobileProfileRepository {
   Future<Map<String, dynamic>> requestPhoneVerification({
     required String phone,
   }) async => (await api.post(
-        '/me/phone/request-verification',
-        body: {'phone': phone},
-      ) as Map).cast<String, dynamic>();
+    '/me/phone/request-verification',
+    body: {'phone': phone},
+  ) as Map).cast<String, dynamic>();
 
   Future<void> verifyPhone(String challengeId, String code) async {
     await api.post(

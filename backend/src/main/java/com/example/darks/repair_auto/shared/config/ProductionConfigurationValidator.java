@@ -1,6 +1,7 @@
 package com.example.darks.repair_auto.shared.config;
 
 import com.example.darks.repair_auto.identity.application.AuthThrottleProperties;
+import com.example.darks.repair_auto.identity.mobile.google.GoogleOidcProperties;
 import com.example.darks.repair_auto.identity.mobile.telegram.TelegramLoginProperties;
 import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationProperties;
 import com.example.darks.repair_auto.notification.push.config.FirebasePushProperties;
@@ -29,6 +30,7 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
     private final AuthThrottleProperties authThrottleProperties;
     private final FirebasePushProperties firebasePushProperties;
     private final TelegramLoginProperties telegramLoginProperties;
+    private final GoogleOidcProperties googleOidcProperties;
 
     public ProductionConfigurationValidator(
             Environment environment,
@@ -39,7 +41,8 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
             NotificationProperties notificationProperties,
             AuthThrottleProperties authThrottleProperties,
             FirebasePushProperties firebasePushProperties,
-            TelegramLoginProperties telegramLoginProperties) {
+            TelegramLoginProperties telegramLoginProperties,
+            GoogleOidcProperties googleOidcProperties) {
         this.environment = environment;
         this.appProperties = appProperties;
         this.storageProperties = storageProperties;
@@ -49,6 +52,7 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         this.authThrottleProperties = authThrottleProperties;
         this.firebasePushProperties = firebasePushProperties;
         this.telegramLoginProperties = telegramLoginProperties;
+        this.googleOidcProperties = googleOidcProperties;
     }
 
     @Override
@@ -67,6 +71,7 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         validateCors();
         validateStorage();
         validateTelegram();
+        validateGoogle();
         validateFirebasePush();
         validateDurations();
         validateFlyway();
@@ -142,6 +147,18 @@ public class ProductionConfigurationValidator implements SmartInitializingSingle
         if (!telegramProperties.getApiBaseUrl().getScheme().equals("https")
                 || !telegramProperties.getFileBaseUrl().getScheme().equals("https")) {
             fail("Telegram API URLs must use HTTPS in production.");
+        }
+    }
+
+    private void validateGoogle() {
+        if (googleOidcProperties == null || !googleOidcProperties.isEnabled()) {
+            return;
+        }
+        if (googleOidcProperties.getCustomerAllowedAudiences().isEmpty()) {
+            fail("APP_GOOGLE_OIDC_CUSTOMER_ALLOWED_AUDIENCES is required in production when Google login is enabled.");
+        }
+        if (googleOidcProperties.getTechnicianAllowedAudiences().isEmpty()) {
+            fail("APP_GOOGLE_OIDC_TECHNICIAN_ALLOWED_AUDIENCES is required in production when Google login is enabled.");
         }
     }
 
