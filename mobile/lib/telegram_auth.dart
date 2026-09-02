@@ -20,14 +20,14 @@ const telegramCustomerRedirectUri = String.fromEnvironment(
   'TELEGRAM_CUSTOMER_REDIRECT_URI',
   defaultValue: String.fromEnvironment(
     'APP_TELEGRAM_CUSTOMER_LOGIN_APP_URL',
-    defaultValue: 'https://app1859875063-login.tg.dev/tglogin',
+    defaultValue: 'https://app1859875063-login.tg.dev',
   ),
 );
 const telegramTechnicianRedirectUri = String.fromEnvironment(
   'TELEGRAM_TECHNICIAN_REDIRECT_URI',
   defaultValue: String.fromEnvironment(
     'APP_TELEGRAM_TECHNICIAN_LOGIN_APP_URL',
-    defaultValue: 'https://app1074067825-login.tg.dev/tglogin',
+    defaultValue: 'https://app1074067825-login.tg.dev',
   ),
 );
 
@@ -53,8 +53,8 @@ class TelegramAuthService {
     final redirectUri = configuredRedirectUri.isNotEmpty
         ? _normalizeTelegramRedirectUri(configuredRedirectUri)
         : (role == 'TECHNICIAN'
-            ? 'https://app1074067825-login.tg.dev/tglogin'
-            : 'https://app1859875063-login.tg.dev/tglogin');
+            ? 'https://app1859875063-login.tg.dev'
+            : 'https://app1074067825-login.tg.dev');
 
     MobileLog.info(
       '[TELEGRAM_LOGIN_START] role=$role clientId=$clientId redirectHost=${Uri.tryParse(redirectUri)?.host ?? 'unknown'}',

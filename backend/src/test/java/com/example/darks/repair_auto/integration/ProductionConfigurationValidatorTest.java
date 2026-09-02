@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.darks.repair_auto.identity.application.AuthThrottleProperties;
+import com.example.darks.repair_auto.identity.mobile.google.GoogleOidcProperties;
 import com.example.darks.repair_auto.identity.mobile.telegram.TelegramLoginProperties;
 import com.example.darks.repair_auto.notification.infrastructure.worker.NotificationProperties;
 import com.example.darks.repair_auto.notification.push.config.FirebasePushProperties;
@@ -98,6 +99,20 @@ class ProductionConfigurationValidatorTest {
                 .hasMessageContaining("APP_TELEGRAM_CUSTOMER_LOGIN_CLIENT_ID");
     }
 
+    @Test
+    void givenProdProfileWithGoogleEnabledAndMissingAudiencesThenStartupFails() {
+        assertThatThrownBy(() -> validator(
+                validEnvironment(),
+                appProperties(),
+                storageProperties(),
+                telegramProperties(false),
+                firebasePushProperties(false, "repairauto-dev", ""),
+                telegramLoginProperties(),
+                new GoogleOidcProperties()).afterSingletonsInstantiated())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("APP_GOOGLE_OIDC_CUSTOMER_ALLOWED_AUDIENCES");
+    }
+
     private ProductionConfigurationValidator validator(MockEnvironment environment, AppProperties appProperties) {
         return validator(environment, appProperties, firebasePushProperties(false, "repairauto-dev", ""), telegramLoginProperties());
     }
@@ -113,7 +128,8 @@ class ProductionConfigurationValidatorTest {
                 storageProperties(),
                 telegramProperties(false),
                 firebasePushProperties,
-                telegramLoginProperties);
+                telegramLoginProperties,
+                googleOidcProperties());
     }
 
     private ProductionConfigurationValidator validator(
@@ -123,6 +139,24 @@ class ProductionConfigurationValidatorTest {
             TelegramProperties telegramProperties,
             FirebasePushProperties firebasePushProperties,
             TelegramLoginProperties telegramLoginProperties) {
+        return validator(
+                environment,
+                appProperties,
+                storageProperties,
+                telegramProperties,
+                firebasePushProperties,
+                telegramLoginProperties,
+                googleOidcProperties());
+    }
+
+    private ProductionConfigurationValidator validator(
+            MockEnvironment environment,
+            AppProperties appProperties,
+            StorageProperties storageProperties,
+            TelegramProperties telegramProperties,
+            FirebasePushProperties firebasePushProperties,
+            TelegramLoginProperties telegramLoginProperties,
+            GoogleOidcProperties googleOidcProperties) {
         NotificationProperties notificationProperties = new NotificationProperties();
         notificationProperties.setBatchSize(50);
         return new ProductionConfigurationValidator(
@@ -134,7 +168,8 @@ class ProductionConfigurationValidatorTest {
                 notificationProperties,
                 new AuthThrottleProperties(true, 5, Duration.ofMinutes(10), Duration.ofMinutes(15), Duration.ofDays(1)),
                 firebasePushProperties,
-                telegramLoginProperties);
+                telegramLoginProperties,
+                googleOidcProperties);
     }
 
     private MockEnvironment validEnvironment() {
@@ -226,6 +261,13 @@ class ProductionConfigurationValidatorTest {
         TelegramLoginProperties properties = new TelegramLoginProperties();
         properties.getCustomer().setClientId("customer-login-client");
         properties.getTechnician().setClientId("technician-login-client");
+        return properties;
+    }
+
+    private GoogleOidcProperties googleOidcProperties() {
+        GoogleOidcProperties properties = new GoogleOidcProperties();
+        properties.setCustomerAllowedAudiences(List.of("customer-web-client-id.apps.googleusercontent.com"));
+        properties.setTechnicianAllowedAudiences(List.of("technician-web-client-id.apps.googleusercontent.com"));
         return properties;
     }
 }

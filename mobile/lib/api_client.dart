@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 const apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'https://api.repairauto.uz',
+  defaultValue: 'https://repair-auto.onrender.com',
 );
 
 class ApiException implements Exception {
@@ -49,8 +50,25 @@ class AuthStore {
   static const _refreshKey = 'repairauto_refresh_token';
   final FlutterSecureStorage _storage;
 
-  Future<String?> get accessToken => _storage.read(key: _accessKey);
-  Future<String?> get refreshToken => _storage.read(key: _refreshKey);
+  Future<String?> get accessToken => _readToken(_accessKey);
+  Future<String?> get refreshToken => _readToken(_refreshKey);
+
+  Future<String?> _readToken(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } on PlatformException catch (error) {
+      final message = error.message ?? '';
+      final details = '${error.details ?? ''}';
+      if (error.code == 'read' ||
+          message == 'read' ||
+          details.contains('BadPaddingException') ||
+          details.contains('BAD_DECRYPT')) {
+        await clear();
+        return null;
+      }
+      rethrow;
+    }
+  }
 
   Future<void> save({required String access, required String refresh}) async {
     await _storage.write(key: _accessKey, value: access);
