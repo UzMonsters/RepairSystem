@@ -19,7 +19,8 @@
     "firebase": "^12.17.1",
     "jsvectormap": "^1.7.0",
     "nuxt": "^4.5.1",
-    "overlayscrollbars": "^2.16.0"
+    "overlayscrollbars": "^2.16.0",
+    "vue3-apexcharts": "^1.11.1"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.16.0",

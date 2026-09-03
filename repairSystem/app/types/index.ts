@@ -347,3 +347,64 @@ export interface NotificationSummary {
   deliveryStatus: NotificationStatus
   createdAt?: string
 }
+
+export interface DashboardStatusLabelResponse {
+  label: string
+  labelEn: string
+  labelRu: string
+  labelUz: string
+}
+
+export interface RequestStatusDistributionItemResponse {
+  status: string
+  label: DashboardStatusLabelResponse
+  count: number
+  percentage: number
+}
+
+export interface RequestStatusDistributionResponse {
+  total: number
+  items: RequestStatusDistributionItemResponse[]
+}
+
+export interface RequestTrendBucketResponse {
+  date: string
+  created: number
+  completed: number
+  cancelled: number
+}
+
+export interface RequestTrendResponse {
+  period: string
+  fromDate: string
+  toDate: string
+  buckets: RequestTrendBucketResponse[]
+}
+
+export interface TechnicianDashboardResponse {
+  activeTechnicians: number
+  inactiveTechnicians: number
+  techniciansWithActiveWork: number
+  techniciansWithoutActiveWork: number
+  pendingAssignments: number
+  acceptedAssignments: number
+  inProgressRequests: number
+  waitingForPartsRequests: number
+  availableCapacity: number
+  totalCapacity: number
+}
+
+export interface ReviewRatingDistributionResponse {
+  rating1: number
+  rating2: number
+  rating3: number
+  rating4: number
+  rating5: number
+}
+
+export interface ReviewDashboardResponse {
+  totalReviews: number
+  averageRating: number | null
+  reviewsWithComment: number
+  distribution: ReviewRatingDistributionResponse
+}

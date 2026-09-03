@@ -67,12 +67,15 @@ function formatDate(value?: string) {
             </span>
           </div>
           <div class="card-body">
-            <img
-              v-if="apiAssetUrl(technician.avatar?.downloadUrl)"
-              :src="apiAssetUrl(technician.avatar?.downloadUrl)"
-              :alt="technician.fullName"
-              class="technician-avatar mb-3"
-            >
+            <AppAvatarUpload
+              :upload-url="`/technicians/${id}/avatar`"
+              :delete-url="technician.avatar ? `/technicians/${id}/avatar` : undefined"
+              :initial-avatar-url="apiAssetUrl(technician.avatar?.downloadUrl)"
+              :has-avatar-init="!!technician.avatar"
+              :initials="technician.fullName?.[0]"
+              @updated="refresh()"
+              @deleted="refresh()"
+            />
             <dl class="row mb-0">
               <dt class="col-sm-6">
                 {{ t('fullName') }}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DashboardOverview, Page, RepairRequest } from '~/types'
+import type { DashboardOverview, Page, RepairRequest, RequestStatusDistributionResponse, RequestTrendResponse, TechnicianDashboardResponse } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
 
@@ -12,10 +12,15 @@ const { data: recentRequests } = useAsyncData('dashboard-recent', () =>
   apiFetch<Page<RepairRequest>>('/requests', { query: { page: 0, size: 6, sort: 'createdAt,desc' } })
 )
 
-const dashboardStatuses = ['NEW', 'IN_PROGRESS', 'WAITING_FOR_PARTS', 'COMPLETED', 'CANCELLED']
-const { data: statusCounts } = useAsyncData('dashboard-status-counts', async () => {
-  const responses = await Promise.all(dashboardStatuses.map(status =>
-    apiFetch<Page<RepairRequest>>('/requests', { query: { page: 0, size: 1, status } })
+const { data: statusDistribution } = useAsyncData('dashboard-status', () =>
+  apiFetch<RequestStatusDistributionResponse>('/dashboard/requests-by-status')
+)
+const { data: requestTrends } = useAsyncData('dashboard-trends', () =>
+  apiFetch<RequestTrendResponse>('/dashboard/request-trends?period=MONTH')
+)
+const { data: techStats } = useAsyncData('dashboard-techs', () =>
+  apiFetch<TechnicianDashboardResponse>('/dashboard/technicians')
+)
   ))
   return Object.fromEntries(dashboardStatuses.map((status, index) => [status, responses[index]?.totalElements ?? 0])) as Record<string, number>
 })
@@ -52,13 +57,42 @@ const stats = computed(() => [
   { icon: 'bi-person-check', title: t('techniciansWithActiveWork'), value: data.value?.techniciansWithActiveWork ?? 0, sub: t('all'), to: '/admin/technicians' }
 ])
 
-const statusSummary = computed(() => [
-  { status: 'NEW', label: t('status.NEW'), value: statusCounts.value?.NEW ?? 0, badge: 'status-new' },
-  { status: 'IN_PROGRESS', label: t('status.IN_PROGRESS'), value: statusCounts.value?.IN_PROGRESS ?? 0, badge: 'status-in-progress' },
-  { status: 'WAITING_FOR_PARTS', label: t('status.WAITING_FOR_PARTS'), value: statusCounts.value?.WAITING_FOR_PARTS ?? 0, badge: 'status-waiting' },
-  { status: 'COMPLETED', label: t('status.COMPLETED'), value: statusCounts.value?.COMPLETED ?? 0, badge: 'status-completed' },
-  { status: 'CANCELLED', label: t('status.CANCELLED'), value: statusCounts.value?.CANCELLED ?? 0, badge: 'status-cancelled' }
-])
+
+
+
+const statusChartOptions = computed(() => {
+  const labels = statusDistribution.value?.items.map(i => {
+    return typeof i.label === 'string' ? i.label : (i.label.label || i.status)
+  }) || []
+  return {
+    chart: { type: 'donut' },
+    labels,
+    colors: ['#007bff', '#17a2b8', '#ffc107', '#28a745', '#dc3545'],
+    legend: { position: 'bottom' }
+  }
+})
+const statusChartSeries = computed(() => {
+  return statusDistribution.value?.items.map(i => i.count) || []
+})
+
+const trendChartOptions = computed(() => {
+  const categories = requestTrends.value?.buckets.map(b => b.date) || []
+  return {
+    chart: { type: 'area', toolbar: { show: false } },
+    xaxis: { categories, type: 'datetime' },
+    stroke: { curve: 'smooth', width: 2 },
+    colors: ['#007bff', '#28a745', '#dc3545'],
+    dataLabels: { enabled: false }
+  }
+})
+const trendChartSeries = computed(() => {
+  const buckets = requestTrends.value?.buckets || []
+  return [
+    { name: t('status.NEW'), data: buckets.map(b => b.created) },
+    { name: t('status.COMPLETED'), data: buckets.map(b => b.completed) },
+    { name: t('status.CANCELLED'), data: buckets.map(b => b.cancelled) }
+  ]
+})
 
 const errorMessage = computed(() => {
   return getApiErrorMessage(error.value, 'Failed to load dashboard.')
@@ -183,6 +217,20 @@ function openStatus(status: string) {
           </div>
         </div>
 
+        <div class="col-lg-12">
+          <div class="card dash-card">
+            <div class="card-header">
+              <h3 class="card-title mb-0">
+                {{ t('dashboard_trends', 'Динамика заявок') }}
+              </h3>
+            </div>
+            <div class="card-body">
+              <ClientOnly>
+                <apexchart type="area" height="300" :options="trendChartOptions" :series="trendChartSeries"></apexchart>
+              </ClientOnly>
+            </div>
+          </div>
+        </div>
         <div class="col-lg-4">
           <div class="card dash-card h-100">
             <div class="card-header">
@@ -190,28 +238,13 @@ function openStatus(status: string) {
                 {{ t('requests') }} · {{ t('status') }}
               </h3>
             </div>
-            <div class="card-body">
-              <div
-                v-for="s in statusSummary"
-                :key="s.label"
-                class="status-summary-item"
-                role="button"
-                tabindex="0"
-                @click="openStatus(s.status)"
-                @keydown.enter="openStatus(s.status)"
-              >
-                <span class="status-summary-label">{{ s.label }}</span>
-                <span class="status-summary-value">{{ s.value }}</span>
-                <div class="status-summary-bar">
-                  <div
-                    class="status-summary-fill"
-                    :class="s.badge"
-                    :style="{ width: `${data?.totalRequests ? (s.value / data.totalRequests) * 100 : 0}%` }"
-                  />
-                </div>
-              </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+              <ClientOnly>
+                <apexchart type="donut" width="100%" :options="statusChartOptions" :series="statusChartSeries"></apexchart>
+              </ClientOnly>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </template>

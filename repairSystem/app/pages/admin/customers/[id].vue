@@ -68,19 +68,15 @@ function formatDate(value?: string) {
         <div class="col-lg-4">
           <div class="card customer-summary mb-4">
             <div class="card-body text-center">
-              <img
-                v-if="apiAssetUrl(customer.avatar?.downloadUrl)"
-                :src="apiAssetUrl(customer.avatar?.downloadUrl)"
-                :alt="customer.fullName"
-                class="customer-avatar customer-avatar-image shadow mx-auto mb-3"
-              >
-              <span
-                v-else
-                class="customer-avatar d-flex align-items-center justify-content-center rounded-circle bg-primary text-white shadow mx-auto mb-3"
-                style="width: 96px; height: 96px; font-size: 36px; font-weight: 600;"
-              >
-                {{ initials }}
-              </span>
+              <AppAvatarUpload
+                :upload-url="`/customers/${id}/avatar`"
+                :delete-url="customer.avatar ? `/customers/${id}/avatar` : undefined"
+                :initial-avatar-url="apiAssetUrl(customer.avatar?.downloadUrl)"
+                :has-avatar-init="!!customer.avatar"
+                :initials="initials"
+                @updated="refresh()"
+                @deleted="refresh()"
+              />
               <hr class="mt-3">
               <div class="row text-center">
                 <div class="col-6">
