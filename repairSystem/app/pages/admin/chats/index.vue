@@ -4,7 +4,7 @@ import type { ConversationSummary } from '~/types/realtime'
 import { formatDate } from '~/utils/date'
 
 const { t } = useLocale()
-const { data, pending, error, refresh } = useAsyncData('conversations', () =>
+const { data, pending, error } = useAsyncData('conversations', () =>
   apiFetch<Page<ConversationSummary>>('/conversations', { query: { page: 0, size: 50, sort: 'updatedAt,desc' } })
 )
 
@@ -25,21 +25,41 @@ function selectChat(id: number) {
     <div class="row g-4 h-100">
       <!-- Left sidebar: chat list -->
       <div class="col-lg-4">
-        <div class="card dash-card h-100" style="min-height: 500px;">
+        <div
+          class="card dash-card h-100"
+          style="min-height: 500px;"
+        >
           <div class="card-header border-bottom">
-            <h3 class="card-title mb-0">Чат</h3>
+            <h3 class="card-title mb-0">
+              Чат
+            </h3>
           </div>
-          <div class="card-body p-0" style="overflow-y: auto; max-height: 600px;">
-            <div v-if="pending" class="text-center p-4">
+          <div
+            class="card-body p-0"
+            style="overflow-y: auto; max-height: 600px;"
+          >
+            <div
+              v-if="pending"
+              class="text-center p-4"
+            >
               <span class="spinner-border text-primary" />
             </div>
-            <div v-else-if="error" class="alert alert-danger m-3">
+            <div
+              v-else-if="error"
+              class="alert alert-danger m-3"
+            >
               Ошибка загрузки чатов.
             </div>
-            <div v-else-if="!conversations.length" class="text-center p-4 text-muted">
+            <div
+              v-else-if="!conversations.length"
+              class="text-center p-4 text-muted"
+            >
               Нет активных чатов.
             </div>
-            <div class="list-group list-group-flush" v-else>
+            <div
+              v-else
+              class="list-group list-group-flush"
+            >
               <button
                 v-for="c in conversations"
                 :key="c.id"
@@ -49,15 +69,27 @@ function selectChat(id: number) {
               >
                 <div class="d-flex justify-content-between align-items-center w-100">
                   <strong class="text-truncate">{{ c.requestNumber || `Заявка #${c.repairRequestId}` }}</strong>
-                  <small class="text-muted text-nowrap ms-2" v-if="c.updatedAt">{{ formatDate(c.updatedAt, true) }}</small>
+                  <small
+                    v-if="c.updatedAt"
+                    class="text-muted text-nowrap ms-2"
+                  >{{ formatDate(c.updatedAt, true) }}</small>
                 </div>
                 <div class="d-flex justify-content-between align-items-center w-100">
                   <span class="text-truncate text-muted small">
-                    <span v-if="c.conversationType === 'CUSTOMER_TECHNICIAN'" class="badge bg-info me-1">Клиент</span>
-                    <span v-if="c.conversationType === 'TECHNICIAN_MANAGER'" class="badge bg-secondary me-1">Мастер</span>
+                    <span
+                      v-if="c.conversationType === 'CUSTOMER_TECHNICIAN'"
+                      class="badge bg-info me-1"
+                    >Клиент</span>
+                    <span
+                      v-if="c.conversationType === 'TECHNICIAN_MANAGER'"
+                      class="badge bg-secondary me-1"
+                    >Мастер</span>
                     {{ c.lastMessage?.text || 'Нет сообщений' }}
                   </span>
-                  <span v-if="c.unreadCount > 0" class="badge bg-danger rounded-pill">{{ c.unreadCount }}</span>
+                  <span
+                    v-if="c.unreadCount > 0"
+                    class="badge bg-danger rounded-pill"
+                  >{{ c.unreadCount }}</span>
                 </div>
               </button>
             </div>
@@ -66,12 +98,20 @@ function selectChat(id: number) {
       </div>
       <!-- Right area: active chat -->
       <div class="col-lg-8">
-        <div v-if="activeChatId" class="h-100" style="min-height: 500px;">
+        <div
+          v-if="activeChatId"
+          class="h-100"
+          style="min-height: 500px;"
+        >
           <ManagerChatBox :conversation-id="activeChatId" />
         </div>
-        <div v-else class="card dash-card h-100 d-flex align-items-center justify-content-center" style="min-height: 500px;">
+        <div
+          v-else
+          class="card dash-card h-100 d-flex align-items-center justify-content-center"
+          style="min-height: 500px;"
+        >
           <div class="text-muted text-center">
-            <i class="bi bi-chat-dots fs-1 mb-2"></i>
+            <i class="bi bi-chat-dots fs-1 mb-2" />
             <p>Выберите чат для начала переписки</p>
           </div>
         </div>

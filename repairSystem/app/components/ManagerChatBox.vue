@@ -60,16 +60,16 @@ async function loadChat() {
   loading.value = true
   error.value = ''
   try {
-          if (props.conversationId) {
-        conversation.value = await apiFetch<ConversationSummary>(`/conversations/${props.conversationId}`)
-      } else if (props.requestId) {
-        conversation.value = await apiFetch<ConversationSummary>(
-          `/conversations/requests/${props.requestId}/technician-manager`,
-          { method: 'POST' }
-        )
-      } else {
-        throw new Error('Either conversationId or requestId is required')
-      }
+    if (props.conversationId) {
+      conversation.value = await apiFetch<ConversationSummary>(`/conversations/${props.conversationId}`)
+    } else if (props.requestId) {
+      conversation.value = await apiFetch<ConversationSummary>(
+        `/conversations/requests/${props.requestId}/technician-manager`,
+        { method: 'POST' }
+      )
+    } else {
+      throw new Error('Either conversationId or requestId is required')
+    }
     const page = await apiFetch<{ content: ChatMessage[] }>(
       `/conversations/${conversation.value.id}/messages`,
       { query: { page: 0, size: 100 } }

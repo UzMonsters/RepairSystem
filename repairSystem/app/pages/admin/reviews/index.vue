@@ -21,7 +21,6 @@ const { data, pending, error, refresh } = await useAsyncData('reviews-list', () 
   apiFetch<Page<Review>>('/reviews', { query: query.value })
 )
 
-
 const { data: summary } = useAsyncData('reviews-summary', () =>
   apiFetch<ReviewDashboardResponse>('/dashboard/reviews')
 )
@@ -80,21 +79,36 @@ function openReview(r: Review) {
     :title="t('reviews')"
     :breadcrumbs="[{ label: t('home'), to: '/admin' }, { label: t('reviews') }]"
   >
-        <div v-if="summary" class="row mb-4">
+    <div
+      v-if="summary"
+      class="row mb-4"
+    >
       <div class="col-12">
         <div class="card bg-primary-subtle border-primary">
           <div class="card-body d-flex flex-column flex-md-row justify-content-around align-items-center text-center">
             <div>
-              <h2 class="display-4 fw-bold text-primary mb-0">{{ summary.averageRating ? Number(summary.averageRating).toFixed(1) : '-' }}</h2>
-              <p class="text-muted mb-0">Средняя оценка</p>
+              <h2 class="display-4 fw-bold text-primary mb-0">
+                {{ summary.averageRating ? Number(summary.averageRating).toFixed(1) : '-' }}
+              </h2>
+              <p class="text-muted mb-0">
+                Средняя оценка
+              </p>
             </div>
             <div>
-              <h2 class="display-4 fw-bold text-primary mb-0">{{ summary.totalReviews }}</h2>
-              <p class="text-muted mb-0">Всего отзывов</p>
+              <h2 class="display-4 fw-bold text-primary mb-0">
+                {{ summary.totalReviews }}
+              </h2>
+              <p class="text-muted mb-0">
+                Всего отзывов
+              </p>
             </div>
             <div>
-              <h2 class="display-4 fw-bold text-primary mb-0">{{ summary.reviewsWithComment }}</h2>
-              <p class="text-muted mb-0">С комментариями</p>
+              <h2 class="display-4 fw-bold text-primary mb-0">
+                {{ summary.reviewsWithComment }}
+              </h2>
+              <p class="text-muted mb-0">
+                С комментариями
+              </p>
             </div>
           </div>
         </div>

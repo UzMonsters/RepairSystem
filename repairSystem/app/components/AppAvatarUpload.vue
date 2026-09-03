@@ -72,7 +72,10 @@ async function handleAvatarDelete() {
 </script>
 
 <template>
-  <div class="profile-avatar-editor mx-auto mb-3" style="width: fit-content;">
+  <div
+    class="profile-avatar-editor mx-auto mb-3"
+    style="width: fit-content;"
+  >
     <div
       class="profile-avatar-frame mx-auto"
       :class="{ 'has-avatar': hasAvatar }"
@@ -94,8 +97,14 @@ async function handleAvatarDelete() {
         :class="{ disabled: loading }"
         :title="t('chooseFile')"
       >
-        <i v-if="!loading" class="bi bi-camera-fill profile-avatar-camera" />
-        <span v-else class="spinner-border spinner-border-sm" />
+        <i
+          v-if="!loading"
+          class="bi bi-camera-fill profile-avatar-camera"
+        />
+        <span
+          v-else
+          class="spinner-border spinner-border-sm"
+        />
         <input
           ref="fileInput"
           type="file"

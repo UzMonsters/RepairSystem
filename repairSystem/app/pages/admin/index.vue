@@ -21,9 +21,6 @@ const { data: requestTrends } = useAsyncData('dashboard-trends', () =>
 const { data: techStats } = useAsyncData('dashboard-techs', () =>
   apiFetch<TechnicianDashboardResponse>('/dashboard/technicians')
 )
-  ))
-  return Object.fromEntries(dashboardStatuses.map((status, index) => [status, responses[index]?.totalElements ?? 0])) as Record<string, number>
-})
 
 const completionRate = computed(() => {
   const total = data.value?.totalRequests ?? 0
@@ -57,11 +54,8 @@ const stats = computed(() => [
   { icon: 'bi-person-check', title: t('techniciansWithActiveWork'), value: data.value?.techniciansWithActiveWork ?? 0, sub: t('all'), to: '/admin/technicians' }
 ])
 
-
-
-
 const statusChartOptions = computed(() => {
-  const labels = statusDistribution.value?.items.map(i => {
+  const labels = statusDistribution.value?.items.map((i) => {
     return typeof i.label === 'string' ? i.label : (i.label.label || i.status)
   }) || []
   return {
@@ -226,7 +220,12 @@ function openStatus(status: string) {
             </div>
             <div class="card-body">
               <ClientOnly>
-                <apexchart type="area" height="300" :options="trendChartOptions" :series="trendChartSeries"></apexchart>
+                <apexchart
+                  type="area"
+                  height="300"
+                  :options="trendChartOptions"
+                  :series="trendChartSeries"
+                />
               </ClientOnly>
             </div>
           </div>
@@ -240,12 +239,17 @@ function openStatus(status: string) {
             </div>
             <div class="card-body d-flex align-items-center justify-content-center">
               <ClientOnly>
-                <apexchart type="donut" width="100%" :options="statusChartOptions" :series="statusChartSeries"></apexchart>
+                <apexchart
+                  type="donut"
+                  width="100%"
+                  :options="statusChartOptions"
+                  :series="statusChartSeries"
+                />
               </ClientOnly>
             </div>
           </div>
         </div>
-        </div>
+      </div>
       </div>
     </template>
   </AppContent>
