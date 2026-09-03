@@ -98,9 +98,6 @@ function categoryName(c?: RepairRequest['category']) {
 function formatTime(value?: string) {
   return formatDate(value, true)
 }
-
- })
-}
 </script>
 
 <template>
