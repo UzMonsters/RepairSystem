@@ -48,21 +48,6 @@ const stats = computed(() => [
   { icon: 'bi-person-check', title: t('techniciansWithActiveWork'), value: data.value?.techniciansWithActiveWork ?? 0, sub: t('all'), to: '/admin/technicians' }
 ])
 
-const statusChartOptions = computed(() => {
-  const labels = statusDistribution.value?.items.map((i) => {
-    return typeof i.label === 'string' ? i.label : (i.label.label || i.status)
-  }) || []
-  return {
-    chart: { type: 'donut' },
-    labels,
-    colors: ['#007bff', '#17a2b8', '#ffc107', '#28a745', '#dc3545'],
-    legend: { position: 'bottom' }
-  }
-})
-const statusChartSeries = computed(() => {
-  return statusDistribution.value?.items.map(i => i.count) || []
-})
-
 const errorMessage = computed(() => {
   return getApiErrorMessage(error.value, 'Failed to load dashboard.')
 })
@@ -74,6 +59,19 @@ function categoryName(c?: RepairRequest['category']) {
 
 function formatTime(value?: string) {
   return formatDate(value, true)
+}
+
+const statusSummary = computed(() => [
+  { status: 'NEW', label: t('status.NEW'), value: statusCounts.value?.NEW ?? 0, badge: 'status-new' },
+  { status: 'ASSIGNED', label: t('status.ASSIGNED'), value: statusCounts.value?.ASSIGNED ?? 0, badge: 'status-assigned' },
+  { status: 'IN_PROGRESS', label: t('status.IN_PROGRESS'), value: statusCounts.value?.IN_PROGRESS ?? 0, badge: 'status-in-progress' },
+  { status: 'WAITING_FOR_PARTS', label: t('status.WAITING_FOR_PARTS'), value: statusCounts.value?.WAITING_FOR_PARTS ?? 0, badge: 'status-waiting' },
+  { status: 'COMPLETED', label: t('status.COMPLETED'), value: statusCounts.value?.COMPLETED ?? 0, badge: 'status-completed' },
+  { status: 'CANCELLED', label: t('status.CANCELLED'), value: statusCounts.value?.CANCELLED ?? 0, badge: 'status-cancelled' }
+])
+
+function openStatus(status: string) {
+  navigateTo({ path: '/admin/requests', query: { status } })
 }
 </script>
 
@@ -189,15 +187,26 @@ function formatTime(value?: string) {
                 {{ t('requests') }} · {{ t('status') }}
               </h3>
             </div>
-            <div class="card-body d-flex align-items-center justify-content-center">
-              <ClientOnly>
-                <apexchart
-                  type="donut"
-                  width="100%"
-                  :options="statusChartOptions"
-                  :series="statusChartSeries"
-                />
-              </ClientOnly>
+            <div class="card-body">
+              <div
+                v-for="s in statusSummary"
+                :key="s.label"
+                class="status-summary-item"
+                role="button"
+                tabindex="0"
+                @click="openStatus(s.status)"
+                @keydown.enter="openStatus(s.status)"
+              >
+                <span class="status-summary-label">{{ s.label }}</span>
+                <span class="status-summary-value">{{ s.value }}</span>
+                <div class="status-summary-bar">
+                  <div
+                    class="status-summary-fill"
+                    :class="s.badge"
+                    :style="{ width: `${data?.totalRequests ? (s.value / data.totalRequests) * 100 : 0}%` }"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
