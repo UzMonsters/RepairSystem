@@ -1005,12 +1005,75 @@ function can(action: string) {
                 </div>
               </div>
             </div>
-            <ManagerChatBox
+            <div
               v-if="request"
-              :request-id="id"
-              :request-status="request.status"
-              class="mb-4"
-            />
+              class="card mb-4"
+            >
+              <div class="card-header p-0 border-bottom-0">
+                <ul
+                  class="nav nav-tabs card-header-tabs m-0 ms-2"
+                  role="tablist"
+                >
+                  <li
+                    class="nav-item"
+                    role="presentation"
+                  >
+                    <button
+                      class="nav-link active"
+                      data-bs-toggle="tab"
+                      data-bs-target="#chat-tech"
+                      type="button"
+                      role="tab"
+                    >
+                      {{ t('chat') }}
+                    </button>
+                  </li>
+                  <li
+                    class="nav-item"
+                    role="presentation"
+                  >
+                    <button
+                      class="nav-link"
+                      data-bs-toggle="tab"
+                      data-bs-target="#chat-cust"
+                      type="button"
+                      role="tab"
+                    >
+                      Клиент-Мастер
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              <div
+                class="card-body p-0 tab-content"
+                style="min-height: 400px;"
+              >
+                <div
+                  id="chat-tech"
+                  class="tab-pane fade show active h-100"
+                  role="tabpanel"
+                >
+                  <ManagerChatBox
+                    :request-id="id"
+                    chat-type="technician-manager"
+                    :request-status="request.status"
+                    class="h-100"
+                  />
+                </div>
+                <div
+                  id="chat-cust"
+                  class="tab-pane fade h-100"
+                  role="tabpanel"
+                >
+                  <ManagerChatBox
+                    :request-id="id"
+                    chat-type="customer-technician"
+                    :request-status="request.status"
+                    class="h-100"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

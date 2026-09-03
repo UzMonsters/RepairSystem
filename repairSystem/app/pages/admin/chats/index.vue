@@ -10,7 +10,7 @@ const { data, pending, error } = useAsyncData('conversations', () =>
 
 const activeChatId = ref<number | undefined>(undefined)
 
-const conversations = computed(() => data.value?.content?.filter(c => c.conversationType === 'TECHNICIAN_MANAGER') || [])
+const conversations = computed(() => data.value?.content || [])
 
 function selectChat(id: number) {
   activeChatId.value = id

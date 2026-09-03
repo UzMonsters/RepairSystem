@@ -4,6 +4,7 @@ import { getApiErrorCode, getApiErrorMessage } from '~/utils/api'
 
 const props = defineProps<{
   requestId?: number
+  chatType?: 'technician-manager' | 'customer-technician'
   conversationId?: number
   requestStatus?: string
 }>()
@@ -64,7 +65,8 @@ async function loadChat() {
       conversation.value = await apiFetch<ConversationSummary>(`/conversations/${props.conversationId}`)
     } else if (props.requestId) {
       conversation.value = await apiFetch<ConversationSummary>(
-        `/conversations/requests/${props.requestId}/technician-manager`,
+        `/conversations/requests/${props.requestId}/${props.chatType || 'technician-manager'}`,
+
         { method: 'POST' }
       )
     } else {
