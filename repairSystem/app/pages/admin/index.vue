@@ -19,7 +19,6 @@ const { data: requestTrends } = useAsyncData('dashboard-trends', () =>
   apiFetch<RequestTrendResponse>('/dashboard/request-trends?period=MONTH')
 )
 
-
 const completionRate = computed(() => {
   const total = data.value?.totalRequests ?? 0
   if (!total) return null
@@ -243,7 +242,6 @@ function formatTime(value?: string) {
             </div>
           </div>
         </div>
-      </div>
       </div>
     </template>
   </AppContent>
