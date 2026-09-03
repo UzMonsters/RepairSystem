@@ -18,7 +18,11 @@ function selectChat(id: number) {
 
 function chatTitle(c: ConversationSummary) {
   const other = c.participants?.find(p => p.actorType !== 'STAFF')
-  return other?.displayName || t('unknown', 'Неизвестно')
+  if (other?.displayName) return other.displayName
+  if (c.participants && c.participants.length > 0) {
+    return c.participants.map(p => p.displayName).filter(Boolean).join(', ')
+  }
+  return t('unknown', 'Неизвестно')
 }
 </script>
 
@@ -108,7 +112,10 @@ function chatTitle(c: ConversationSummary) {
           class="h-100"
           style="min-height: 500px;"
         >
-          <ManagerChatBox :conversation-id="activeChatId" />
+          <ManagerChatBox
+            :key="activeChatId"
+            :conversation-id="activeChatId"
+          />
         </div>
         <div
           v-else
