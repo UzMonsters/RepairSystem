@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DashboardOverview, Page, RepairRequest, RequestStatusDistributionResponse, RequestTrendResponse } from '~/types'
+import type { DashboardOverview, Page, RepairRequest, RequestStatusDistributionResponse } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
 
@@ -14,9 +14,6 @@ const { data: recentRequests } = useAsyncData('dashboard-recent', () =>
 
 const { data: statusDistribution } = useAsyncData('dashboard-status', () =>
   apiFetch<RequestStatusDistributionResponse>('/dashboard/requests-by-status')
-)
-const { data: requestTrends } = useAsyncData('dashboard-trends', () =>
-  apiFetch<RequestTrendResponse>('/dashboard/request-trends?period=MONTH')
 )
 
 const completionRate = computed(() => {
@@ -64,25 +61,6 @@ const statusChartOptions = computed(() => {
 })
 const statusChartSeries = computed(() => {
   return statusDistribution.value?.items.map(i => i.count) || []
-})
-
-const trendChartOptions = computed(() => {
-  const categories = requestTrends.value?.buckets.map(b => b.date) || []
-  return {
-    chart: { type: 'area', toolbar: { show: false } },
-    xaxis: { categories, type: 'datetime' },
-    stroke: { curve: 'smooth', width: 2 },
-    colors: ['#007bff', '#28a745', '#dc3545'],
-    dataLabels: { enabled: false }
-  }
-})
-const trendChartSeries = computed(() => {
-  const buckets = requestTrends.value?.buckets || []
-  return [
-    { name: t('status.NEW'), data: buckets.map(b => b.created) },
-    { name: t('status.COMPLETED'), data: buckets.map(b => b.completed) },
-    { name: t('status.CANCELLED'), data: buckets.map(b => b.cancelled) }
-  ]
 })
 
 const errorMessage = computed(() => {

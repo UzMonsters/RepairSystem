@@ -80,7 +80,7 @@ function openCreate() {
   showModal('technician-modal')
 }
 
-function openMessage(tech: Technician) {
+function openMessage(_tech: Technician) {
   useToast().showInfo('Функция отправки сообщений (Message) будет доступна в следующем обновлении.')
 }
 
