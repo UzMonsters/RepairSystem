@@ -4,6 +4,7 @@ const uz = {
   'main': 'Asosiy',
   'system': 'Tizim',
   'home': 'Bosh sahifa',
+  'chats': 'Chatlar',
   'dashboard': 'Dashboard',
   'requests': 'So’rovlar',
   'customers': 'Mijozlar',

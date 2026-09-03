@@ -4,6 +4,7 @@ const ru = {
   'main': 'Главная',
   'system': 'Система',
   'home': 'Главная',
+  'chats': 'Чаты',
   'dashboard': 'Панель',
   'requests': 'Заявки',
   'customers': 'Клиенты',

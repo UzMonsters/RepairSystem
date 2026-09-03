@@ -18,9 +18,7 @@ function selectChat(id: number) {
 
 function chatTitle(c: ConversationSummary) {
   const other = c.participants?.find(p => p.actorType !== 'STAFF')
-  const name = other?.displayName || t('unknown', 'Неизвестно')
-  const req = c.requestNumber || `${t('request', 'Заявка')} #${c.repairRequestId}`
-  return `${name} (${req})`
+  return other?.displayName || t('unknown', 'Неизвестно')
 }
 </script>
 

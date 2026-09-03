@@ -4,6 +4,7 @@ const en = {
   'main': 'Main',
   'system': 'System',
   'home': 'Home',
+  'chats': 'Chats',
   'dashboard': 'Dashboard',
   'requests': 'Requests',
   'customers': 'Customers',
