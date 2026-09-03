@@ -21,7 +21,6 @@ function chatTitle(c: ConversationSummary) {
   const name = other?.displayName || 'Неизвестно'
   const req = c.requestNumber || `Заявка #${c.repairRequestId}`
   return `${name} (${req})`
-}`
 }
 </script>
 

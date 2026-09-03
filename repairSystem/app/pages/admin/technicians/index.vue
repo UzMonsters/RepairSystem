@@ -81,7 +81,7 @@ function openCreate() {
 }
 
 function openMessage(_tech: Technician) {
-  useToast().showInfo('Функция отправки сообщений (Message) будет доступна в следующем обновлении.')
+  useToast().addToast('Функция отправки сообщений (Message) будет доступна в следующем обновлении.', 'info')
 }
 
 function openEdit(tech: Technician) {
@@ -387,7 +387,15 @@ function openTechnician(id: number) {
                 {{ formatDate(tech.createdAt) }}
               </td>
               <td class="text-end text-nowrap">
-                <div class="dropdown">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary me-1"
+                  title="Message"
+                  @click.stop="openMessage(tech)"
+                >
+                  <i class="bi bi-chat-dots" />
+                </button>
+                <div class="dropdown d-inline-block">
                   <button
                     class="btn btn-sm btn-outline-secondary"
                     type="button"
@@ -428,15 +436,6 @@ function openTechnician(id: number) {
                         @click.stop="openWorkload(tech)"
                       >
                         <i class="bi bi-clipboard-check me-2" /> {{ t('workload') }}
-                      </button>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                      <button
-                        class="dropdown-item"
-                        @click.stop="openMessage(tech)"
-                      >
-                        <i class="bi bi-chat-dots me-2" /> Message
                       </button>
                     </li>
                   </ul>
