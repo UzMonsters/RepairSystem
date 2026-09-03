@@ -10,7 +10,7 @@ const { data, pending, error } = useAsyncData('conversations', () =>
 
 const activeChatId = ref<number | undefined>(undefined)
 
-const conversations = computed(() => data.value?.content || [])
+const conversations = computed(() => data.value?.content?.filter(c => c.conversationType === 'TECHNICIAN_MANAGER') || [])
 
 function selectChat(id: number) {
   activeChatId.value = id
@@ -18,8 +18,10 @@ function selectChat(id: number) {
 
 function chatTitle(c: ConversationSummary) {
   const other = c.participants?.find(p => p.actorType !== 'STAFF')
-  if (other && other.displayName) return other.displayName
-  return c.requestNumber || `Заявка #${c.repairRequestId}`
+  const name = other?.displayName || 'Неизвестно'
+  const req = c.requestNumber || `Заявка #${c.repairRequestId}`
+  return `${name} (${req})`
+}`
 }
 </script>
 
@@ -69,7 +71,7 @@ function chatTitle(c: ConversationSummary) {
               <button
                 v-for="c in conversations"
                 :key="c.id"
-                class="list-group-item list-group-item-action border-bottom p-3 d-flex flex-column gap-1"
+                class="list-group-item list-group-item-action border-bottom p-3 d-flex flex-column gap-1 chat-list-item"
                 :class="{ active: activeChatId === c.id }"
                 @click="selectChat(c.id)"
               >
@@ -125,3 +127,16 @@ function chatTitle(c: ConversationSummary) {
     </div>
   </AppContent>
 </template>
+
+<style scoped>
+.chat-list-item {
+  transition: background-color 0.2s, color 0.2s;
+}
+.chat-list-item:hover:not(.active) {
+  background-color: #6f42c1 !important;
+  color: #fff !important;
+}
+.chat-list-item:hover:not(.active) .text-muted {
+  color: #e9ecef !important;
+}
+</style>
