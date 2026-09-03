@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DashboardOverview, Page, RepairRequest, RequestStatusDistributionResponse, RequestTrendResponse, TechnicianDashboardResponse } from '~/types'
+import type { DashboardOverview, Page, RepairRequest, RequestStatusDistributionResponse, RequestTrendResponse } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
 
@@ -18,9 +18,7 @@ const { data: statusDistribution } = useAsyncData('dashboard-status', () =>
 const { data: requestTrends } = useAsyncData('dashboard-trends', () =>
   apiFetch<RequestTrendResponse>('/dashboard/request-trends?period=MONTH')
 )
-const { data: techStats } = useAsyncData('dashboard-techs', () =>
-  apiFetch<TechnicianDashboardResponse>('/dashboard/technicians')
-)
+
 
 const completionRate = computed(() => {
   const total = data.value?.totalRequests ?? 0
@@ -101,8 +99,7 @@ function formatTime(value?: string) {
   return formatDate(value, true)
 }
 
-function openStatus(status: string) {
-  navigateTo({ path: '/admin/requests', query: { status } })
+ })
 }
 </script>
 
