@@ -18,8 +18,8 @@ function selectChat(id: number) {
 
 function chatTitle(c: ConversationSummary) {
   const other = c.participants?.find(p => p.actorType !== 'STAFF')
-  const name = other?.displayName || 'Неизвестно'
-  const req = c.requestNumber || `Заявка #${c.repairRequestId}`
+  const name = other?.displayName || t('unknown', 'Неизвестно')
+  const req = c.requestNumber || `${t('request', 'Заявка')} #${c.repairRequestId}`
   return `${name} (${req})`
 }
 </script>
@@ -132,10 +132,27 @@ function chatTitle(c: ConversationSummary) {
   transition: background-color 0.2s, color 0.2s;
 }
 .chat-list-item:hover:not(.active) {
-  background-color: #6f42c1 !important;
+  background-color: rgba(111, 66, 193, 0.8) !important;
   color: #fff !important;
 }
-.chat-list-item:hover:not(.active) .text-muted {
+.chat-list-item:hover:not(.active) .text-muted,
+.chat-list-item:hover:not(.active) small {
+  color: #f8f9fa !important;
+}
+.chat-list-item.active {
+  background-color: #6f42c1 !important;
+  border-color: #6f42c1 !important;
+  color: #fff !important;
+}
+.chat-list-item.active .text-muted,
+.chat-list-item.active small {
+  color: #f8f9fa !important;
+}
+html[data-bs-theme="dark"] .chat-list-item:not(.active) {
   color: #e9ecef !important;
+}
+html[data-bs-theme="dark"] .chat-list-item:not(.active) .text-muted,
+html[data-bs-theme="dark"] .chat-list-item:not(.active) small {
+  color: #adb5bd !important;
 }
 </style>
