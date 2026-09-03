@@ -80,8 +80,9 @@ function openCreate() {
   showModal('technician-modal')
 }
 
-function openMessage(_tech: Technician) {
-  useToast().addToast('Функция отправки сообщений (Message) будет доступна в следующем обновлении.', 'info')
+const router = useRouter()
+function openMessage(tech: Technician) {
+  router.push(`/admin/technicians/${tech.id}`)
 }
 
 function openEdit(tech: Technician) {

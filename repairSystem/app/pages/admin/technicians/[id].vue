@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { Technician } from '~/types'
 import { apiAssetUrl, getApiErrorMessage } from '~/utils/api'
 import { formatDate as formatApiDate } from '~/utils/date'
@@ -54,7 +54,8 @@ function formatDate(value?: string) {
       class="row g-4"
     >
       <div class="col-lg-5">
-        <div class="card h-100">
+        <!-- Profile Details -->
+        <div class="card mb-4">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title mb-0">
               {{ t('profileDetails') }}
@@ -133,10 +134,9 @@ function formatDate(value?: string) {
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="col-lg-7">
-        <div class="card h-100">
+        <!-- Workload -->
+        <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h3 class="card-title mb-0">
               {{ t('workload') }}
@@ -186,6 +186,20 @@ function formatDate(value?: string) {
                 <span class="workload-value">{{ workload.remainingCapacity }}</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat / Messages Placeholder -->
+      <div class="col-lg-7">
+        <div
+          class="card h-100 d-flex align-items-center justify-content-center"
+          style="min-height: 500px;"
+        >
+          <div class="text-muted text-center p-4">
+            <i class="bi bi-chat-dots fs-1 mb-2 d-block" />
+            <h5>{{ t('chat') }}</h5>
+            <p>{{ t('chatUnavailable') }}</p>
           </div>
         </div>
       </div>
