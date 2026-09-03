@@ -204,25 +204,6 @@ function formatTime(value?: string) {
           </div>
         </div>
 
-        <div class="col-lg-12">
-          <div class="card dash-card">
-            <div class="card-header">
-              <h3 class="card-title mb-0">
-                {{ t('dashboard_trends', 'Динамика заявок') }}
-              </h3>
-            </div>
-            <div class="card-body">
-              <ClientOnly>
-                <apexchart
-                  type="area"
-                  height="300"
-                  :options="trendChartOptions"
-                  :series="trendChartSeries"
-                />
-              </ClientOnly>
-            </div>
-          </div>
-        </div>
         <div class="col-lg-4">
           <div class="card dash-card h-100">
             <div class="card-header">

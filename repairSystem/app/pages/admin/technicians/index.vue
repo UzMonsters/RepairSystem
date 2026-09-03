@@ -80,6 +80,10 @@ function openCreate() {
   showModal('technician-modal')
 }
 
+function openMessage(tech: Technician) {
+  useToast().showInfo('Функция отправки сообщений (Message) будет доступна в следующем обновлении.')
+}
+
 function openEdit(tech: Technician) {
   editingId.value = tech.id
   form.value = {
@@ -383,38 +387,60 @@ function openTechnician(id: number) {
                 {{ formatDate(tech.createdAt) }}
               </td>
               <td class="text-end text-nowrap">
-                <NuxtLink
-                  :to="`/admin/technicians/${tech.id}`"
-                  class="btn btn-sm btn-outline-secondary"
-                  :title="t('view')"
-                  @click.stop
-                >
-                  <i class="bi bi-eye" />
-                </NuxtLink>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary ms-1"
-                  :title="t('telegramLink')"
-                  @click.stop="openTelegramLink(tech)"
-                >
-                  <i class="bi bi-telegram" />
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary ms-1"
-                  :title="t('workload')"
-                  @click.stop="openWorkload(tech)"
-                >
-                  <i class="bi bi-clipboard-check" />
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-secondary ms-1"
-                  :title="t('edit')"
-                  @click.stop="openEdit(tech)"
-                >
-                  <i class="bi bi-pencil" />
-                </button>
+                <div class="dropdown">
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    @click.stop
+                  >
+                    <i class="bi bi-three-dots-vertical" />
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <NuxtLink
+                        :to="`/admin/technicians/${tech.id}`"
+                        class="dropdown-item"
+                        @click.stop
+                      >
+                        <i class="bi bi-eye me-2" /> {{ t('view') }}
+                      </NuxtLink>
+                    </li>
+                    <li>
+                      <button
+                        class="dropdown-item"
+                        @click.stop="openEdit(tech)"
+                      >
+                        <i class="bi bi-pencil me-2" /> {{ t('edit') }}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        class="dropdown-item"
+                        @click.stop="openTelegramLink(tech)"
+                      >
+                        <i class="bi bi-telegram me-2" /> {{ t('telegramLink') }}
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        class="dropdown-item"
+                        @click.stop="openWorkload(tech)"
+                      >
+                        <i class="bi bi-clipboard-check me-2" /> {{ t('workload') }}
+                      </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <button
+                        class="dropdown-item"
+                        @click.stop="openMessage(tech)"
+                      >
+                        <i class="bi bi-chat-dots me-2" /> Message
+                      </button>
+                    </li>
+                  </ul>
+                </div>
               </td>
             </tr>
           </tbody>

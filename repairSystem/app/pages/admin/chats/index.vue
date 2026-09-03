@@ -15,6 +15,12 @@ const conversations = computed(() => data.value?.content || [])
 function selectChat(id: number) {
   activeChatId.value = id
 }
+
+function chatTitle(c: ConversationSummary) {
+  const other = c.participants?.find(p => p.actorType !== 'STAFF')
+  if (other && other.displayName) return other.displayName
+  return c.requestNumber || `Заявка #${c.repairRequestId}`
+}
 </script>
 
 <template>
@@ -64,11 +70,11 @@ function selectChat(id: number) {
                 v-for="c in conversations"
                 :key="c.id"
                 class="list-group-item list-group-item-action border-bottom p-3 d-flex flex-column gap-1"
-                :class="{ 'bg-light': activeChatId === c.id }"
+                :class="{ active: activeChatId === c.id }"
                 @click="selectChat(c.id)"
               >
                 <div class="d-flex justify-content-between align-items-center w-100">
-                  <strong class="text-truncate">{{ c.requestNumber || `Заявка #${c.repairRequestId}` }}</strong>
+                  <strong class="text-truncate">{{ chatTitle(c) }}</strong>
                   <small
                     v-if="c.updatedAt"
                     class="text-muted text-nowrap ms-2"

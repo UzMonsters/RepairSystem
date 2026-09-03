@@ -141,7 +141,7 @@ export interface ConversationSummary {
   conversationType: 'CUSTOMER_TECHNICIAN' | 'TECHNICIAN_MANAGER'
   status: 'ACTIVE' | 'CLOSED'
   unreadCount: number
-  participants?: Array<{ type: string, id: number, name?: string }>
+  participants?: Array<{ actorType: string, actorId: number, displayName?: string }>
   lastMessage?: ChatMessage | null
   updatedAt?: string
 }
