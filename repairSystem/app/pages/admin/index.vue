@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DashboardOverview, Page, RepairRequest, RequestStatusDistributionResponse } from '~/types'
+import type { DashboardOverview, Page, RepairRequest } from '~/types'
 import { getApiErrorMessage } from '~/utils/api'
 import { formatDate } from '~/utils/date'
 
@@ -10,10 +10,6 @@ const { data, pending, error, refresh } = useAsyncData('dashboard', () =>
 
 const { data: recentRequests } = useAsyncData('dashboard-recent', () =>
   apiFetch<Page<RepairRequest>>('/requests', { query: { page: 0, size: 6, sort: 'createdAt,desc' } })
-)
-
-const { data: statusDistribution } = useAsyncData('dashboard-status', () =>
-  apiFetch<RequestStatusDistributionResponse>('/dashboard/requests-by-status')
 )
 
 const completionRate = computed(() => {
