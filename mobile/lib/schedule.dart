@@ -33,7 +33,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         }
         if (snapshot.hasError) return Center(child: Text('${snapshot.error}'));
         final items = snapshot.data ?? const <Map<String, dynamic>>[];
-        if (items.isEmpty) return const Center(child: Text('No scheduled visits'));
+        if (items.isEmpty)
+          return const Center(child: Text('No scheduled visits'));
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: items.length,
@@ -42,8 +43,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             return Card(
               child: ListTile(
                 leading: const Icon(Icons.event_outlined),
-                title: Text('${item['requestNumber'] ?? item['number'] ?? 'Request'}'),
-                subtitle: Text('${item['scheduledVisitAt'] ?? item['visitAt'] ?? ''}'),
+                title: Text(
+                  '${item['requestNumber'] ?? item['number'] ?? 'Request'}',
+                ),
+                subtitle: Text(
+                  '${item['scheduledVisitAt'] ?? item['visitAt'] ?? ''}',
+                ),
               ),
             );
           },
@@ -52,4 +57,3 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     ),
   );
 }
-

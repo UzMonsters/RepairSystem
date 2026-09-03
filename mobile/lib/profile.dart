@@ -66,9 +66,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  child: Text(initials.isEmpty ? '?' : initials),
+                GestureDetector(
+                  onTap: () async {
+                    final picker = ImagePicker();
+                    final picked = await picker.pickImage(
+                      source: ImageSource.gallery,
+                    );
+                    if (picked != null) {
+                      setState(() => saving = true);
+                      try {
+                        await widget.repo.uploadAvatar(File(picked.path));
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                mobileText(strings, 'avatarUpdated'),
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(e.toString())));
+                        }
+                      } finally {
+                        if (mounted) setState(() => saving = false);
+                      }
+                    }
+                  },
+                  child: FutureBuilder<String?>(
+                    future: widget.repo.api.authStore.accessToken,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && widget.actor.avatar != null) {
+                        return CircleAvatar(
+                          radius: 30,
+                          backgroundImage: NetworkImage(
+                            apiBaseUrl + widget.actor.avatar!.downloadUrl,
+                            headers: {
+                              'Authorization': 'Bearer ' + snapshot.data!,
+                            },
+                          ),
+                        );
+                      }
+                      return CircleAvatar(
+                        radius: 30,
+                        child: Text(initials.isEmpty ? '?' : initials),
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(

@@ -83,23 +83,29 @@ class _TechnicianJobsState extends State<TechnicianJobs> {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.only(right: 8),
-                children: [
-                  ['ALL', 'all'],
-                  ['NEW', 'new'],
-                  ['ASSIGNED', 'assigned'],
-                  ['IN_PROGRESS', 'inProgress'],
-                  ['SCHEDULED', 'scheduled'],
-                  ['WAITING_FOR_PARTS', 'waitingParts'],
-                  ['COMPLETED', 'completed'],
-                  ['CANCELLED', 'cancelled'],
-                ].map((filter) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(mobileText(language, filter[1])),
-                    selected: statusFilter == filter[0],
-                    onSelected: (_) => setState(() => statusFilter = filter[0]),
-                  ),
-                )).toList(),
+                children:
+                    [
+                          ['ALL', 'all'],
+                          ['NEW', 'new'],
+                          ['ASSIGNED', 'assigned'],
+                          ['IN_PROGRESS', 'inProgress'],
+                          ['SCHEDULED', 'scheduled'],
+                          ['WAITING_FOR_PARTS', 'waitingParts'],
+                          ['COMPLETED', 'completed'],
+                          ['CANCELLED', 'cancelled'],
+                        ]
+                        .map(
+                          (filter) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              label: Text(mobileText(language, filter[1])),
+                              selected: statusFilter == filter[0],
+                              onSelected: (_) =>
+                                  setState(() => statusFilter = filter[0]),
+                            ),
+                          ),
+                        )
+                        .toList(),
               ),
             ),
             const SizedBox(height: 8),

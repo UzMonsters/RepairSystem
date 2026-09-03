@@ -104,12 +104,20 @@ class CustomerRepository {
   CustomerRepository(this.api);
   final ApiClient api;
 
-  Future<PageResponse<RequestItem>> requests({int page = 0}) async =>
-      PageResponse.fromJson(
-        await api.get('/me/repair-requests', query: {'page': page, 'size': 20})
-            as Map<String, dynamic>,
-        RequestItem.fromJson,
-      );
+  Future<PageResponse<RequestItem>> requests({
+    int page = 0,
+    String? status,
+  }) async => PageResponse.fromJson(
+    await api.get(
+      '/me/repair-requests',
+      query: {
+        'page': page,
+        'size': 20,
+        if (status != null && status.isNotEmpty) 'status': status,
+      },
+    ) as Map<String, dynamic>,
+    RequestItem.fromJson,
+  );
   Future<RequestItem> request(int id) async => RequestItem.fromJson(
     await api.get('/me/repair-requests/$id') as Map<String, dynamic>,
   );
@@ -323,6 +331,10 @@ class MobileProfileRepository {
 
   Future<Actor> get() async =>
       Actor.fromJson(await api.get('/me') as Map<String, dynamic>);
+
+  Future<void> uploadAvatar(File file) async {
+    await api.upload('/me/avatar', file);
+  }
 
   Future<Actor> update({String? fullName, String? preferredLanguage}) async =>
       Actor.fromJson(

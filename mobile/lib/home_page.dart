@@ -75,39 +75,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               categories: categories,
               realtime: realtime,
             ),
-            NotificationsScreen(
-              repo: notifications,
-              realtime: realtime,
-            ),
-            ProfileScreen(
-              actor: widget.actor,
-              repo: profile,
-              onLogout: logout,
-            ),
+            NotificationsScreen(repo: notifications, realtime: realtime),
+            ProfileScreen(actor: widget.actor, repo: profile, onLogout: logout),
           ]
         : [
-            TechnicianJobs(
-              repo: technician,
-              chat: chat,
-              realtime: realtime,
-            ),
-            NotificationsScreen(
-              repo: notifications,
-              realtime: realtime,
-            ),
-            ProfileScreen(
-              actor: widget.actor,
-              repo: profile,
-              onLogout: logout,
-            ),
+            TechnicianJobs(repo: technician, chat: chat, realtime: realtime),
+            NotificationsScreen(repo: notifications, realtime: realtime),
+            ProfileScreen(actor: widget.actor, repo: profile, onLogout: logout),
           ];
     return Scaffold(
       appBar: AppBar(
         title: Text(
           tab == 0
               ? (isCustomer
-                  ? mobileText(language, 'requests')
-                  : 'Assigned jobs')
+                    ? mobileText(language, 'requests')
+                    : 'Assigned jobs')
               : tab == 1
               ? mobileText(language, 'notifications')
               : mobileText(language, 'profile'),

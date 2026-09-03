@@ -87,15 +87,13 @@ class _RequestDetailsState extends State<RequestDetails> {
     try {
       await widget.repo.uploadPhoto(currentItem.id, File(picked.path));
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Photo uploaded')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Photo uploaded')));
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$error')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$error')));
       }
     } finally {
       if (mounted) setState(() => uploading = false);
@@ -155,9 +153,8 @@ class _RequestDetailsState extends State<RequestDetails> {
           onPressed: () async {
             await widget.repo.submitReview(currentItem.id, 5, '');
             if (context.mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Review sent')));
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(const SnackBar(content: Text('Review sent')));
             }
           },
           child: const Text('Submit 5-star review'),

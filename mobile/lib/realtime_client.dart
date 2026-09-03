@@ -188,10 +188,7 @@ class MobileRealtimeClient {
   void send(String destination, Map<String, dynamic> body) {
     if (_client == null || !_connected) return;
     try {
-      _client?.send(
-        destination: destination,
-        body: jsonEncode(body),
-      );
+      _client?.send(destination: destination, body: jsonEncode(body));
     } catch (e) {
       MobileLog.warning('Realtime send failed to $destination: $e');
     }

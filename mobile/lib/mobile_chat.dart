@@ -36,7 +36,8 @@ class MobileChatMessage {
   }) {
     final senderId = (json['senderId'] as num?)?.toInt() ?? 0;
     final senderType = json['senderType']?.toString() ?? '';
-    final isOutgoing = currentActorId != null &&
+    final isOutgoing =
+        currentActorId != null &&
         senderId == currentActorId &&
         (currentActorType == null || senderType == currentActorType);
 
@@ -46,9 +47,8 @@ class MobileChatMessage {
       senderType: senderType,
       senderId: senderId,
       clientMessageId: json['clientMessageId']?.toString(),
-      messageType: json['messageType']?.toString() ??
-          json['type']?.toString() ??
-          'TEXT',
+      messageType:
+          json['messageType']?.toString() ?? json['type']?.toString() ?? 'TEXT',
       text: json['text']?.toString() ?? '',
       createdAt: json['createdAt']?.toString(),
       isOutgoing: isOutgoing,
@@ -61,7 +61,8 @@ class MobileChatMessage {
     int? currentActorId,
     String? currentActorType,
   }) {
-    final isOutgoing = currentActorId != null &&
+    final isOutgoing =
+        currentActorId != null &&
         payload.senderId == currentActorId &&
         (currentActorType == null || payload.senderType == currentActorType);
 
@@ -123,8 +124,9 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
 
   Future<void> _initChat() async {
     try {
-      final conversation =
-          await widget.repo.getOrCreateForRequest(widget.requestId);
+      final conversation = await widget.repo.getOrCreateForRequest(
+        widget.requestId,
+      );
       conversationId = (conversation['id'] as num?)?.toInt();
       if (conversationId != null) {
         await _loadMessages(conversationId!);
@@ -141,11 +143,13 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
     try {
       final page = await widget.repo.messages(convId);
       final fetched = page.content
-          .map((json) => MobileChatMessage.fromJson(
-                json,
-                currentActorId: widget.currentActorId,
-                currentActorType: widget.currentActorType,
-              ))
+          .map(
+            (json) => MobileChatMessage.fromJson(
+              json,
+              currentActorId: widget.currentActorId,
+              currentActorType: widget.currentActorType,
+            ),
+          )
           .toList();
 
       if (mounted) {
@@ -158,11 +162,15 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
               _messages.add(msg);
             }
           }
-          _messages.sort((a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''));
+          _messages.sort(
+            (a, b) => (b.createdAt ?? '').compareTo(a.createdAt ?? ''),
+          );
         });
 
         if (fetched.isNotEmpty) {
-          final maxId = fetched.map((m) => m.id).reduce((a, b) => a > b ? a : b);
+          final maxId = fetched
+              .map((m) => m.id)
+              .reduce((a, b) => a > b ? a : b);
           unawaited(widget.repo.markRead(convId, maxId));
         }
       }
@@ -214,7 +222,8 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
       if (payload.clientMessageId != null &&
           _clientMessageIds.contains(payload.clientMessageId)) {
         final index = _messages.indexWhere(
-            (m) => m.clientMessageId == payload.clientMessageId && m.isPending);
+          (m) => m.clientMessageId == payload.clientMessageId && m.isPending,
+        );
         if (index != -1) {
           _messages[index] = MobileChatMessage.fromRealtime(
             payload,
@@ -281,13 +290,10 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
     if (_sendTypingThrottleTimer?.isActive == true) return;
 
     _sendTypingThrottleTimer = Timer(const Duration(milliseconds: 2500), () {});
-    widget.realtime?.send(
-      '/app/chat.typing',
-      {
-        'conversationId': conversationId,
-        'typing': value.isNotEmpty,
-      },
-    );
+    widget.realtime?.send('/app/chat.typing', {
+      'conversationId': conversationId,
+      'typing': value.isNotEmpty,
+    });
   }
 
   Future<void> send() async {
@@ -359,9 +365,7 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(mobileText(widget.language, 'chat')),
-    ),
+    appBar: AppBar(title: Text(mobileText(widget.language, 'chat'))),
     body: Column(
       children: [
         if (loading)
@@ -390,7 +394,9 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
                     decoration: BoxDecoration(
                       color: message.isOutgoing
                           ? Theme.of(context).colorScheme.primaryContainer
-                          : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          : Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -402,7 +408,9 @@ class _MobileChatScreenState extends State<MobileChatScreen> {
                           message.text,
                           style: TextStyle(
                             color: message.isOutgoing
-                                ? Theme.of(context).colorScheme.onPrimaryContainer
+                                ? Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer
                                 : Theme.of(context).colorScheme.onSurface,
                             fontSize: 15,
                           ),

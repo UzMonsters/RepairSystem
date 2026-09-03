@@ -225,10 +225,7 @@ class ApiClient {
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final newAccess = data['accessToken'] as String;
     final newRefresh = data['refreshToken'] as String;
-    await authStore.save(
-      access: newAccess,
-      refresh: newRefresh,
-    );
+    await authStore.save(access: newAccess, refresh: newRefresh);
     onTokenRefreshed?.call(newAccess);
     return true;
   }

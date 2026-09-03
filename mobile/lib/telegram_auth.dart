@@ -53,8 +53,8 @@ class TelegramAuthService {
     final redirectUri = configuredRedirectUri.isNotEmpty
         ? _normalizeTelegramRedirectUri(configuredRedirectUri)
         : (role == 'TECHNICIAN'
-            ? 'https://app1859875063-login.tg.dev'
-            : 'https://app1074067825-login.tg.dev');
+              ? 'https://app1859875063-login.tg.dev'
+              : 'https://app1074067825-login.tg.dev');
 
     MobileLog.info(
       '[TELEGRAM_LOGIN_START] role=$role clientId=$clientId redirectHost=${Uri.tryParse(redirectUri)?.host ?? 'unknown'}',
@@ -78,7 +78,9 @@ class TelegramAuthService {
     }
 
     if (idToken == null || idToken.isEmpty) {
-      MobileLog.warning('[TELEGRAM_LOGIN_ERROR] role=$role reason=empty_token_returned');
+      MobileLog.warning(
+        '[TELEGRAM_LOGIN_ERROR] role=$role reason=empty_token_returned',
+      );
       throw StateError('Telegram did not return an ID token.');
     }
 

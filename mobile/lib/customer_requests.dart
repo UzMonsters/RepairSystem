@@ -21,66 +21,224 @@ class CustomerRequests extends StatefulWidget {
 
 class _CustomerRequestsState extends State<CustomerRequests> {
   late Future<PageResponse<RequestItem>> future;
-  late Future<List<Category>> categories;
+  String? statusFilter;
+  StreamSubscription<RealtimeEnvelope<dynamic>>? eventSubscription;
+  StreamSubscription<void>? reconnectSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    final stream = widget.events ?? widget.realtime?.events;
+    eventSubscription = stream?.listen((envelope) {
+      if (!envelope.type.isRequestDomainEvent) return;
+      if (mounted) _load();
+    });
+    reconnectSubscription = widget.realtime?.onReconnected.listen((_) {
+      if (mounted) _load();
+    });
+  }
+
+  void _load() {
+    setState(() => future = widget.repo.requests(status: statusFilter));
+  }
+
+  @override
+  void dispose() {
+    eventSubscription?.cancel();
+    reconnectSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    floatingActionButton: FloatingActionButton(
+      onPressed: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CreateRequestScreen(
+              repo: widget.repo,
+              categories: widget.categories,
+            ),
+          ),
+        );
+        if (result == true && mounted) {
+          _load();
+        }
+      },
+      child: const Icon(Icons.add),
+    ),
+    body: Column(
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              _buildFilterChip(
+                mobileText(widget.repo.api.language, 'all'),
+                null,
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                mobileText(widget.repo.api.language, 'new'),
+                'NEW',
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                mobileText(widget.repo.api.language, 'inProgress'),
+                'IN_PROGRESS',
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                mobileText(widget.repo.api.language, 'completed'),
+                'COMPLETED',
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async => _load(),
+            child: FutureBuilder<PageResponse<RequestItem>>(
+              future: future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return ListView(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          '${snapshot.error}',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                final items = snapshot.data?.content ?? [];
+                if (items.isEmpty) {
+                  return ListView(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Center(
+                          child: Text(
+                            mobileText(widget.repo.api.language, 'noRequests'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(item.number),
+                        subtitle: Text(item.description),
+                        trailing: Text(item.status),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RequestDetails(
+                              repo: widget.repo,
+                              chat: widget.chat,
+                              item: item,
+                              realtime: widget.realtime,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildFilterChip(String label, String? value) {
+    return FilterChip(
+      label: Text(label),
+      selected: statusFilter == value,
+      onSelected: (selected) {
+        setState(() {
+          statusFilter = selected ? value : null;
+          _load();
+        });
+      },
+    );
+  }
+}
+
+class CreateRequestScreen extends StatefulWidget {
+  const CreateRequestScreen({
+    super.key,
+    required this.repo,
+    required this.categories,
+  });
+  final CustomerRepository repo;
+  final CategoryRepository categories;
+
+  @override
+  State<CreateRequestScreen> createState() => _CreateRequestScreenState();
+}
+
+class _CreateRequestScreenState extends State<CreateRequestScreen> {
+  late Future<List<Category>> categoriesFuture;
   int selectedCategoryId = 1;
   double? latitude;
   double? longitude;
   bool locating = false;
-  StreamSubscription<RealtimeEnvelope<dynamic>>? eventSubscription;
-  StreamSubscription<void>? reconnectSubscription;
   final description = TextEditingController();
   final address = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    future = widget.repo.requests();
-    categories = loadCategories();
-    final stream = widget.events ?? widget.realtime?.events;
-    eventSubscription = stream?.listen((envelope) {
-      if (!envelope.type.isRequestDomainEvent) return;
-      if (mounted) setState(() => future = widget.repo.requests());
-    });
-    reconnectSubscription = widget.realtime?.onReconnected.listen((_) {
-      if (mounted) setState(() => future = widget.repo.requests());
-    });
+    categoriesFuture = loadCategories();
   }
 
   Future<List<Category>> loadCategories() async {
     try {
-      final result = await widget.categories.list();
-      if (result.isNotEmpty) selectedCategoryId = result.first.id;
-      return result;
+      final list = await widget.categories.list();
+      if (list.isNotEmpty) selectedCategoryId = list.first.id;
+      return list;
     } catch (_) {
-      return const [];
+      return [];
     }
-  }
-
-  @override
-  void dispose() {
-    description.dispose();
-    address.dispose();
-    eventSubscription?.cancel();
-    reconnectSubscription?.cancel();
-    super.dispose();
   }
 
   Future<void> createRequest() async {
     if (description.text.trim().isEmpty) return;
     if (selectedCategoryId <= 0) return;
-    await widget.repo.createRequest(
-      description: description.text.trim(),
-      categoryId: selectedCategoryId,
-      address: address.text.trim().isEmpty ? null : address.text.trim(),
-      latitude: latitude,
-      longitude: longitude,
-      locationSource: latitude == null ? null : 'MOBILE',
-    );
-    description.clear();
-    address.clear();
-    latitude = null;
-    longitude = null;
-    setState(() => future = widget.repo.requests());
+    try {
+      await widget.repo.createRequest(
+        description: description.text.trim(),
+        categoryId: selectedCategoryId,
+        address: address.text.trim().isEmpty ? null : address.text.trim(),
+        latitude: latitude,
+        longitude: longitude,
+        locationSource: latitude == null ? null : 'MOBILE',
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.toString())));
+      }
+    }
   }
 
   Future<void> useCurrentLocation() async {
@@ -103,16 +261,10 @@ class _CustomerRequestsState extends State<CustomerRequests> {
         latitude = position.latitude;
         longitude = position.longitude;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(mobileText(widget.repo.api.language, 'locationReady')),
-        ),
-      );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$error')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$error')));
       }
     } finally {
       if (mounted) setState(() => locating = false);
@@ -147,141 +299,79 @@ class _CustomerRequestsState extends State<CustomerRequests> {
   }
 
   @override
-  Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: () async => setState(() => future = widget.repo.requests()),
-    child: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  mobileText(widget.repo.api.language, 'createRequest'),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: description,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    labelText: mobileText(
-                      widget.repo.api.language,
-                      'description',
-                    ),
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                FutureBuilder<List<Category>>(
-                  future: categories,
-                  builder: (context, snapshot) {
-                    final items = snapshot.data ?? const <Category>[];
-                    if (items.isEmpty) return const SizedBox.shrink();
-                    return OutlinedButton.icon(
-                      onPressed: () => chooseCategory(items),
-                      icon: const Icon(Icons.add),
-                      label: Text(
-                        items
-                            .firstWhere(
-                              (item) => item.id == selectedCategoryId,
-                              orElse: () => items.first,
-                            )
-                            .name,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: address,
-                  maxLength: 500,
-                  decoration: InputDecoration(
-                    labelText: mobileText(widget.repo.api.language, 'location'),
-                    border: const OutlineInputBorder(),
-                    prefixIcon: IconButton(
-                      tooltip: mobileText(
-                        widget.repo.api.language,
-                        'getLocation',
-                      ),
-                      onPressed: locating ? null : useCurrentLocation,
-                      icon: const Icon(Icons.location_on_outlined),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                OutlinedButton.icon(
-                  onPressed: locating ? null : useCurrentLocation,
-                  icon: locating
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.my_location),
-                  label: Text(
-                    latitude == null
-                        ? mobileText(widget.repo.api.language, 'getLocation')
-                        : '${latitude!.toStringAsFixed(5)}, ${longitude!.toStringAsFixed(5)}',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                FilledButton(
-                  onPressed: createRequest,
-                  child: Text(mobileText(widget.repo.api.language, 'create')),
-                ),
-              ],
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(mobileText(widget.repo.api.language, 'createRequest')),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          TextField(
+            controller: description,
+            maxLines: 3,
+            decoration: InputDecoration(
+              labelText: mobileText(widget.repo.api.language, 'description'),
+              border: const OutlineInputBorder(),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        FutureBuilder<PageResponse<RequestItem>>(
-          future: future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Text(
-                '${snapshot.error}',
-                style: const TextStyle(color: Colors.red),
+          const SizedBox(height: 10),
+          FutureBuilder<List<Category>>(
+            future: categoriesFuture,
+            builder: (context, snapshot) {
+              final items = snapshot.data ?? const <Category>[];
+              if (items.isEmpty) return const SizedBox.shrink();
+              return OutlinedButton.icon(
+                onPressed: () => chooseCategory(items),
+                icon: const Icon(Icons.add),
+                label: Text(
+                  items
+                      .firstWhere(
+                        (item) => item.id == selectedCategoryId,
+                        orElse: () => items.first,
+                      )
+                      .name,
+                ),
               );
-            }
-            final items = snapshot.data?.content ?? [];
-            if (items.isEmpty) {
-              return Center(
-                child: Text(mobileText(widget.repo.api.language, 'noRequests')),
-              );
-            }
-            return Column(
-              children: items
-                  .map(
-                    (item) => Card(
-                      child: ListTile(
-                        title: Text(item.number),
-                        subtitle: Text(item.description),
-                        trailing: Text(item.status),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RequestDetails(
-                              repo: widget.repo,
-                              chat: widget.chat,
-                              item: item,
-                              realtime: widget.realtime,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+            },
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: address,
+            maxLength: 500,
+            decoration: InputDecoration(
+              labelText: mobileText(widget.repo.api.language, 'location'),
+              border: const OutlineInputBorder(),
+              prefixIcon: IconButton(
+                tooltip: mobileText(widget.repo.api.language, 'getLocation'),
+                onPressed: locating ? null : useCurrentLocation,
+                icon: const Icon(Icons.location_on_outlined),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          OutlinedButton.icon(
+            onPressed: locating ? null : useCurrentLocation,
+            icon: locating
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                  .toList(),
-            );
-          },
-        ),
-      ],
-    ),
-  );
+                : const Icon(Icons.my_location),
+            label: Text(
+              latitude == null
+                  ? mobileText(widget.repo.api.language, 'getLocation')
+                  : '${latitude!.toStringAsFixed(5)}, ${longitude!.toStringAsFixed(5)}',
+            ),
+          ),
+          const SizedBox(height: 10),
+          FilledButton(
+            onPressed: createRequest,
+            child: Text(mobileText(widget.repo.api.language, 'create')),
+          ),
+        ],
+      ),
+    );
+  }
 }

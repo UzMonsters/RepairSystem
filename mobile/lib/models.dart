@@ -45,18 +45,23 @@ class Actor {
     required this.fullName,
     this.phone,
     this.preferredLanguage,
+    this.avatar,
   });
   final String type;
   final int id;
   final String fullName;
   final String? phone;
   final String? preferredLanguage;
+  final Avatar? avatar;
   factory Actor.fromJson(Map<String, dynamic> json) => Actor(
     type: '${json['type'] ?? json['actorType']}',
     id: json['id'] as int,
     fullName: '${json['fullName']}',
     phone: json['phone']?.toString(),
     preferredLanguage: json['preferredLanguage']?.toString(),
+    avatar: json['avatar'] != null
+        ? Avatar.fromJson(json['avatar'] as Map<String, dynamic>)
+        : null,
   );
 }
 
@@ -738,4 +743,21 @@ class RealtimeEnvelope<T> {
       eventId: eventId,
     );
   }
+}
+
+class Avatar {
+  const Avatar({
+    required this.attachmentId,
+    required this.fileName,
+    required this.downloadUrl,
+  });
+  final int attachmentId;
+  final String fileName;
+  final String downloadUrl;
+
+  factory Avatar.fromJson(Map<String, dynamic> json) => Avatar(
+    attachmentId: json['attachmentId'] as int,
+    fileName: '${json['fileName']}',
+    downloadUrl: '${json['downloadUrl']}',
+  );
 }
